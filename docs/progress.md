@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 23 |
-| 已完成 | 8 |
+| 已完成 | 9 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[09 - Query Rewrite](./prompts/09-query-rewrite.md)
+**当前建议下一步**：[10 - RAG 路由](./prompts/10-rag-router.md)
 
 
 ---
@@ -32,7 +32,7 @@
 | 06 | [入站护栏](./prompts/06-guardrails-inbound.md) | ✅ | 2026-05-19 | `guardrails/inbound.py`；`GUARDRAILS_ENABLED`；Gateway 400；7 用例 |
 | 07 | [mem0 读取](./prompts/07-mem0-read.md) | ✅ | 2026-05-19 | `memory/mem0_client.py`；`MEM0_MOCK`；`test_mem0_read.py` 9 用例 |
 | 08 | [Checkpoint 历史读取](./prompts/08-checkpoint-history-read.md) | ✅ | 2026-05-19 | `memory/history.py`；`ROLLING_SUMMARY_METADATA_KEY`；`test_history.py` 10 用例 |
-| 09 | [Query Rewrite](./prompts/09-query-rewrite.md) | ⬜ | | |
+| 09 | [Query Rewrite](./prompts/09-query-rewrite.md) | ✅ | 2026-05-19 | `rag/rewrite.py`；`REWRITE_MODEL_NAME`；`rewrite_node`；`test_rewrite.py` 9 用例 |
 | 10 | [RAG 路由](./prompts/10-rag-router.md) | ⬜ | | |
 | 11 | [RAG 检索管线](./prompts/11-rag-retrieval.md) | ⬜ | | |
 | 12 | [上下文组装 K+M+summary](./prompts/12-context-assembly.md) | ⬜ | | |
@@ -65,3 +65,4 @@
 | 2026-05-19 | 文档：任务 07/17、architecture §4/§10.1 明确 mem0 仅本地 OSS+Qdrant，禁止托管云 |
 | 2026-05-19 | 完成任务 07：本地 mem0 读取 + Qdrant 配置；`mem0ai`/`qdrant-client`；`test_mem0_read.py` 9 用例 |
 | 2026-05-19 | 完成任务 08：checkpoint 历史读取 + rolling summary；`test_history.py` 10 用例（含 integration） |
+| 2026-05-19 | 完成任务 09：mem0+短期 query rewrite、`rewrite_node`；`langchain-openai`；`test_rewrite.py` 9 用例 |

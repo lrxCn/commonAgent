@@ -56,6 +56,10 @@ class Settings(BaseSettings):
         default="Pro/deepseek-ai/DeepSeek-V3.2",
         description="Default chat model identifier on the provider.",
     )
+    REWRITE_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Chat model for query rewrite; defaults to OPENAI_MODEL_NAME when unset.",
+    )
 
     # --- Embedding ---
     EMBEDDING_MODEL: str = Field(
