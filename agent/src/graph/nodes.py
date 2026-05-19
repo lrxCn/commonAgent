@@ -11,6 +11,11 @@ from langgraph.types import RunnableConfig
 
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
+from graph.rag_subagent import (
+    apply_rag_subagent_merge,
+    run_rag_subagent_retrieval,
+    should_delegate_rag_subagent,
+)
 from graph.supervisor import (
     DEFAULT_SUPERVISOR_INSTRUCTIONS,
     build_supervisor_instructions,
@@ -176,6 +181,37 @@ def rag_retrieval_graph_node(
         "rag_skipped": state.get("rag_skipped", False),
     }
     return _merge_carry(state, rag_retrieval_node(cast(Any, payload)))
+
+
+def route_after_rag_retrieval(
+    state: AgentState,
+) -> Literal["rag_subagent", "context_assembly"]:
+    """Route to RagSubAgent when primary chunks are empty or below score threshold."""
+    if should_delegate_rag_subagent(
+        rag_skipped=bool(state.get("rag_skipped")),
+        rag_chunks=state.get("rag_chunks") or [],
+        settings=get_settings(),
+    ):
+        return "rag_subagent"
+    return "context_assembly"
+
+
+def rag_subagent_graph_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+) -> dict[str, list[RagChunk]]:
+    """Second-pass retrieval; merge and dedupe into ``rag_chunks`` (no third pass)."""
+    ctx = request_context_from_runtime(runtime)
+    role_id = ctx.role_id
+    query = _text(state.get("rewritten_query"))
+    primary = list(state.get("rag_chunks") or [])
+
+    if not role_id or not query:
+        return _merge_carry(state, {"rag_chunks": primary})
+
+    secondary = run_rag_subagent_retrieval(role_id, query, settings=get_settings())
+    merged = apply_rag_subagent_merge(primary, secondary, settings=get_settings())
+    return _merge_carry(state, {"rag_chunks": merged})
 
 
 def context_assembly_node(

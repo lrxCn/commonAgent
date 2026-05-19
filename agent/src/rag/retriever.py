@@ -403,6 +403,7 @@ def build_retrieval_metadata(
     sparse_count: int,
     result_count: int,
     mock: bool,
+    second_pass: bool = False,
 ) -> dict[str, Any]:
     """Span metadata for LangSmith (task 21)."""
     return {
@@ -412,6 +413,7 @@ def build_retrieval_metadata(
         "rag.sparse_hits": sparse_count,
         "rag.result_count": result_count,
         "rag.mock": mock,
+        "rag.second_pass": second_pass,
     }
 
 
@@ -420,6 +422,7 @@ def retrieve(
     query: str,
     *,
     top_k: int | None = None,
+    second_pass: bool = False,
     settings: Settings | None = None,
 ) -> list[RagChunk]:
     """
@@ -437,7 +440,18 @@ def retrieve(
     final_k = top_k if top_k is not None else cfg.RERANK_TOP_K
 
     if cfg.QDRANT_MOCK:
-        return _mock_retrieve(rid, q, top_k=final_k)
+        chunks = _mock_retrieve(rid, q, top_k=final_k)
+        metadata = build_retrieval_metadata(
+            role_id=rid,
+            query=q,
+            dense_count=0,
+            sparse_count=0,
+            result_count=len(chunks),
+            mock=True,
+            second_pass=second_pass,
+        )
+        logger.debug("rag retrieval metadata: %s", metadata)
+        return chunks
 
     client = _get_qdrant_client(cfg)
     collection = cfg.QDRANT_COLLECTION_KB
@@ -473,6 +487,7 @@ def retrieve(
         sparse_count=len(sparse_hits),
         result_count=len(chunks),
         mock=False,
+        second_pass=second_pass,
     )
     logger.debug("rag retrieval metadata: %s", metadata)
     return chunks

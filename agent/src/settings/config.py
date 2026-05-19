@@ -90,6 +90,18 @@ class Settings(BaseSettings):
         default=10,
         description="Maximum number of candidates sent to the reranker.",
     )
+    RAG_SUBAGENT_SCORE_THRESHOLD: float = Field(
+        default=0.3,
+        description="Delegate RagSubAgent when primary max chunk score is below this.",
+    )
+    RAG_SUBAGENT_TOP_K: int | None = Field(
+        default=None,
+        description="Second-pass retrieval top_k; defaults to 2× RERANK_TOP_K when unset.",
+    )
+    RAG_CHUNKS_MAX: int = Field(
+        default=10,
+        description="Maximum merged rag_chunks after primary + RagSubAgent passes.",
+    )
 
     # --- Qdrant ---
     QDRANT_HOST: str = Field(

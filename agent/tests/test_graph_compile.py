@@ -35,6 +35,7 @@ def test_compile_graph_has_expected_nodes() -> None:
         "rewrite",
         "rag_router",
         "rag_retrieval",
+        "rag_subagent",
         "context_assembly",
         "supervisor",
     }

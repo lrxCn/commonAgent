@@ -12,8 +12,10 @@ from graph.nodes import (
     load_memory_node,
     rag_retrieval_graph_node,
     rag_router_graph_node,
+    rag_subagent_graph_node,
     rewrite_graph_node,
     route_after_inbound,
+    route_after_rag_retrieval,
     supervisor_node,
 )
 from graph.context import GraphContextSchema
@@ -36,6 +38,7 @@ def compile_graph(
     builder.add_node("rewrite", rewrite_graph_node)
     builder.add_node("rag_router", rag_router_graph_node)
     builder.add_node("rag_retrieval", rag_retrieval_graph_node)
+    builder.add_node("rag_subagent", rag_subagent_graph_node)
     builder.add_node("context_assembly", context_assembly_node)
     builder.add_node("supervisor", supervisor_node)
 
@@ -48,7 +51,12 @@ def compile_graph(
     builder.add_edge("load_memory", "rewrite")
     builder.add_edge("rewrite", "rag_router")
     builder.add_edge("rag_router", "rag_retrieval")
-    builder.add_edge("rag_retrieval", "context_assembly")
+    builder.add_conditional_edges(
+        "rag_retrieval",
+        route_after_rag_retrieval,
+        {"rag_subagent": "rag_subagent", "context_assembly": "context_assembly"},
+    )
+    builder.add_edge("rag_subagent", "context_assembly")
     builder.add_edge("context_assembly", "supervisor")
     builder.add_edge("supervisor", END)
 

@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 24 |
-| 已完成 | 14 |
+| 已完成 | 15 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[14 - RagSubAgent 二查](./prompts/14-rag-subagent.md)
+**当前建议下一步**：[15 - 出站护栏](./prompts/15-guardrails-outbound.md)
 
 
 ---
@@ -38,7 +38,7 @@
 | 12 | [上下文组装 K+M+summary](./prompts/12-context-assembly.md) | ✅ | 2026-05-19 | `memory/assembly.py`；`build_context`；`test_context_assembly.py` 9 用例 |
 | 13 | [Supervisor 主图](./prompts/13-supervisor-graph.md) | ✅ | 2026-05-19 | `graph/` state+nodes+build+supervisor；`langgraph.json`→`get_graph`；mock 测试 5 用例 |
 | 13.5 | [State 与 context_schema 拆分](./prompts/13.5_fix_state_2_context_schema.md) | ✅ | 2026-05-19 | `graph/context.py`；`EphemeralValue` + 节点内 carry；`invoke(context=)` |
-| 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ⬜ | | 依赖 13；**建议 13.5 ✅ 后** |
+| 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ✅ | 2026-05-19 | `graph/rag_subagent.py`；条件边；`RAG_SUBAGENT_*`；`test_rag_subagent.py` 13 用例 |
 | 15 | [出站护栏](./prompts/15-guardrails-outbound.md) | ⬜ | | |
 | 16 | [client_actions 输出契约](./prompts/16-client-actions-schema.md) | ⬜ | | |
 | 17 | [异步 Summary + mem0 写入](./prompts/17-async-summary-mem0.md) | ⬜ | | |
@@ -73,3 +73,4 @@
 | 2026-05-19 | 完成任务 13：Supervisor 主图（护栏→并行 mem0/history→rewrite→RAG→组装→deepagents）；`test_graph_*.py` 5 用例 |
 | 2026-05-19 | 文档：新增任务 13.5（State/context_schema 拆分）及影响面清单；architecture §3.1 |
 | 2026-05-19 | 完成任务 13.5：`GraphContextSchema` + `EphemeralValue`；图测试 7 用例 |
+| 2026-05-19 | 完成任务 14：RagSubAgent 规则委派二查、合并去重、`retrieve(second_pass=True)` |

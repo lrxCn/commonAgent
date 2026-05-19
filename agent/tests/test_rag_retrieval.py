@@ -151,3 +151,17 @@ def test_build_retrieval_metadata_fields() -> None:
     assert meta["rag.dense_hits"] == 3
     assert meta["rag.result_count"] == 2
     assert meta["rag.mock"] is False
+    assert meta["rag.second_pass"] is False
+
+
+def test_build_retrieval_metadata_second_pass_flag() -> None:
+    meta = build_retrieval_metadata(
+        role_id="role-sales",
+        query="q",
+        dense_count=0,
+        sparse_count=0,
+        result_count=1,
+        mock=True,
+        second_pass=True,
+    )
+    assert meta["rag.second_pass"] is True
