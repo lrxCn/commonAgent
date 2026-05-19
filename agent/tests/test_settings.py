@@ -121,3 +121,13 @@ def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch, MEM0_MOCK="false")
     assert settings.MEM0_MOCK is False
+
+
+def test_qdrant_mock_defaults_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch)
+    assert settings.QDRANT_MOCK is True
+
+
+def test_qdrant_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch, QDRANT_MOCK="false")
+    assert settings.QDRANT_MOCK is False
