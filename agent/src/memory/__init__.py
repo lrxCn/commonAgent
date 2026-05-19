@@ -8,6 +8,13 @@ from memory.history import (
     get_rolling_summary,
     load_thread_messages,
 )
+from memory.assembly import (
+    ContextAssemblyError,
+    build_context,
+    build_system_prompt,
+    select_turn_index_ranges,
+    split_into_turns,
+)
 from memory.mem0_client import (
     Mem0UserIdError,
     afetch_user_memories,
@@ -16,10 +23,13 @@ from memory.mem0_client import (
 )
 
 __all__ = [
+    "ContextAssemblyError",
     "Mem0UserIdError",
     "ROLLING_SUMMARY_METADATA_KEY",
     "ThreadIdError",
     "afetch_user_memories",
+    "build_context",
+    "build_system_prompt",
     "count_turns",
     "fetch_user_memories",
     "format_mem0_for_system",

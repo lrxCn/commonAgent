@@ -145,6 +145,20 @@ class Settings(BaseSettings):
         description="When false, inbound/outbound text guardrails are skipped.",
     )
 
+    # --- Context assembly (code defaults only; not in .env contract) ---
+    CONTEXT_PREFIX_TURNS: int = Field(
+        default=4,
+        description="First K conversation turns in model messages (prefix).",
+    )
+    CONTEXT_RECENT_TURNS: int = Field(
+        default=20,
+        description="Last M conversation turns in model messages (recent window).",
+    )
+    CONTEXT_ORIGINAL_HUMAN_METADATA_KEY: str = Field(
+        default="original_human_content",
+        description="HumanMessage metadata key for pre-rewrite user text.",
+    )
+
     @field_validator(
         "LANGCHAIN_TRACING_V2",
         "GUARDRAILS_ENABLED",

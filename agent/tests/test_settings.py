@@ -40,6 +40,9 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.EMBEDDING_MODEL_DIMS == 1024
     assert settings.AGENT_PORT == 18080
     assert settings.qdrant_url == "http://localhost:6333"
+    assert settings.CONTEXT_PREFIX_TURNS == 4
+    assert settings.CONTEXT_RECENT_TURNS == 20
+    assert settings.CONTEXT_ORIGINAL_HUMAN_METADATA_KEY == "original_human_content"
 
 
 def test_qdrant_url_uses_host_and_port(monkeypatch: pytest.MonkeyPatch) -> None:

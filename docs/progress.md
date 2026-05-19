@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 23 |
-| 已完成 | 11 |
+| 已完成 | 12 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[12 - 上下文组装 K+M+summary](./prompts/12-context-assembly.md)
+**当前建议下一步**：[13 - Supervisor 主图](./prompts/13-supervisor-graph.md)
 
 
 ---
@@ -35,7 +35,7 @@
 | 09 | [Query Rewrite](./prompts/09-query-rewrite.md) | ✅ | 2026-05-19 | `rag/rewrite.py`；`REWRITE_MODEL_NAME`；`rewrite_node`；`test_rewrite.py` 9 用例 |
 | 10 | [RAG 路由](./prompts/10-rag-router.md) | ✅ | 2026-05-19 | `rag/router.py`；`RAG_ROUTER_MODE`；`rag_router_node`；`test_rag_router.py` 16 用例 |
 | 11 | [RAG 检索管线](./prompts/11-rag-retrieval.md) | ✅ | 2026-05-19 | `rag/retriever.py`；`QDRANT_MOCK`；`test_rag_retrieval.py` 12 用例 |
-| 12 | [上下文组装 K+M+summary](./prompts/12-context-assembly.md) | ⬜ | | |
+| 12 | [上下文组装 K+M+summary](./prompts/12-context-assembly.md) | ✅ | 2026-05-19 | `memory/assembly.py`；`build_context`；`test_context_assembly.py` 9 用例 |
 | 13 | [Supervisor 主图](./prompts/13-supervisor-graph.md) | ⬜ | | |
 | 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ⬜ | | |
 | 15 | [出站护栏](./prompts/15-guardrails-outbound.md) | ⬜ | | |
@@ -68,3 +68,4 @@
 | 2026-05-19 | 完成任务 09：mem0+短期 query rewrite、`rewrite_node`；`langchain-openai`；`test_rewrite.py` 9 用例 |
 | 2026-05-19 | 完成任务 10：RAG 混合路由（规则+LLM）、`rag_skipped`；`test_rag_router.py` 16 用例 |
 | 2026-05-19 | 完成任务 11：`retrieve` + `rag_retrieval_node`；dense/sparse(文本回退)+rerank；`QDRANT_MOCK` fixture |
+| 2026-05-19 | 完成任务 12：`build_context` K+M+summary 组装；prefix/recent 去重；`test_context_assembly.py` 9 用例 |
