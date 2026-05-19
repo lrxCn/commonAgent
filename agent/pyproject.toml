@@ -7,8 +7,10 @@ requires-python = ">=3.11"
 dependencies = [
     "deepagents>=0.4.0",
     "langgraph>=1.0.0",
+    "langgraph-checkpoint-postgres>=3.1.0",
     "langgraph-sdk>=0.1.0",
     "langsmith>=0.3.0",
+    "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.1",
 ]
@@ -25,6 +27,11 @@ dev = [
     "ruff>=0.8.0",
 ]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires live Postgres at DATABASE_URL",
+]
+
 [tool.uv.build-backend]
-module-name = ["deep_agent", "settings"]
+module-name = ["deep_agent", "memory", "settings"]
 source-include = ["langgraph.json", ".env.example", "Makefile"]
