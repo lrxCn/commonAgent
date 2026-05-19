@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 23 |
-| 已完成 | 12 |
+| 总任务数 | 24 |
+| 已完成 | 13 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[13 - Supervisor 主图](./prompts/13-supervisor-graph.md)
+**当前建议下一步**：[13.5 - State 与 context_schema 拆分](./prompts/fix_13.5_state_2_context_schema.md)（建议在 14 之前完成）
 
 
 ---
@@ -36,8 +36,9 @@
 | 10 | [RAG 路由](./prompts/10-rag-router.md) | ✅ | 2026-05-19 | `rag/router.py`；`RAG_ROUTER_MODE`；`rag_router_node`；`test_rag_router.py` 16 用例 |
 | 11 | [RAG 检索管线](./prompts/11-rag-retrieval.md) | ✅ | 2026-05-19 | `rag/retriever.py`；`QDRANT_MOCK`；`test_rag_retrieval.py` 12 用例 |
 | 12 | [上下文组装 K+M+summary](./prompts/12-context-assembly.md) | ✅ | 2026-05-19 | `memory/assembly.py`；`build_context`；`test_context_assembly.py` 9 用例 |
-| 13 | [Supervisor 主图](./prompts/13-supervisor-graph.md) | ⬜ | | |
-| 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ⬜ | | |
+| 13 | [Supervisor 主图](./prompts/13-supervisor-graph.md) | ✅ | 2026-05-19 | `graph/` state+nodes+build+supervisor；`langgraph.json`→`get_graph`；mock 测试 5 用例 |
+| 13.5 | [State 与 context_schema 拆分](./prompts/fix_13.5_state_2_context_schema.md) | ⬜ | | 修复 13：context_schema + 单轮字段 `EphemeralValue`（本期必做） |
+| 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ⬜ | | 依赖 13；**建议 13.5 ✅ 后** |
 | 15 | [出站护栏](./prompts/15-guardrails-outbound.md) | ⬜ | | |
 | 16 | [client_actions 输出契约](./prompts/16-client-actions-schema.md) | ⬜ | | |
 | 17 | [异步 Summary + mem0 写入](./prompts/17-async-summary-mem0.md) | ⬜ | | |
@@ -69,3 +70,5 @@
 | 2026-05-19 | 完成任务 10：RAG 混合路由（规则+LLM）、`rag_skipped`；`test_rag_router.py` 16 用例 |
 | 2026-05-19 | 完成任务 11：`retrieve` + `rag_retrieval_node`；dense/sparse(文本回退)+rerank；`QDRANT_MOCK` fixture |
 | 2026-05-19 | 完成任务 12：`build_context` K+M+summary 组装；prefix/recent 去重；`test_context_assembly.py` 9 用例 |
+| 2026-05-19 | 完成任务 13：Supervisor 主图（护栏→并行 mem0/history→rewrite→RAG→组装→deepagents）；`test_graph_*.py` 5 用例 |
+| 2026-05-19 | 文档：新增任务 13.5（State/context_schema 拆分）及影响面清单；architecture §3.1 |

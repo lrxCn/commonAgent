@@ -1,0 +1,227 @@
+# 13.5 - State 与 context_schema 拆分（修复 13）
+
+## 依赖
+
+13
+
+## 目标
+
+将任务 **13** 中混写在 `AgentState` 里的字段，按 LangGraph 1.x 约定拆成：
+
+- **`state_schema`**：会话/checkpoint 需要保留或图内节点间传递的通道；
+- **`context_schema`**：每轮由 Gateway/Back 注入的 **request context**（`user_id` / `role_id` / `tools[]`），**不**作为 checkpoint 权限依据；
+- **`config.configurable.thread_id`**：继续作为 checkpointer 会话键（不变）。
+
+对齐架构硬约束：`user_id` / `role_id` / `tools[]` 不得长期依赖 checkpoint 里过期的 `state["context"]`。
+
+## 范围
+
+### 产出文件（实现时）
+
+| 路径 | 变更 |
+|------|------|
+| `agent/src/graph/context.py` | **新建**：`GraphContext` / `GraphContextSchema`（与 `gateway.schemas.RequestContext` 对齐，可 `model_dump` 或 TypedDict） |
+| `agent/src/graph/state.py` | **收窄** `AgentState`：移除 `context`；移除 `user_message`；单轮字段 **`Annotated[..., EphemeralValue]`**（见下，本期必做） |
+| `agent/src/graph/build.py` | `StateGraph(AgentState, context_schema=GraphContextSchema)` |
+| `agent/src/graph/nodes.py` | 节点签名改为 `(state, runtime: Runtime[GraphContextSchema], config?)`；删除 `get_request_context(state, …)` 读 state 的回退逻辑 |
+| `agent/src/graph/__init__.py` | 导出 `GraphContextSchema`（若对外需要） |
+| `agent/tests/test_graph_invoke_mock.py` | `invoke(..., context={...})` 替代 `state["context"]` |
+| `agent/tests/test_graph_compile.py` | 断言 `compile_graph` 注册 `context_schema`（可选 smoke） |
+| `agent/AGENTS.md` | 说明 invoke 时 `context=` 与 `configurable.thread_id` 分工 |
+
+### 字段归属（目标态）
+
+| 字段 | 归属 | 说明 |
+|------|------|------|
+| `messages` | **state**（`add_messages`） | 权威对话；checkpoint 主通道 |
+| `context`（整包） | **context_schema** | 映射 `RequestContext`；每轮 `invoke(..., context=...)` |
+| `user_id` / `role_id` / `tools` | **context_schema** | 禁止再写入 state |
+| `thread_id` | **configurable** | `config={"configurable": {"thread_id": ...}}` |
+| `user_message` | **删除或仅 input** | 与 `messages` 末条 Human 重复；优先从 `messages` 推导 |
+| `mem0_memories` / `mem0_text` | **state + `EphemeralValue`** | `load_memory` 每轮写入；**不得**从 checkpoint 读取上一轮残留 |
+| `rolling_summary` | **state + `EphemeralValue`** | 每轮自 checkpoint metadata 读出后写入；仅本轮组装用 |
+| `rewritten_query` | **state + `EphemeralValue`** | rewrite → RAG 管线 |
+| `rag_skipped` / `rag_chunks` | **state + `EphemeralValue`** | 本轮 RAG；任务 14 二查仍写回 `rag_chunks` |
+| `system_prompt` | **state + `EphemeralValue`** | `context_assembly` 产出；Supervisor 消费 |
+| `inbound_blocked` / `inbound_block_message` | **state + `EphemeralValue`** | 护栏结果；不跨轮保留 |
+
+### 单轮字段与 `EphemeralValue`（本期必做）
+
+凡上表「单轮」字段，在 `AgentState` 中 **必须** 使用 LangGraph `EphemeralValue` channel，**禁止** 普通 `LastValue` 写入 checkpoint 后在下一轮被误读：
+
+```python
+from typing import Annotated
+from typing_extensions import TypedDict
+
+from langchain_core.messages import BaseMessage
+from langgraph.channels.ephemeral_value import EphemeralValue
+from langgraph.graph.message import add_messages
+
+from rag.retriever import RagChunk
+
+
+class AgentState(TypedDict, total=False):
+  messages: Annotated[list[BaseMessage], add_messages]
+  mem0_memories: Annotated[list[str], EphemeralValue]
+  mem0_text: Annotated[str, EphemeralValue]
+  rolling_summary: Annotated[str | None, EphemeralValue]
+  rewritten_query: Annotated[str, EphemeralValue]
+  rag_skipped: Annotated[bool, EphemeralValue]
+  rag_chunks: Annotated[list[RagChunk], EphemeralValue]
+  system_prompt: Annotated[str, EphemeralValue]
+  inbound_blocked: Annotated[bool, EphemeralValue]
+  inbound_block_message: Annotated[str, EphemeralValue]
+```
+
+**语义**：`EphemeralValue` 仅在**当次 `invoke` 的图执行**内、节点间传递；新一轮 `invoke` 未写入前，节点不应依赖上一轮的 `rewritten_query` / `rag_chunks` 等（checkpoint 中对应 channel 应为空）。各节点仍须在本轮流水线中按序写入自己负责的键。
+
+**不得** 把 `context` 留在 state；`messages` **不得** 使用 `EphemeralValue`（会话权威历史）。
+
+### LangGraph API 约定（实现要点）
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.runtime import Runtime
+
+builder = StateGraph(AgentState, context_schema=GraphContextSchema)
+
+def load_memory_node(state, runtime: Runtime[GraphContextSchema], config):
+    user_id = runtime.context["user_id"]  # 或 runtime.context.user_id（若 dataclass）
+    ...
+```
+
+调用侧（Gateway / 测试）：
+
+```python
+graph.invoke(
+    {"messages": [HumanMessage(content=msg)]},
+    context=request_context.model_dump(),  # 或 GraphContextSchema 实例
+    config={"configurable": {"thread_id": thread_id}},
+)
+```
+
+- 不再向 state 传入 `context` / `user_message`（除非保留为 **input_schema** 过渡，需在完成标准中明确删除）。
+- `load_memory_node` **不再** `return {"context": ctx.model_dump()}`。
+
+## 非范围
+
+- RagSubAgent 二查逻辑（**14**）
+- client_actions 解析与图分支（**16**）
+- Chat SSE 实现（**18**）；本任务仅为其 **预留** `context=` 调用方式
+- 修改 `gateway.schemas.RequestContext` 字段定义（**04** 已完成）；本任务只改图侧消费方式
+- 修改 `rag/rewrite.py`、`rag/router.py`、`rag/retriever.py` 的 **NodeState TypedDict**（仍为局部 slice）；仅改 **graph 包装节点** 如何传参
+- Postgres checkpointer 表结构变更
+- `deepagents` Supervisor 子图内部 state（仍由 `create_deep_agent` 管理）
+
+## 影响面清单（实施前必读）
+
+### 1. 核心图模块（必改）
+
+| 文件 | 现状 | 本任务动作 |
+|------|------|------------|
+| `agent/src/graph/state.py` | `AgentState` 含 `context` 等 11 个键 | 移除 `context`、`user_message`；单轮键全部 `Annotated[..., EphemeralValue]` |
+| `agent/src/graph/build.py` | `StateGraph(AgentState)` 无 context_schema | 增加 `context_schema=...` |
+| `agent/src/graph/nodes.py` | `get_request_context(state, config)` 优先读 `state["context"]` | 改为仅 `runtime.context`；`load_memory` 去掉写回 context |
+| `agent/src/graph/supervisor.py` | `supervisor_node` 仍读 `state.get("context")` 取 tools | 改为 `runtime.context.tools` |
+| `agent/src/graph/__init__.py` | 导出 `AgentState` | 视情况导出 `GraphContextSchema` |
+
+### 2. 测试（必改）
+
+| 文件 | 现状 | 本任务动作 |
+|------|------|------------|
+| `agent/tests/test_graph_invoke_mock.py` | `invoke` 传入 `"context": _context()` 在 state 里 | 改为 `context=` 参数；断言不变 |
+| `agent/tests/test_graph_compile.py` | 仅测节点名 | 可选：断言 `compiled.context_schema` 非空 |
+| `agent/tests/unit_tests/test_configuration.py` | 无 invoke | 一般无需改 |
+
+### 3. Gateway / HTTP（尚未接图，**18 前必对齐**）
+
+| 文件 | 现状 | 本任务动作 |
+|------|------|------------|
+| `agent/src/gateway/app.py` | chat stub，未 `graph.invoke` | **文档级**：18 实现时必须 `context=body.context.model_dump()`，勿写入 state |
+| `agent/src/gateway/schemas.py` | `ChatRequest.context: RequestContext` | 不变；图侧 `GraphContextSchema` 与其字段一致 |
+| `agent/tests/test_gateway_health.py` | 不测图 | 不变 |
+| `agent/tests/test_schemas.py` | RequestContext 校验 | 不变 |
+
+### 4. RAG / Memory 子模块（间接）
+
+| 文件 | 关系 |
+|------|------|
+| `agent/src/rag/rewrite.py` | `RewriteNodeState` 注释提及 AgentState；**无 API 变更**；`rewrite_graph_node` 仍组 dict 传入 |
+| `agent/src/rag/router.py` | `rag_router_graph_node` 需 `tools_context`：从 `runtime.context.tools` 组装 payload |
+| `agent/src/rag/retriever.py` | `rag_retrieval_graph_node` 需 `role_id`：从 `runtime.context.role_id` 传入 |
+| `agent/src/memory/assembly.py` | 纯函数，无 state 依赖 |
+| `agent/src/memory/history.py` | 仅用 `thread_id`（configurable） |
+| `agent/src/memory/mem0_client.py` | 仅用 `user_id`（来自 context） |
+| `agent/src/guardrails/inbound.py` | 无 state；Gateway/图节点传入文本即可 |
+
+### 5. 配置与部署
+
+| 文件 | 关系 |
+|------|------|
+| `agent/langgraph.json` | 仍指向 `graph.build:get_graph`；无需改路径 |
+| `agent/pyproject.toml` | 无新依赖；`module-name` 已有 `graph` |
+| `agent/AGENTS.md` | 更新 invoke 约定 |
+
+### 6. 文档与其它 prompts（需知悉）
+
+| 文件 | 关系 |
+|------|------|
+| `docs/architecture.md` | 已增 §3.1 State vs Context；本任务完成后与实现一致 |
+| `docs/prompts/13-supervisor-graph.md` | 历史描述「AgentState 含 context」；**不 retro 改 13 卡**，以本卡为准 |
+| `docs/prompts/14-rag-subagent.md` | 依赖 13；**建议 14 在 13.5 ✅ 后执行**；读 `role_id` 一律走 runtime.context |
+| `docs/prompts/16-client-actions-schema.md` | 校验 `context.tools` 白名单 → `runtime.context` |
+| `docs/prompts/18-chat-sse-api.md` | `thread_id` + `context` 传入方式与本任务一致 |
+| `docs/prompts/17-async-summary-mem0.md` | 异步写 summary/mem0 用 `user_id` from context，不读 state.context |
+
+### 7. 行为与风险（验收关注）
+
+| 风险 | 缓解 |
+|------|------|
+| Resume / 旧 checkpoint 含 `context` 键 | 新图 state 无 `context` channel；旧键被忽略；**权限以当轮 `invoke(context=)` 为准** |
+| 单轮字段残留进 checkpoint | 使用 `EphemeralValue`；加测试：同 `thread_id` 第二轮在未 rewrite 前 `get_state` 不含上一轮 `rewritten_query` / `rag_chunks` |
+| 漏传 `context` 调用图 | 节点访问 `runtime.context` 应 fail fast（明确错误信息） |
+| `supervisor_node` 未接 `runtime` | 签名需与 LangGraph 一致，避免仍读 `state["context"]` |
+| 测试仍 mock `graph.nodes.load_thread_messages` | 保持；与 context 拆分正交 |
+
+## 实现要点
+
+1. **单一真相**：`RequestContext`（Pydantic）在 HTTP 边界校验；图内 `GraphContextSchema` 与其同构（推荐 TypedDict + `RequestContext.model_validate` 辅助函数）。
+2. **删除** `get_request_context` 对 `state["context"]` 与 `configurable.context` 的回退（除非短期兼容开关，默认关闭）。
+3. **`supervisor_node`** 必须接收 `runtime`，工具列表从 `runtime.context` 读取，禁止 `state.get("context")`。
+4. **LangGraph CLI**：`langgraph dev` 下 invoke 示例在 README 或 AGENTS.md 补充 `context` 参数。
+5. **不新增** `.env` 键（无需改 `.env.example`）。
+6. **`EphemeralValue`**：自 `langgraph.channels.ephemeral_value` 导入；与 `add_messages` 一样在 `state.py` 集中声明，避免节点侧散落魔法字符串。
+
+## 测试方案
+
+```bash
+cd agent
+uv run pytest tests/test_graph_compile.py tests/test_graph_invoke_mock.py -v
+uv run pytest tests/unit_tests/test_configuration.py -v
+```
+
+**新增/加强用例（实现时）**
+
+- `invoke` 仅传 `context=`、state 不含 `context` 键，流程仍通过。
+- **EphemeralValue**：同 `thread_id` 连续两次 `invoke` 后，在第二次 `invoke` 完成 `rewrite` 之前（或对整图跑完一轮后立刻 `get_state`），checkpoint **不应**仍携带上一轮的 `rewritten_query` / `rag_chunks`（值为空或键不可用）。
+- checkpoint 往返后 **不** 依赖 state 中的 `role_id`：第二轮换 `context.role_id`，断言 RAG 过滤跟随新 context（mock `retrieve` 的 `role_id` 参数）。
+
+## 完成标准
+
+- `StateGraph(AgentState, context_schema=GraphContextSchema)` 编译通过。
+- `AgentState` 中 **无** `context` / `user_message`；节点通过 `Runtime[GraphContextSchema]` 读取 `user_id` / `role_id` / `tools`。
+- 所有单轮流水线字段均已 `Annotated[..., EphemeralValue]`；Ephemeral 相关测试通过。
+- 上述测试全部通过；`langgraph dev` 可加载图。
+- `docs/progress.md` **13.5** → `✅`；architecture §3.1 与实现一致。
+
+## 进度更新
+
+`docs/progress.md` **13.5** → `✅`
+
+## 与后续任务顺序建议
+
+| 任务 | 建议 |
+|------|------|
+| **14** RagSubAgent | **13.5 完成后**再做，避免在旧 state.context 上叠边 |
+| **16** client_actions | 白名单校验绑定 `runtime.context.tools` |
+| **18** Chat SSE | 首版 `graph.invoke` / `astream` 使用 `context=` + `configurable.thread_id` |

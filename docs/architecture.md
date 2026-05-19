@@ -58,7 +58,7 @@ commonAgent/
 ├── agent/                 # LangGraph / deepagents 主服务
 │   ├── src/
 │   │   ├── gateway/       # HTTP：chat、history、ingest
-│   │   ├── graph/         # Supervisor、节点、state
+│   │   ├── graph/         # Supervisor、节点、state、context_schema
 │   │   ├── memory/        # checkpoint 读取、K+M+summary、mem0
 │   │   ├── rag/           # 路由、rewrite、检索、ingest
 │   │   ├── guardrails/
@@ -72,6 +72,20 @@ commonAgent/
 ├── docs/prompts/           # 可执行任务卡
 └── .cursor/skills/        # Cursor 执行 skill
 ```
+
+### 3.1 LangGraph：State 与 Runtime Context
+
+主图编译使用 LangGraph 1.x 双 schema（任务 **13.5** 落地）：
+
+| 机制 | 内容 | 持久化 | 来源 |
+|------|------|--------|------|
+| **`state_schema`（`AgentState`）** | `messages`（`add_messages`）；单轮字段（`rewritten_query`、`rag_chunks`、`mem0_*`、`system_prompt` 等）使用 **`EphemeralValue`** | 仅 `messages` 跨轮持久化；单轮字段在当次 `invoke` 内传递，**不**依赖 checkpoint 中的上一轮残留 | 图节点读写 |
+| **`context_schema`（`GraphContext`）** | `user_id`、`role_id`、`tools[]`（与 `gateway.schemas.RequestContext` 同构） | **不**作为权限依据写入 checkpoint | 每轮 `graph.invoke(..., context=...)`，由 Back/Gateway 注入 |
+| **`configurable.thread_id`** | 会话键 | checkpointer 主键 | 每轮 `config={"configurable": {"thread_id": ...}}` |
+
+**禁止**：把 `user_id` / `role_id` / `tools[]` 仅依赖 checkpoint 内残留的 `state["context"]` 做鉴权或 RAG 过滤（resume 时必须以当轮 `context=` 为准）。
+
+实现任务卡：[fix_13.5_state_2_context_schema.md](./prompts/fix_13.5_state_2_context_schema.md)。
 
 ## 4. 记忆分层
 
@@ -104,6 +118,7 @@ sequenceDiagram
   participant G as Graph
 
   Back->>GW: POST /chat {thread_id, message, context}
+  GW->>G: invoke(state, context=RequestContext, configurable.thread_id)
   GW->>G: 入站护栏
   par 并行
     G->>G: mem0 读取
