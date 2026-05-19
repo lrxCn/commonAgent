@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 24 |
-| 已完成 | 18 |
+| 已完成 | 19 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[18 - Chat SSE API](./prompts/18-chat-sse-api.md)
+**当前建议下一步**：[19 - 历史分页 API](./prompts/19-history-pagination-api.md)
 
 
 ---
@@ -42,7 +42,7 @@
 | 15 | [出站护栏](./prompts/15-guardrails-outbound.md) | ✅ | 2026-05-19 | `guardrails/outbound.py`；`outbound_guard` 节点；`test_guardrails_outbound.py` 7 用例 |
 | 16 | [client_actions 输出契约](./prompts/16-client-actions-schema.md) | ✅ | 2026-05-19 | `graph/client_actions.py`；`client_actions_emit` 节点；Gateway stub JSON；`test_client_actions.py` 8 用例 |
 | 17 | [异步 Summary + mem0 写入](./prompts/17-async-summary-mem0.md) | ✅ | 2026-05-19 | `summary_job.py`、`mem0_write.py`、`post_turn.py`；`post_turn_jobs` 节点；`test_summary_job` 5 + `test_mem0_write` 5 用例 |
-| 18 | [Chat SSE API](./prompts/18-chat-sse-api.md) | ⬜ | | |
+| 18 | [Chat SSE API](./prompts/18-chat-sse-api.md) | ✅ | 2026-05-19 | `gateway/chat.py`；SSE token/done；client_actions JSON；`test_chat_sse.py` 5 用例 |
 | 19 | [历史分页 API](./prompts/19-history-pagination-api.md) | ⬜ | | |
 | 20 | [KB Ingest API](./prompts/20-kb-ingest-api.md) | ⬜ | | |
 | 21 | [LangSmith 接入](./prompts/21-langsmith-integration.md) | ⬜ | | |
@@ -77,3 +77,4 @@
 | 2026-05-19 | 完成任务 15：出站整段护栏、`supervisor`→`outbound_guard`、违规安全回复 |
 | 2026-05-19 | 完成任务 16：client_actions 解析/白名单校验、图分支跳过出站护栏、Gateway stub JSON |
 | 2026-05-19 | 完成任务 17：增量 rolling summary + 提取式 mem0 写入；ThreadPool fire-and-forget |
+| 2026-05-19 | 完成任务 18：POST /internal/chat 接图；SSE 文本流 + client_actions JSON；`test_chat_sse.py` |

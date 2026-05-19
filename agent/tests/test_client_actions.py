@@ -143,19 +143,16 @@ def test_graph_skips_outbound_guard_for_client_actions(
     reset_settings()
 
 
-def test_gateway_stub_returns_client_actions_json() -> None:
+def test_gateway_returns_client_actions_json(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi.testclient import TestClient
 
     from gateway.app import create_app
+    from tests.support.gateway_graph import install_gateway_graph_mocks, teardown_gateway_graph_mocks
 
-    reset_settings()
-    set_settings_override(
-        Settings(
-            LANGSMITH_API_KEY="lsv2_test",
-            OPENAI_API_KEY="sk-test",
-            DATABASE_URL="postgresql://postgres:test@localhost:5432/common_agent",
-        )
+    json_reply = json.dumps(
+        {"client_actions": [{"tool": "jumpPage", "args": {"page": "pageA"}}]}
     )
+    install_gateway_graph_mocks(monkeypatch, supervisor_reply=json_reply)
     client = TestClient(create_app())
     payload = {
         "thread_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -177,22 +174,16 @@ def test_gateway_stub_returns_client_actions_json() -> None:
             "requires_approval": False,
         }
     ]
-    reset_settings()
+    teardown_gateway_graph_mocks()
 
 
-def test_gateway_stub_plain_when_no_tool_intent() -> None:
+def test_gateway_plain_message_returns_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi.testclient import TestClient
 
     from gateway.app import create_app
+    from tests.support.gateway_graph import install_gateway_graph_mocks, teardown_gateway_graph_mocks
 
-    reset_settings()
-    set_settings_override(
-        Settings(
-            LANGSMITH_API_KEY="lsv2_test",
-            OPENAI_API_KEY="sk-test",
-            DATABASE_URL="postgresql://postgres:test@localhost:5432/common_agent",
-        )
-    )
+    install_gateway_graph_mocks(monkeypatch)
     client = TestClient(create_app())
     req = ChatRequest(
         thread_id="550e8400-e29b-41d4-a716-446655440000",
@@ -201,8 +192,5 @@ def test_gateway_stub_plain_when_no_tool_intent() -> None:
     )
     response = client.post("/internal/chat", json=req.model_dump())
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "stub",
-        "thread_id": req.thread_id,
-    }
-    reset_settings()
+    assert response.headers["content-type"].startswith("text/event-stream")
+    teardown_gateway_graph_mocks()

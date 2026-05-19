@@ -13,7 +13,10 @@ from graph.build import compile_graph
 from graph.context import graph_context_from_request
 from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
 from memory.history import set_history_checkpointer
+import rag.retriever as retriever_mod
 from rag.retriever import RagChunk, reset_retriever_overrides
+
+_ORIGINAL_RETRIEVE = retriever_mod.retrieve
 from rag.rewrite import set_rewrite_llm
 from rag.router import set_router_classifier
 from settings.config import Settings, reset_settings, set_settings_override
@@ -59,6 +62,7 @@ def _clean_graph_mocks() -> None:
     set_rewrite_llm(None)
     set_router_classifier(None)
     reset_retriever_overrides()
+    retriever_mod.retrieve = _ORIGINAL_RETRIEVE
     reset_supervisor_overrides()
     set_history_checkpointer(None)
     reset_settings()

@@ -9,6 +9,7 @@ from gateway.app import create_app
 from guardrails.inbound import INJECTION_TEST_SAMPLE, check_inbound, register_inbound_hook
 from guardrails.types import GuardResult
 from settings.config import Settings, reset_settings, set_settings_override
+from tests.support.gateway_graph import install_gateway_graph_mocks, teardown_gateway_graph_mocks
 
 _REQUIRED = {
     "LANGSMITH_API_KEY": "lsv2_test",
@@ -50,8 +51,10 @@ def settings_enabled() -> Settings:
 
 
 @pytest.fixture
-def client(settings_enabled: Settings) -> TestClient:
-    return TestClient(create_app())
+def client(settings_enabled: Settings, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    install_gateway_graph_mocks(monkeypatch, settings=settings_enabled)
+    yield TestClient(create_app())
+    teardown_gateway_graph_mocks()
 
 
 def test_check_inbound_allows_normal_text(settings_enabled: Settings) -> None:
@@ -94,7 +97,7 @@ def test_optional_hook_can_block_without_rules(settings_enabled: Settings) -> No
 def test_gateway_chat_passes_clean_message(client: TestClient) -> None:
     response = client.post("/internal/chat", json=_VALID_CHAT_PAYLOAD)
     assert response.status_code == 200
-    assert response.json()["thread_id"] == _VALID_CHAT_PAYLOAD["thread_id"]
+    assert response.headers["content-type"].startswith("text/event-stream")
 
 
 def test_gateway_chat_rejects_injection_before_stub(client: TestClient) -> None:
@@ -106,18 +109,19 @@ def test_gateway_chat_rejects_injection_before_stub(client: TestClient) -> None:
     assert body["detail"]["message"]
 
 
-def test_gateway_chat_allows_injection_when_guardrails_disabled() -> None:
-    reset_settings()
-    set_settings_override(
-        Settings(
-            LANGSMITH_API_KEY="lsv2_test",
-            OPENAI_API_KEY="sk-test",
-            DATABASE_URL=_REQUIRED["DATABASE_URL"],
-            GUARDRAILS_ENABLED=False,
-        )
+def test_gateway_chat_allows_injection_when_guardrails_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    disabled = Settings(
+        LANGSMITH_API_KEY="lsv2_test",
+        OPENAI_API_KEY="sk-test",
+        DATABASE_URL=_REQUIRED["DATABASE_URL"],
+        GUARDRAILS_ENABLED=False,
     )
+    install_gateway_graph_mocks(monkeypatch, settings=disabled)
     client = TestClient(create_app())
     payload = {**_VALID_CHAT_PAYLOAD, "message": INJECTION_TEST_SAMPLE}
     response = client.post("/internal/chat", json=payload)
     assert response.status_code == 200
-    reset_settings()
+    assert response.headers["content-type"].startswith("text/event-stream")
+    teardown_gateway_graph_mocks()

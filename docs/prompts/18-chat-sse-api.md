@@ -43,4 +43,4 @@ curl -N -X POST http://127.0.0.1:18080/internal/chat \
 
 ## 进度更新
 
-`docs/progress.md` **18** → `✅`
+`docs/progress.md` **18** → `✅`（2026-05-19）
