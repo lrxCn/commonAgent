@@ -94,6 +94,35 @@ graph = builder.compile(checkpointer=checkpointer)
 
 首次连接会自动执行 `checkpointer.setup()` 建表。
 
+## LangSmith 追踪
+
+在 `agent/.env` 中配置（见 [.env.example](./.env.example)）：
+
+```env
+LANGSMITH_API_KEY=lsv2_***
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=common-agent
+```
+
+关闭追踪时设 `LANGCHAIN_TRACING_V2=false`（无需删除 API Key）。Gateway 与图编译时会调用 `configure_tracing_from_settings()`，将 Settings 同步到进程环境变量。
+
+### 在 UI 查看一轮对话
+
+1. 打开 [LangSmith](https://smith.langchain.com/) → 选择项目名（与 `LANGCHAIN_PROJECT` 一致，默认 `common-agent`）。
+2. 本地发起一轮对话，例如 Gateway：
+
+   ```bash
+   curl -s -X POST http://127.0.0.1:18080/internal/chat \
+     -H "Content-Type: application/json" \
+     -d '{"thread_id":"demo-1","message":"你好","context":{"user_id":"u1","role_id":"default"}}'
+   ```
+
+3. 在 LangSmith **Traces** 列表按时间找到该次 `invoke`；展开可看到 LangGraph 节点链，以及带标签的子 span：
+   - `rewrite`、`rag_router`、`retrieve`、`rerank`（metadata 含 `rerank=true`）、`supervisor`、`guardrails_inbound` / `guardrails_outbound`
+4. 点击 run 的 **Metadata** 查看 RAG 命中数、护栏拦截原因等；**不会**记录完整 API Key。长文本可通过环境变量 `LANGCHAIN_TRACE_MESSAGE_MAX_CHARS`（默认 500）截断。
+
+可选：使用独立 test project key 跑一条真实 invoke 后在 UI 人工核对（CI 不依赖外网）。
+
 ## 测试与 lint
 
 ```bash
@@ -108,6 +137,9 @@ uv run pytest tests/test_checkpointer.py -v -m integration   # 需 DATABASE_URL 
 
 # Gateway（任务 05）
 uv run pytest tests/test_gateway_health.py -v
+
+# LangSmith tracing（任务 21）
+uv run pytest tests/test_tracing.py -v
 ```
 
 ## 参考

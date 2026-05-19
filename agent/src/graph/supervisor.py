@@ -13,6 +13,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from gateway.schemas import ToolSpec
 from graph.client_actions import supervisor_client_actions_instruction_block
+from observability.tracing import supervisor_traceable
 from settings.config import Settings, get_settings
 
 _supervisor_agent_override: CompiledStateGraph | None = None
@@ -113,6 +114,7 @@ def _get_supervisor_agent(system_prompt: str) -> CompiledStateGraph:
     return build_supervisor_agent(system_prompt=system_prompt)
 
 
+@supervisor_traceable()
 def invoke_supervisor(system_prompt: str, messages: list[BaseMessage]) -> list[BaseMessage]:
     """Run the supervisor and return the resulting message list."""
     if _supervisor_invoke_override is not None:

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from guardrails.types import GuardResult
+from observability.tracing import attach_run_metadata, inbound_guardrails_traceable
 
 if TYPE_CHECKING:
     from settings.config import Settings
@@ -52,6 +53,18 @@ def _rule_check(text: str) -> GuardResult | None:
     return None
 
 
+def _record_inbound_block(*, reason_code: str, text_len: int) -> None:
+    attach_run_metadata(
+        {
+            "guardrails.direction": "inbound",
+            "guardrails.blocked": True,
+            "guardrails.reason_code": reason_code,
+            "guardrails.text_len": text_len,
+        }
+    )
+
+
+@inbound_guardrails_traceable()
 def check_inbound(text: str, *, settings: Settings | None = None) -> GuardResult:
     """Run inbound guardrails on user message text."""
     if settings is None:
@@ -69,6 +82,10 @@ def check_inbound(text: str, *, settings: Settings | None = None) -> GuardResult
 
     blocked = _rule_check(text)
     if blocked is not None:
+        _record_inbound_block(
+            reason_code=blocked.reason_code or "policy_violation",
+            text_len=len(text),
+        )
         return blocked
 
     return GuardResult.pass_through()

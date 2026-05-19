@@ -11,6 +11,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from memory.mem0_client import format_mem0_for_system
+from observability.tracing import rewrite_traceable
 from settings.config import Settings, get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "rewrite.txt"
@@ -106,6 +107,7 @@ def _invoke_llm(prompt: str, *, model_name: str | None = None) -> str:
     return str(response.content).strip()
 
 
+@rewrite_traceable()
 def rewrite_query(
     user_message: str,
     mem0_text: str = "",

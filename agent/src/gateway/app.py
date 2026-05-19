@@ -16,11 +16,13 @@ from gateway.schemas_ingest import KbIngestRequest, KbIngestResponse
 from rag.ingest import IngestError
 from guardrails.inbound import check_inbound
 from memory.history import ThreadIdError
+from observability.tracing import configure_tracing_from_settings
 from settings.config import Settings, get_settings
 
 
 def create_app() -> FastAPI:
     """Build the gateway application (factory for tests)."""
+    configure_tracing_from_settings()
     application = FastAPI(
         title="commonAgent Gateway",
         description="Internal HTTP gateway for Back → Agent chat and APIs.",

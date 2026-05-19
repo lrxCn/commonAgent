@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 24 |
-| 已完成 | 21 |
+| 已完成 | 22 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[21 - LangSmith 接入](./prompts/21-langsmith-integration.md)
+**当前建议下一步**：[22 - Back 占位服务](./prompts/22-back-stub.md)
 
 
 ---
@@ -45,7 +45,7 @@
 | 18 | [Chat SSE API](./prompts/18-chat-sse-api.md) | ✅ | 2026-05-19 | `gateway/chat.py`；SSE token/done；client_actions JSON；`test_chat_sse.py` 5 用例 |
 | 19 | [历史分页 API](./prompts/19-history-pagination-api.md) | ✅ | 2026-05-19 | `gateway/history.py`、`schemas_history.py`；offset/message_id cursor；`test_history_api.py` 7 用例 |
 | 20 | [KB Ingest API](./prompts/20-kb-ingest-api.md) | ✅ | 2026-05-19 | `rag/ingest.py`；`gateway/ingest.py`；`CHUNK_*`；`test_kb_ingest.py` 6 用例 |
-| 21 | [LangSmith 接入](./prompts/21-langsmith-integration.md) | ⬜ | | |
+| 21 | [LangSmith 接入](./prompts/21-langsmith-integration.md) | ✅ | 2026-05-19 | `observability/tracing.py`；关键 span 标签；`test_tracing.py` |
 | 22 | [Back 占位服务](./prompts/22-back-stub.md) | ⬜ | | |
 | 23 | [Front 占位](./prompts/23-front-stub.md) | ⬜ | | |
 
@@ -80,3 +80,4 @@
 | 2026-05-19 | 完成任务 18：POST /internal/chat 接图；SSE 文本流 + client_actions JSON；`test_chat_sse.py` |
 | 2026-05-19 | 完成任务 19：GET /internal/threads/{id}/messages 分页；checkpoint 同源；`test_history_api.py` 7 用例 |
 | 2026-05-19 | 完成任务 20：POST /internal/kb/ingest；分块+embedding+按 doc_name 删旧；`test_kb_ingest.py` 6 用例 |
+| 2026-05-19 | 完成任务 21：`observability/tracing.py`；rewrite/router/retrieve/rerank/supervisor/guardrails span；README LangSmith 查看说明 |

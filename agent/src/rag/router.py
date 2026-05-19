@@ -14,6 +14,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from gateway.schemas import ToolSpec
+from observability.tracing import rag_router_traceable
 from settings.config import Settings, get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "router_classify.txt"
@@ -259,6 +260,7 @@ def classify_with_llm(
     return True
 
 
+@rag_router_traceable()
 def should_retrieve(
     message: str,
     rewritten_query: str | None = None,

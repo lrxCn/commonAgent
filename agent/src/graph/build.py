@@ -25,6 +25,7 @@ from graph.nodes import (
 from graph.context import GraphContextSchema
 from graph.state import AgentState
 from memory.checkpointer import get_pooled_checkpointer
+from observability.tracing import configure_tracing_from_settings
 
 _compiled_graph = None
 
@@ -35,6 +36,7 @@ def compile_graph(
     use_pooled_postgres: bool = True,
 ):
     """Build and compile the main Supervisor graph."""
+    configure_tracing_from_settings()
     builder = StateGraph(AgentState, context_schema=GraphContextSchema)
 
     builder.add_node("inbound_guard", inbound_guard_node)

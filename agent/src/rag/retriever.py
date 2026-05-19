@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
+from observability.tracing import attach_run_metadata, rerank_traceable, retrieve_traceable
 from settings.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -358,6 +359,7 @@ def default_rerank(query: str, documents: list[str], *, settings: Settings | Non
     return scores
 
 
+@rerank_traceable()
 def rerank_candidates(
     query: str,
     candidates: Sequence[dict[str, Any]],
@@ -417,6 +419,7 @@ def build_retrieval_metadata(
     }
 
 
+@retrieve_traceable()
 def retrieve(
     role_id: str,
     query: str,
@@ -450,7 +453,7 @@ def retrieve(
             mock=True,
             second_pass=second_pass,
         )
-        logger.debug("rag retrieval metadata: %s", metadata)
+        attach_run_metadata(metadata)
         return chunks
 
     client = _get_qdrant_client(cfg)
@@ -489,7 +492,7 @@ def retrieve(
         mock=False,
         second_pass=second_pass,
     )
-    logger.debug("rag retrieval metadata: %s", metadata)
+    attach_run_metadata(metadata)
     return chunks
 
 

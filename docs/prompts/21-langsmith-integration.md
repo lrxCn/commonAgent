@@ -45,4 +45,4 @@ assert is_tracing_enabled() in (True, False)
 
 ## 进度更新
 
-`docs/progress.md` **21** → `✅`
+`docs/progress.md` **21** → `✅`（2026-05-19）

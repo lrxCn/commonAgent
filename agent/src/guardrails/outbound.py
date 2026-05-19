@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from guardrails.types import GuardResult
+from observability.tracing import attach_run_metadata, outbound_guardrails_traceable
 
 if TYPE_CHECKING:
     from settings.config import Settings
@@ -71,19 +72,11 @@ def record_outbound_block_event(
         "guardrails.text_len": text_len,
         "guardrails.internal_error": internal_error,
     }
-    try:
-        from langsmith.run_helpers import get_current_run_tree
-
-        tree = get_current_run_tree()
-        if tree is not None:
-            existing = tree.metadata or {}
-            tree.metadata = {**existing, **metadata}
-    except Exception:
-        logger.debug("could not attach outbound block to LangSmith run tree", exc_info=True)
-
+    attach_run_metadata(metadata)
     logger.warning("guardrails.outbound.blocked", extra=metadata)
 
 
+@outbound_guardrails_traceable()
 def check_outbound(text: str, *, settings: Settings | None = None) -> GuardResult:
     """Run outbound guardrails on full assistant reply text."""
     if settings is None:

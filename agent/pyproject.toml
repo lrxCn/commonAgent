@@ -40,5 +40,5 @@ markers = [
 ]
 
 [tool.uv.build-backend]
-module-name = ["gateway", "graph", "guardrails", "memory", "rag", "settings"]
+module-name = ["gateway", "graph", "guardrails", "memory", "observability", "rag", "settings"]
 source-include = ["langgraph.json", ".env.example", "Makefile"]
