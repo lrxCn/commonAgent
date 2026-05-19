@@ -16,6 +16,12 @@ from graph.rag_subagent import (
     run_rag_subagent_retrieval,
     should_delegate_rag_subagent,
 )
+from graph.client_actions import (
+    ERROR_PARSE,
+    ERROR_TOOL_NOT_ALLOWED,
+    build_client_actions_assistant_message,
+    parse_client_actions_from_llm,
+)
 from graph.supervisor import (
     DEFAULT_SUPERVISOR_INSTRUCTIONS,
     build_supervisor_instructions,
@@ -47,6 +53,8 @@ _EPHEMERAL_CARRY_KEYS = (
     "inbound_block_message",
     "supervisor_draft",
     "outbound_blocked",
+    "client_actions",
+    "client_actions_error",
 )
 
 
@@ -261,9 +269,67 @@ def supervisor_node(
     full_system = system_prompt or instructions
     result_messages = invoke_supervisor(full_system, model_messages)
     reply = extract_latest_ai_text(result_messages)
+
+    if ctx.tools:
+        outcome = parse_client_actions_from_llm(reply, ctx.tools)
+        if outcome.kind == "client_actions":
+            return _merge_carry(
+                state,
+                {
+                    "client_actions": list(outcome.actions),
+                    "client_actions_error": None,
+                    "supervisor_draft": "",
+                },
+            )
+        if outcome.kind == "error":
+            code = outcome.error_code or ERROR_PARSE
+            if code == ERROR_TOOL_NOT_ALLOWED:
+                user_msg = "该操作未授权，无法调用此外部工具。"
+            elif code == ERROR_PARSE:
+                user_msg = "无法解析客户端工具指令，请换一种说法或联系管理员。"
+            else:
+                user_msg = outcome.error_message or "客户端工具指令无效。"
+            return _merge_carry(
+                state,
+                {
+                    "client_actions": None,
+                    "client_actions_error": {
+                        "code": code,
+                        "message": outcome.error_message or user_msg,
+                    },
+                    "supervisor_draft": user_msg,
+                },
+            )
+
     if not reply:
         reply = "（无回复）"
-    return _merge_carry(state, {"supervisor_draft": reply})
+    return _merge_carry(
+        state,
+        {"supervisor_draft": reply, "client_actions": None, "client_actions_error": None},
+    )
+
+
+def route_after_supervisor(
+    state: AgentState,
+) -> Literal["client_actions_emit", "outbound_guard"]:
+    """Skip outbound text guard when structured client_actions are ready."""
+    actions = state.get("client_actions")
+    if actions:
+        return "client_actions_emit"
+    return "outbound_guard"
+
+
+def client_actions_emit_node(state: AgentState) -> dict[str, object]:
+    """Persist assistant message with client_actions metadata; no ToolMessage."""
+    actions = list(state.get("client_actions") or [])
+    message = build_client_actions_assistant_message(actions)
+    return _merge_carry(
+        state,
+        {
+            "messages": [message],
+            "outbound_blocked": False,
+        },
+    )
 
 
 def outbound_guard_node(state: AgentState) -> dict[str, object]:

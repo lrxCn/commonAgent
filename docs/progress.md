@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 24 |
-| 已完成 | 16 |
+| 已完成 | 17 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[16 - client_actions 输出契约](./prompts/16-client-actions-schema.md)
+**当前建议下一步**：[17 - 异步 Summary + mem0 写入](./prompts/17-async-summary-mem0.md)
 
 
 ---
@@ -40,7 +40,7 @@
 | 13.5 | [State 与 context_schema 拆分](./prompts/13.5_fix_state_2_context_schema.md) | ✅ | 2026-05-19 | `graph/context.py`；`EphemeralValue` + 节点内 carry；`invoke(context=)` |
 | 14 | [RagSubAgent 二查](./prompts/14-rag-subagent.md) | ✅ | 2026-05-19 | `graph/rag_subagent.py`；条件边；`RAG_SUBAGENT_*`；`test_rag_subagent.py` 13 用例 |
 | 15 | [出站护栏](./prompts/15-guardrails-outbound.md) | ✅ | 2026-05-19 | `guardrails/outbound.py`；`outbound_guard` 节点；`test_guardrails_outbound.py` 7 用例 |
-| 16 | [client_actions 输出契约](./prompts/16-client-actions-schema.md) | ⬜ | | |
+| 16 | [client_actions 输出契约](./prompts/16-client-actions-schema.md) | ✅ | 2026-05-19 | `graph/client_actions.py`；`client_actions_emit` 节点；Gateway stub JSON；`test_client_actions.py` 8 用例 |
 | 17 | [异步 Summary + mem0 写入](./prompts/17-async-summary-mem0.md) | ⬜ | | |
 | 18 | [Chat SSE API](./prompts/18-chat-sse-api.md) | ⬜ | | |
 | 19 | [历史分页 API](./prompts/19-history-pagination-api.md) | ⬜ | | |
@@ -75,3 +75,4 @@
 | 2026-05-19 | 完成任务 13.5：`GraphContextSchema` + `EphemeralValue`；图测试 7 用例 |
 | 2026-05-19 | 完成任务 14：RagSubAgent 规则委派二查、合并去重、`retrieve(second_pass=True)` |
 | 2026-05-19 | 完成任务 15：出站整段护栏、`supervisor`→`outbound_guard`、违规安全回复 |
+| 2026-05-19 | 完成任务 16：client_actions 解析/白名单校验、图分支跳过出站护栏、Gateway stub JSON |

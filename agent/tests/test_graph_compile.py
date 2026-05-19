@@ -38,6 +38,7 @@ def test_compile_graph_has_expected_nodes() -> None:
         "rag_subagent",
         "context_assembly",
         "supervisor",
+        "client_actions_emit",
         "outbound_guard",
     }
     assert expected.issubset(node_names)

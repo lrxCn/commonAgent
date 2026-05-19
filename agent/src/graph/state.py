@@ -9,6 +9,7 @@ from langgraph.channels.ephemeral_value import EphemeralValue
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
+from gateway.schemas import ClientAction
 from rag.retriever import RagChunk
 
 
@@ -32,3 +33,5 @@ class AgentState(TypedDict, total=False):
     inbound_block_message: Annotated[str, EphemeralValue]
     supervisor_draft: Annotated[str, EphemeralValue]
     outbound_blocked: Annotated[bool, EphemeralValue]
+    client_actions: Annotated[list[ClientAction] | None, EphemeralValue]
+    client_actions_error: Annotated[dict[str, str] | None, EphemeralValue]

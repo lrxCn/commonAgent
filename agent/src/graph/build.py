@@ -7,6 +7,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from graph.nodes import (
+    client_actions_emit_node,
     context_assembly_node,
     inbound_guard_node,
     load_memory_node,
@@ -17,6 +18,7 @@ from graph.nodes import (
     rewrite_graph_node,
     route_after_inbound,
     route_after_rag_retrieval,
+    route_after_supervisor,
     supervisor_node,
 )
 from graph.context import GraphContextSchema
@@ -42,6 +44,7 @@ def compile_graph(
     builder.add_node("rag_subagent", rag_subagent_graph_node)
     builder.add_node("context_assembly", context_assembly_node)
     builder.add_node("supervisor", supervisor_node)
+    builder.add_node("client_actions_emit", client_actions_emit_node)
     builder.add_node("outbound_guard", outbound_guard_node)
 
     builder.add_edge(START, "inbound_guard")
@@ -60,7 +63,12 @@ def compile_graph(
     )
     builder.add_edge("rag_subagent", "context_assembly")
     builder.add_edge("context_assembly", "supervisor")
-    builder.add_edge("supervisor", "outbound_guard")
+    builder.add_conditional_edges(
+        "supervisor",
+        route_after_supervisor,
+        {"client_actions_emit": "client_actions_emit", "outbound_guard": "outbound_guard"},
+    )
+    builder.add_edge("client_actions_emit", END)
     builder.add_edge("outbound_guard", END)
 
     if checkpointer is not None:

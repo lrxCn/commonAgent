@@ -12,6 +12,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph.state import CompiledStateGraph
 
 from gateway.schemas import ToolSpec
+from graph.client_actions import supervisor_client_actions_instruction_block
 from settings.config import Settings, get_settings
 
 _supervisor_agent_override: CompiledStateGraph | None = None
@@ -23,7 +24,7 @@ Answer using the conversation, user preferences, summary, and knowledge excerpts
 When knowledge excerpts include [doc:.../chunk:...] citations, reference them when relevant.
 Be concise unless the user asks for detail.
 The pipeline may run a RagSubAgent second retrieval when primary excerpts are empty or low-confidence; you receive the merged excerpts only — do not request a third search.
-External client tools are described below; when the user clearly wants a client action, describe what would happen — structured client_actions output is added in a later task.
+External client tools are described below; follow the client_actions JSON contract when the user wants one.
 """.strip()
 
 
@@ -74,6 +75,7 @@ def build_supervisor_instructions(
     tools_block = format_external_tools_for_prompt(external_tools or [])
     if tools_block:
         parts.append(tools_block)
+        parts.append(supervisor_client_actions_instruction_block())
     return "\n\n".join(parts)
 
 
