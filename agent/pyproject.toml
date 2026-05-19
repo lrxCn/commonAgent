@@ -36,5 +36,5 @@ markers = [
 ]
 
 [tool.uv.build-backend]
-module-name = ["deep_agent", "gateway", "memory", "settings"]
+module-name = ["deep_agent", "gateway", "guardrails", "memory", "settings"]
 source-include = ["langgraph.json", ".env.example", "Makefile"]

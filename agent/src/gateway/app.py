@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 
 from gateway.schemas import ChatRequest
+from guardrails.inbound import check_inbound
 from settings.config import Settings, get_settings
 
 
@@ -27,8 +28,17 @@ def create_app() -> FastAPI:
     @application.post("/internal/chat")
     def internal_chat(
         body: ChatRequest,
-        _settings: Annotated[Settings, Depends(get_settings)],
+        settings: Annotated[Settings, Depends(get_settings)],
     ) -> dict[str, str]:
+        guard = check_inbound(body.message, settings=settings)
+        if not guard.allowed:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": guard.reason_code or "policy_violation",
+                    "message": guard.message,
+                },
+            )
         return {"status": "stub", "thread_id": body.thread_id}
 
     return application

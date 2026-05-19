@@ -107,9 +107,15 @@ class Settings(BaseSettings):
         description="HTTP bind port for the agent gateway.",
     )
 
-    @field_validator("LANGCHAIN_TRACING_V2", mode="before")
+    # --- Guardrails ---
+    GUARDRAILS_ENABLED: bool = Field(
+        default=True,
+        description="When false, inbound/outbound text guardrails are skipped.",
+    )
+
+    @field_validator("LANGCHAIN_TRACING_V2", "GUARDRAILS_ENABLED", mode="before")
     @classmethod
-    def _parse_tracing_flag(cls, value: object) -> object:
+    def _parse_bool_flag(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return value

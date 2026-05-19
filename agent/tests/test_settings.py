@@ -99,3 +99,13 @@ def test_get_settings_singleton_and_override(monkeypatch: pytest.MonkeyPatch) ->
 def test_tracing_flag_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch, LANGCHAIN_TRACING_V2="false")
     assert settings.LANGCHAIN_TRACING_V2 is False
+
+
+def test_guardrails_enabled_defaults_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch)
+    assert settings.GUARDRAILS_ENABLED is True
+
+
+def test_guardrails_enabled_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch, GUARDRAILS_ENABLED="false")
+    assert settings.GUARDRAILS_ENABLED is False
