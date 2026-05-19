@@ -9,6 +9,7 @@ dependencies = [
     "langgraph>=1.0.0",
     "langgraph-sdk>=0.1.0",
     "langsmith>=0.3.0",
+    "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.1",
 ]
 
@@ -25,5 +26,5 @@ dev = [
 ]
 
 [tool.uv.build-backend]
-module-name = "deep_agent"
+module-name = ["deep_agent", "settings"]
 source-include = ["langgraph.json", ".env.example", "Makefile"]

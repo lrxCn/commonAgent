@@ -6,7 +6,7 @@
 
 ## 目标
 
-`agent/src/settings/config.py`（或 `agent/settings/config.py`，与 01 目录一致）从环境变量加载配置；`.env.example` 与代码字段一一对应。
+`agent/src/settings/config.py`从环境变量加载配置；`.env.example` 与代码字段一一对应。
 
 ## 范围
 
@@ -18,7 +18,6 @@
   - Qdrant：`QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`（可提供 `qdrant_url` 属性拼接 `http://{host}:{port}`）
   - Postgres：`DATABASE_URL`
   - Gateway：`AGENT_HOST`、`AGENT_PORT`
-  - mem0 若需独立 key，在 01 清单追加后再映射（第一期可 mock）
 - 若库要求 `LANGCHAIN_API_KEY` 而 env 仅有 `LANGSMITH_API_KEY`，在 Settings 内做 fallback，不新增重复 .env key
 - 单例 `get_settings()` 便于测试 override
 
