@@ -1,0 +1,9 @@
+{
+  "name": "common-agent-front",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Front stub for commonAgent (static HTML, no build step)",
+  "scripts": {
+    "start": "npx --yes serve . -p 3000"
+  }
+}

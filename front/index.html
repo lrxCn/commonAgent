@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>commonAgent — Front 占位</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header>
+        <h1>commonAgent</h1>
+        <p class="hint">
+          请求经 Back 转发，不直连 Agent。改权限或上传文档后请
+          <button type="button" id="new-thread" class="linkish">新开 thread</button>。
+        </p>
+      </header>
+
+      <section class="meta" aria-label="会话信息">
+        <label>
+          Back URL
+          <input id="back-url" type="url" value="http://127.0.0.1:8080" />
+        </label>
+        <div class="thread-row">
+          <span>thread_id</span>
+          <code id="thread-id"></code>
+        </div>
+      </section>
+
+      <section id="log" class="log" aria-live="polite" aria-label="对话记录"></section>
+
+      <form id="chat-form" class="composer">
+        <textarea
+          id="message"
+          rows="2"
+          placeholder="输入消息…（如：你好 / 请跳转到 pageA）"
+          required
+        ></textarea>
+        <button type="submit" id="send">发送</button>
+      </form>
+    </main>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

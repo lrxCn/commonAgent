@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 24 |
-| 已完成 | 23 |
+| 已完成 | 24 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[23 - Front 占位](./prompts/23-front-stub.md)
+**当前建议下一步**：第一期任务卡已全部完成；后续见 [architecture.md](./architecture.md) §11 后期 todo
 
 
 ---
@@ -47,7 +47,7 @@
 | 20 | [KB Ingest API](./prompts/20-kb-ingest-api.md) | ✅ | 2026-05-19 | `rag/ingest.py`；`gateway/ingest.py`；`CHUNK_*`；`test_kb_ingest.py` 6 用例 |
 | 21 | [LangSmith 接入](./prompts/21-langsmith-integration.md) | ✅ | 2026-05-19 | `observability/tracing.py`；关键 span 标签；`test_tracing.py` |
 | 22 | [Back 占位服务](./prompts/22-back-stub.md) | ✅ | 2026-05-19 | `back/` FastAPI；`POST /api/chat` 注入 demo context 转发 Agent；`test_back_forward.py` 6 用例 |
-| 23 | [Front 占位](./prompts/23-front-stub.md) | ⬜ | | |
+| 23 | [Front 占位](./prompts/23-front-stub.md) | ✅ | 2026-05-19 | `front/` 单页 HTML+JS；sessionStorage thread_id；SSE + client_actions console；Back CORS |
 
 ---
 
@@ -82,3 +82,4 @@
 | 2026-05-19 | 完成任务 20：POST /internal/kb/ingest；分块+embedding+按 doc_name 删旧；`test_kb_ingest.py` 6 用例 |
 | 2026-05-19 | 完成任务 21：`observability/tracing.py`；rewrite/router/retrieve/rerank/supervisor/guardrails span；README LangSmith 查看说明 |
 | 2026-05-19 | 完成任务 22：`back/` 占位网关；demo context + 转发 `/internal/chat`；respx mock 测试 6 用例 |
+| 2026-05-19 | 完成任务 23：`front/` 占位页；手动测试说明；Back 增加 Front CORS；**第一期完成** |

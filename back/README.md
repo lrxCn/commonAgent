@@ -34,6 +34,8 @@ uv run uvicorn main:app --host 127.0.0.1 --port 8080
 
 演示用户（默认）：`user_id=demo`，`role_id=demo`，工具列表见 [`config/tools.demo.json`](config/tools.demo.json)。
 
+**CORS**：允许 `http://127.0.0.1:3000` / `localhost:3000`（Front 静态页），浏览器不直连 Agent。
+
 ## 配置
 
 见 [`.env.example`](.env.example)：

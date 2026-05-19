@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.schemas import BackChatRequest
 from services.context import build_agent_chat_payload
@@ -20,6 +21,17 @@ def create_app() -> FastAPI:
             "forwards to the internal Agent. Real auth belongs here; Agent is intranet-only."
         ),
         version="0.1.0",
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:3000",
+            "http://localhost:3000",
+        ],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type"],
     )
 
     @application.get("/health")
