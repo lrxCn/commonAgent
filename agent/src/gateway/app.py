@@ -8,8 +8,11 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
 from gateway.chat import build_chat_response, invoke_chat_turn, iter_sse_text_events
+from gateway.history import list_thread_messages
 from gateway.schemas import ChatRequest, ChatResponse
+from gateway.schemas_history import HistoryMessagesResponse
 from guardrails.inbound import check_inbound
+from memory.history import ThreadIdError
 from settings.config import Settings, get_settings
 
 
@@ -50,6 +53,21 @@ def create_app() -> FastAPI:
             iter_sse_text_events(outcome.text or ""),
             media_type="text/event-stream",
         )
+
+    @application.get(
+        "/internal/threads/{thread_id}/messages",
+        response_model=HistoryMessagesResponse,
+        tags=["history"],
+    )
+    def internal_thread_messages(
+        thread_id: str,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> HistoryMessagesResponse:
+        try:
+            return list_thread_messages(thread_id, cursor=cursor, limit=limit)
+        except ThreadIdError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return application
 
