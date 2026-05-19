@@ -22,7 +22,8 @@
 ## 实现要点
 
 - summary 只处理「上次总结之后」的新消息
-- mem0 去重：相同 key 更新而非堆叠（若 API 支持）
+- mem0 写入与任务 **07** 相同：**仅本地 `Memory` + Qdrant**，禁止 `MemoryClient` / 云端
+
 
 ## 测试方案
 

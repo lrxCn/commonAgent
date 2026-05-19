@@ -90,6 +90,20 @@ class Settings(BaseSettings):
         default="common_agent_kb",
         description="Qdrant collection name for knowledge-base vectors.",
     )
+    QDRANT_COLLECTION_MEM0: str = Field(
+        default="common_agent_mem0",
+        description="Qdrant collection for mem0 user-preference vectors (separate from KB).",
+    )
+
+    # --- mem0 (local OSS + Qdrant; do not use MEM0_API_KEY / MemoryClient) ---
+    MEM0_MOCK: bool = Field(
+        default=True,
+        description="When true, skip mem0/Qdrant reads and return an empty memory list.",
+    )
+    MEM0_READ_LIMIT: int = Field(
+        default=50,
+        description="Maximum number of mem0 facts to fetch per user via get_all top_k.",
+    )
 
     # --- Postgres ---
     DATABASE_URL: str = Field(
@@ -113,7 +127,7 @@ class Settings(BaseSettings):
         description="When false, inbound/outbound text guardrails are skipped.",
     )
 
-    @field_validator("LANGCHAIN_TRACING_V2", "GUARDRAILS_ENABLED", mode="before")
+    @field_validator("LANGCHAIN_TRACING_V2", "GUARDRAILS_ENABLED", "MEM0_MOCK", mode="before")
     @classmethod
     def _parse_bool_flag(cls, value: object) -> object:
         if isinstance(value, str):

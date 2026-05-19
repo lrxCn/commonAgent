@@ -79,8 +79,14 @@ commonAgent/
 |------|------|-----|----------|
 | 完整对话 | Postgres Checkpointer | `thread_id` | 权威历史；分页 API 同源 |
 | 模型上下文 | 运行时组装 | `thread_id` | system：指令+mem0+summary+RAG；messages：前 K + 近 M + 本轮 human |
-| 用户偏好 | mem0 + Qdrant | `user_id` | system；写入=提取式事实（异步） |
+| 用户偏好 | **本地** mem0（OSS `Memory`）+ **本地** Qdrant | `user_id` | system；写入=提取式事实（异步） |
 | 知识库 | Qdrant | `role_id`（每轮 context） | system；RAG 片段带 doc/chunk 引用 |
+
+**mem0 部署（第一期硬约束）**
+
+- 只用 `mem0ai` 包的自托管 **`Memory`**，向量库指向本机/内网 **Qdrant**（`QDRANT_COLLECTION_MEM0`，与 KB collection 分离）。
+- **禁止** mem0 托管云、`MemoryClient`、`MEM0_API_KEY`、`api.mem0.ai`。
+- 开发/CI 无 Qdrant 时：`MEM0_MOCK=true` 跳过读取（返回空列表），不改为连云。
 
 **滚动 summary**
 
@@ -207,9 +213,11 @@ POST /internal/kb/ingest
 | LLM | `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME` | **SiliconFlow** OpenAI 兼容对话（如 DeepSeek-V3.2） |
 | Embedding | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS` | 向量模型（如 bge-large-zh，**dims=1024** 与 Qdrant 一致） |
 | Rerank | `RERANK_MODEL`、`RERANK_TOP_K` | 交叉编码 rerank 与候选上限 |
-| Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB` | 知识库 / mem0 向量库 |
+| Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`、`QDRANT_COLLECTION_MEM0` | KB 与 mem0 **分 collection** |
+| mem0 | `MEM0_MOCK`、`MEM0_READ_LIMIT` | 本地 OSS 读取；mock 时跳过 Qdrant |
 | Postgres | `DATABASE_URL` | LangGraph Checkpointer |
 | Gateway | `AGENT_HOST`、`AGENT_PORT` | 内网 HTTP 入口 |
+| Guardrails | `GUARDRAILS_ENABLED` | 入站/出站文本护栏开关 |
 
 本地 `.env` 不入库；SiliconFlow 与 LangSmith 密钥仅保存在开发者机器。
 

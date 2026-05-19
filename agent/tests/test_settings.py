@@ -109,3 +109,15 @@ def test_guardrails_enabled_defaults_true(monkeypatch: pytest.MonkeyPatch) -> No
 def test_guardrails_enabled_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch, GUARDRAILS_ENABLED="false")
     assert settings.GUARDRAILS_ENABLED is False
+
+
+def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch)
+    assert settings.MEM0_MOCK is True
+    assert settings.QDRANT_COLLECTION_MEM0 == "common_agent_mem0"
+    assert settings.MEM0_READ_LIMIT == 50
+
+
+def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch, MEM0_MOCK="false")
+    assert settings.MEM0_MOCK is False
