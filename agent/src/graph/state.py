@@ -30,3 +30,5 @@ class AgentState(TypedDict, total=False):
     system_prompt: Annotated[str, EphemeralValue]
     inbound_blocked: Annotated[bool, EphemeralValue]
     inbound_block_message: Annotated[str, EphemeralValue]
+    supervisor_draft: Annotated[str, EphemeralValue]
+    outbound_blocked: Annotated[bool, EphemeralValue]

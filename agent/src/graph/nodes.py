@@ -23,6 +23,7 @@ from graph.supervisor import (
     invoke_supervisor,
 )
 from guardrails.inbound import check_inbound
+from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.assembly import build_context
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories, format_mem0_for_system
@@ -44,6 +45,8 @@ _EPHEMERAL_CARRY_KEYS = (
     "system_prompt",
     "inbound_blocked",
     "inbound_block_message",
+    "supervisor_draft",
+    "outbound_blocked",
 )
 
 
@@ -260,4 +263,28 @@ def supervisor_node(
     reply = extract_latest_ai_text(result_messages)
     if not reply:
         reply = "（无回复）"
-    return _merge_carry(state, {"messages": [AIMessage(content=reply)]})
+    return _merge_carry(state, {"supervisor_draft": reply})
+
+
+def outbound_guard_node(state: AgentState) -> dict[str, object]:
+    """Check full supervisor reply before persisting assistant message to checkpoint."""
+    draft = _text(state.get("supervisor_draft")) or "（无回复）"
+    guard = check_outbound(draft, settings=get_settings())
+
+    if guard.allowed:
+        return _merge_carry(
+            state,
+            {
+                "messages": [AIMessage(content=draft)],
+                "outbound_blocked": False,
+            },
+        )
+
+    safe_reply = guard.message or OUTBOUND_SAFE_REPLY
+    return _merge_carry(
+        state,
+        {
+            "messages": [AIMessage(content=safe_reply)],
+            "outbound_blocked": True,
+        },
+    )

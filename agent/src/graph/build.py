@@ -10,6 +10,7 @@ from graph.nodes import (
     context_assembly_node,
     inbound_guard_node,
     load_memory_node,
+    outbound_guard_node,
     rag_retrieval_graph_node,
     rag_router_graph_node,
     rag_subagent_graph_node,
@@ -41,6 +42,7 @@ def compile_graph(
     builder.add_node("rag_subagent", rag_subagent_graph_node)
     builder.add_node("context_assembly", context_assembly_node)
     builder.add_node("supervisor", supervisor_node)
+    builder.add_node("outbound_guard", outbound_guard_node)
 
     builder.add_edge(START, "inbound_guard")
     builder.add_conditional_edges(
@@ -58,7 +60,8 @@ def compile_graph(
     )
     builder.add_edge("rag_subagent", "context_assembly")
     builder.add_edge("context_assembly", "supervisor")
-    builder.add_edge("supervisor", END)
+    builder.add_edge("supervisor", "outbound_guard")
+    builder.add_edge("outbound_guard", END)
 
     if checkpointer is not None:
         saver = checkpointer
