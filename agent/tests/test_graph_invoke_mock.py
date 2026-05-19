@@ -33,6 +33,7 @@ _REQUIRED_ENV = {
 def _mock_checkpoint_history(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _thread_id: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
 
 
 @pytest.fixture(autouse=True)

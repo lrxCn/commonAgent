@@ -33,6 +33,7 @@ from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.assembly import build_context
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories, format_mem0_for_system
+from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from rag.retriever import RagChunk
 from rag.rewrite import rewrite_node
 from rag.router import rag_router_node
@@ -330,6 +331,29 @@ def client_actions_emit_node(state: AgentState) -> dict[str, object]:
             "outbound_blocked": False,
         },
     )
+
+
+def post_turn_jobs_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+    config: RunnableConfig,
+) -> dict[str, object]:
+    """Fire-and-forget rolling summary + mem0 write (does not block invoke)."""
+    if state.get("inbound_blocked"):
+        return _merge_carry(state, {})
+
+    ctx = request_context_from_runtime(runtime)
+    thread_id = _thread_id(config)
+    turn_messages = extract_current_turn_messages(state.get("messages") or [])
+    if not turn_messages:
+        return _merge_carry(state, {})
+
+    schedule_post_turn_jobs(
+        thread_id=thread_id,
+        user_id=ctx.user_id,
+        turn_messages=turn_messages,
+    )
+    return _merge_carry(state, {})
 
 
 def outbound_guard_node(state: AgentState) -> dict[str, object]:

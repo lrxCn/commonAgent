@@ -67,7 +67,8 @@ def _require_user_id(user_id: str | None) -> str:
     return str(user_id).strip()
 
 
-def _get_memory() -> Any:
+def get_local_memory() -> Any:
+    """Return the shared local OSS ``Memory`` instance (tests may override factory)."""
     global _memory_instance
     if _memory_factory is not None:
         return _memory_factory()
@@ -76,6 +77,10 @@ def _get_memory() -> Any:
 
         _memory_instance = Memory.from_config(build_mem0_config(get_settings()))
     return _memory_instance
+
+
+def _get_memory() -> Any:
+    return get_local_memory()
 
 
 def parse_memories_from_get_all(raw: Any) -> list[str]:

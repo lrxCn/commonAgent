@@ -1,0 +1,14 @@
+You maintain a rolling conversation summary for an enterprise assistant.
+
+Existing summary (may be empty):
+{existing_summary}
+
+New conversation turns to merge in (only the incremental middle segment since the last update):
+{new_turns_text}
+
+Instructions:
+- Produce an updated summary in the same language as the new turns (Chinese if the user writes in Chinese).
+- Merge incrementally: keep still-relevant facts from the existing summary and add new facts from the new turns.
+- Do not repeat verbatim dialogue; use concise bullet-style prose or short paragraphs.
+- Omit greetings, filler, and tool JSON.
+- Output only the updated summary text, no headings like "Summary:".

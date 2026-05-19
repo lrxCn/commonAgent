@@ -40,6 +40,7 @@ def test_compile_graph_has_expected_nodes() -> None:
         "supervisor",
         "client_actions_emit",
         "outbound_guard",
+        "post_turn_jobs",
     }
     assert expected.issubset(node_names)
 

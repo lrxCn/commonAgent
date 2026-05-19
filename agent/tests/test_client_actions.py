@@ -107,6 +107,7 @@ def test_graph_skips_outbound_guard_for_client_actions(
 ) -> None:
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _thread_id: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
 
     reset_settings()
     set_settings_override(Settings(**_REQUIRED_ENV))  # type: ignore[arg-type]

@@ -1,0 +1,10 @@
+Extract durable user preference and profile facts from this single conversation turn only.
+
+Turn transcript:
+{turn_text}
+
+Rules:
+- Output at most 5 short factual bullets, one per line, starting with "- ".
+- Only stable preferences (language, format, role, location, habits) — not one-off questions.
+- If there are no storable facts, output exactly: NONE
+- Do not copy the full transcript; do not include assistant boilerplate.

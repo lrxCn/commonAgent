@@ -12,6 +12,7 @@ from graph.nodes import (
     inbound_guard_node,
     load_memory_node,
     outbound_guard_node,
+    post_turn_jobs_node,
     rag_retrieval_graph_node,
     rag_router_graph_node,
     rag_subagent_graph_node,
@@ -46,6 +47,7 @@ def compile_graph(
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("client_actions_emit", client_actions_emit_node)
     builder.add_node("outbound_guard", outbound_guard_node)
+    builder.add_node("post_turn_jobs", post_turn_jobs_node)
 
     builder.add_edge(START, "inbound_guard")
     builder.add_conditional_edges(
@@ -68,8 +70,9 @@ def compile_graph(
         route_after_supervisor,
         {"client_actions_emit": "client_actions_emit", "outbound_guard": "outbound_guard"},
     )
-    builder.add_edge("client_actions_emit", END)
-    builder.add_edge("outbound_guard", END)
+    builder.add_edge("client_actions_emit", "post_turn_jobs")
+    builder.add_edge("outbound_guard", "post_turn_jobs")
+    builder.add_edge("post_turn_jobs", END)
 
     if checkpointer is not None:
         saver = checkpointer

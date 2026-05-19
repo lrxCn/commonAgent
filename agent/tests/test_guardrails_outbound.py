@@ -40,6 +40,7 @@ _TEST_SETTINGS = Settings(
 def _reset_hook(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _thread_id: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
     register_outbound_hook(None)
     reset_supervisor_overrides()
     reset_settings()

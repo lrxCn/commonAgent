@@ -12,6 +12,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from memory.checkpointer import get_pooled_checkpointer
 
 ROLLING_SUMMARY_METADATA_KEY = "rolling_summary"
+ROLLING_SUMMARY_THROUGH_TURN_KEY = "rolling_summary_through_turn"
 
 _checkpointer_override: PostgresSaver | None = None
 
@@ -68,23 +69,69 @@ def load_thread_messages(thread_id: str) -> list[BaseMessage]:
     return _normalize_messages(channel_values.get("messages"))
 
 
+def _summary_from_checkpoint_tuple(checkpoint_tuple: CheckpointTuple) -> tuple[str | None, int | None]:
+    metadata = checkpoint_tuple.metadata or {}
+    summary = metadata.get(ROLLING_SUMMARY_METADATA_KEY)
+    through = metadata.get(ROLLING_SUMMARY_THROUGH_TURN_KEY)
+    if summary is None or through is None:
+        channel_values = checkpoint_tuple.checkpoint.get("channel_values") or {}
+        if summary is None:
+            summary = channel_values.get(ROLLING_SUMMARY_METADATA_KEY)
+        if through is None:
+            through = channel_values.get(ROLLING_SUMMARY_THROUGH_TURN_KEY)
+
+    summary_text: str | None = None
+    if summary is not None:
+        text = str(summary).strip()
+        summary_text = text or None
+
+    through_turn: int | None = None
+    if through is not None:
+        try:
+            through_turn = int(through)
+        except (TypeError, ValueError):
+            through_turn = None
+    return summary_text, through_turn
+
+
 def get_rolling_summary(thread_id: str) -> str | None:
     """Return rolling summary stored in checkpoint metadata, if present."""
     tid = _require_thread_id(thread_id)
     checkpoint_tuple = _get_latest_checkpoint_tuple(tid)
     if checkpoint_tuple is None:
         return None
+    summary, _ = _summary_from_checkpoint_tuple(checkpoint_tuple)
+    return summary
 
-    metadata = checkpoint_tuple.metadata or {}
-    summary = metadata.get(ROLLING_SUMMARY_METADATA_KEY)
-    if summary is None:
-        channel_values = checkpoint_tuple.checkpoint.get("channel_values") or {}
-        summary = channel_values.get(ROLLING_SUMMARY_METADATA_KEY)
 
-    if summary is None:
-        return None
-    text = str(summary).strip()
-    return text or None
+def get_rolling_summary_state(thread_id: str) -> tuple[str | None, int | None]:
+    """Return rolling summary text and exclusive through-turn index, if stored."""
+    tid = _require_thread_id(thread_id)
+    checkpoint_tuple = _get_latest_checkpoint_tuple(tid)
+    if checkpoint_tuple is None:
+        return None, None
+    return _summary_from_checkpoint_tuple(checkpoint_tuple)
+
+
+def save_rolling_summary(thread_id: str, summary: str, *, through_turn: int) -> None:
+    """Persist rolling summary and the exclusive turn index covered in checkpoint metadata."""
+    tid = _require_thread_id(thread_id)
+    checkpoint_tuple = _get_latest_checkpoint_tuple(tid)
+    if checkpoint_tuple is None:
+        return
+
+    enriched_metadata = {
+        **(checkpoint_tuple.metadata or {}),
+        ROLLING_SUMMARY_METADATA_KEY: summary.strip(),
+        ROLLING_SUMMARY_THROUGH_TURN_KEY: through_turn,
+    }
+    checkpointer = _resolve_checkpointer()
+    checkpointer.put(
+        checkpoint_tuple.config,
+        checkpoint_tuple.checkpoint,
+        enriched_metadata,  # type: ignore[arg-type]
+        checkpoint_tuple.checkpoint["channel_versions"],
+    )
 
 
 def count_turns(messages: Sequence[BaseMessage]) -> int:
