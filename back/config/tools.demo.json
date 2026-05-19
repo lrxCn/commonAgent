@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "jumpPage",
+      "description": "Navigate the user to an in-app page.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "string" }
+        },
+        "required": ["page"]
+      },
+      "requires_approval": false
+    }
+  ]
+}
