@@ -16,6 +16,7 @@ from graph.nodes import (
     route_after_inbound,
     supervisor_node,
 )
+from graph.context import GraphContextSchema
 from graph.state import AgentState
 from memory.checkpointer import get_pooled_checkpointer
 
@@ -28,7 +29,7 @@ def compile_graph(
     use_pooled_postgres: bool = True,
 ):
     """Build and compile the main Supervisor graph."""
-    builder = StateGraph(AgentState)
+    builder = StateGraph(AgentState, context_schema=GraphContextSchema)
 
     builder.add_node("inbound_guard", inbound_guard_node)
     builder.add_node("load_memory", load_memory_node)

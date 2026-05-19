@@ -85,7 +85,7 @@ commonAgent/
 
 **禁止**：把 `user_id` / `role_id` / `tools[]` 仅依赖 checkpoint 内残留的 `state["context"]` 做鉴权或 RAG 过滤（resume 时必须以当轮 `context=` 为准）。
 
-实现任务卡：[fix_13.5_state_2_context_schema.md](./prompts/fix_13.5_state_2_context_schema.md)。
+实现任务卡：[13.5_fix_state_2_context_schema.md](./prompts/13.5_fix_state_2_context_schema.md)。
 
 ## 4. 记忆分层
 

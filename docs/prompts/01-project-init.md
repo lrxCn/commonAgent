@@ -36,7 +36,7 @@ LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 # --- LLM：SiliconFlow（OpenAI 兼容）---
 OPENAI_API_KEY=sk-***
 OPENAI_BASE_URL=https://api.siliconflow.cn/v1
-OPENAI_MODEL_NAME=Pro/deepseek-ai/DeepSeek-V3.2
+OPENAI_MODEL_NAME=Pro/moonshotai/Kimi-K2.6
 
 # --- Embedding（SiliconFlow 同平台或 OpenAI 兼容 embedding 接口）---
 EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5

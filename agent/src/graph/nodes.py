@@ -6,9 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langgraph.runtime import Runtime
 from langgraph.types import RunnableConfig
 
-from gateway.schemas import RequestContext, ToolSpec
+from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.supervisor import (
     DEFAULT_SUPERVISOR_INSTRUCTIONS,
@@ -26,27 +27,43 @@ from rag.router import rag_router_node
 from rag.retriever import rag_retrieval_node
 from settings.config import get_settings
 
+# EphemeralValue channels only expose the previous step's writes; forward keys still
+# needed downstream within the same invoke.
+_EPHEMERAL_CARRY_KEYS = (
+    "mem0_memories",
+    "mem0_text",
+    "rolling_summary",
+    "rewritten_query",
+    "rag_skipped",
+    "rag_chunks",
+    "system_prompt",
+    "inbound_blocked",
+    "inbound_block_message",
+)
+
+
+def _ephemeral_carry(state: AgentState) -> dict[str, object]:
+    carried: dict[str, object] = {}
+    for key in _EPHEMERAL_CARRY_KEYS:
+        if key not in state:
+            continue
+        value = state[key]
+        if value is None:
+            continue
+        if isinstance(value, (list, str)) and not value:
+            continue
+        carried[key] = value
+    return carried
+
+
+def _merge_carry(state: AgentState, updates: dict[str, object]) -> dict[str, object]:
+    return {**_ephemeral_carry(state), **updates}
+
 
 def _text(value: object | None) -> str:
     if value is None:
         return ""
     return str(value).strip()
-
-
-def get_request_context(state: AgentState, config: RunnableConfig | None = None) -> RequestContext:
-    """Resolve per-turn request context (invoke input is authoritative)."""
-    raw = state.get("context")
-    if isinstance(raw, RequestContext):
-        return raw
-    if isinstance(raw, dict) and raw:
-        return RequestContext.model_validate(raw)
-
-    configurable = (config or {}).get("configurable") or {}
-    nested = configurable.get("context")
-    if isinstance(nested, dict) and nested:
-        return RequestContext.model_validate(nested)
-    msg = "context is required on each invoke (user_id, role_id, tools)"
-    raise ValueError(msg)
 
 
 def _thread_id(config: RunnableConfig | None) -> str:
@@ -58,9 +75,6 @@ def _thread_id(config: RunnableConfig | None) -> str:
 
 
 def _extract_user_message(state: AgentState) -> str:
-    if state.get("user_message"):
-        return _text(state["user_message"])
-
     messages = state.get("messages") or []
     for message in reversed(messages):
         if isinstance(message, HumanMessage):
@@ -73,14 +87,17 @@ def inbound_guard_node(state: AgentState) -> dict[str, object]:
     text = _extract_user_message(state)
     guard = check_inbound(text, settings=get_settings())
     if guard.allowed:
-        return {"inbound_blocked": False, "user_message": text}
+        return _merge_carry(state, {"inbound_blocked": False})
 
     block_message = guard.message or "Message blocked by inbound guardrails."
-    return {
-        "inbound_blocked": True,
-        "inbound_block_message": block_message,
-        "messages": [AIMessage(content=block_message)],
-    }
+    return _merge_carry(
+        state,
+        {
+            "inbound_blocked": True,
+            "inbound_block_message": block_message,
+            "messages": [AIMessage(content=block_message)],
+        },
+    )
 
 
 def route_after_inbound(state: AgentState) -> Literal["load_memory", "__end__"]:
@@ -89,9 +106,13 @@ def route_after_inbound(state: AgentState) -> Literal["load_memory", "__end__"]:
     return "load_memory"
 
 
-def load_memory_node(state: AgentState, config: RunnableConfig) -> dict[str, object]:
+def load_memory_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+    config: RunnableConfig,
+) -> dict[str, object]:
     """Fetch mem0 and checkpoint history in parallel (thread pool)."""
-    ctx = get_request_context(state, config)
+    ctx = request_context_from_runtime(runtime)
     thread_id = _thread_id(config)
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -106,7 +127,6 @@ def load_memory_node(state: AgentState, config: RunnableConfig) -> dict[str, obj
         "mem0_memories": mem0_memories,
         "mem0_text": format_mem0_for_system(mem0_memories),
         "rolling_summary": rolling_summary,
-        "context": ctx.model_dump(),
     }
 
     incoming = list(state.get("messages") or [])
@@ -116,7 +136,7 @@ def load_memory_node(state: AgentState, config: RunnableConfig) -> dict[str, obj
         if len(incoming) == 1 and isinstance(incoming[0], HumanMessage):
             updates["messages"] = [*checkpoint_messages, incoming[0]]
 
-    return updates
+    return _merge_carry(state, updates)
 
 
 def rewrite_graph_node(state: AgentState) -> dict[str, str]:
@@ -127,34 +147,43 @@ def rewrite_graph_node(state: AgentState) -> dict[str, str]:
         "mem0_memories": state.get("mem0_memories") or [],
         "messages": state.get("messages") or [],
     }
-    return rewrite_node(cast(Any, payload))
+    return _merge_carry(state, rewrite_node(cast(Any, payload)))
 
 
-def rag_router_graph_node(state: AgentState, config: RunnableConfig) -> dict[str, bool]:
+def rag_router_graph_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+) -> dict[str, bool]:
     """Delegate to rag router with tools from request context."""
-    ctx = get_request_context(state, config)
+    ctx = request_context_from_runtime(runtime)
     payload: dict[str, object] = {
         "user_message": _extract_user_message(state),
         "rewritten_query": state.get("rewritten_query"),
         "tools_context": ctx.tools,
     }
-    return rag_router_node(cast(Any, payload))
+    return _merge_carry(state, rag_router_node(cast(Any, payload)))
 
 
-def rag_retrieval_graph_node(state: AgentState, config: RunnableConfig) -> dict[str, list[RagChunk]]:
+def rag_retrieval_graph_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+) -> dict[str, list[RagChunk]]:
     """Delegate to retriever with role_id from request context."""
-    ctx = get_request_context(state, config)
+    ctx = request_context_from_runtime(runtime)
     payload: dict[str, object] = {
         "role_id": ctx.role_id,
         "rewritten_query": state.get("rewritten_query"),
         "rag_skipped": state.get("rag_skipped", False),
     }
-    return rag_retrieval_node(cast(Any, payload))
+    return _merge_carry(state, rag_retrieval_node(cast(Any, payload)))
 
 
-def context_assembly_node(state: AgentState, config: RunnableConfig) -> dict[str, str]:
+def context_assembly_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+) -> dict[str, str]:
     """Assemble dynamic system prompt (K+M+summary+mem0+RAG)."""
-    ctx = get_request_context(state, config)
+    ctx = request_context_from_runtime(runtime)
     instructions = build_supervisor_instructions(
         DEFAULT_SUPERVISOR_INSTRUCTIONS,
         ctx.tools,
@@ -167,21 +196,19 @@ def context_assembly_node(state: AgentState, config: RunnableConfig) -> dict[str
         messages=state.get("messages") or [],
         current_human=_extract_user_message(state) or None,
     )
-    return {"system_prompt": system_str}
+    return _merge_carry(state, {"system_prompt": system_str})
 
 
-def supervisor_node(state: AgentState) -> dict[str, list[BaseMessage]]:
+def supervisor_node(
+    state: AgentState,
+    runtime: Runtime[GraphContextSchema],
+) -> dict[str, list[BaseMessage]]:
     """Run deepagents Supervisor on assembled context; append AI reply to checkpoint messages."""
+    ctx = request_context_from_runtime(runtime)
     system_prompt = _text(state.get("system_prompt"))
-    ctx_tools: list[ToolSpec] = []
-    raw_ctx = state.get("context")
-    if isinstance(raw_ctx, dict):
-        tools_raw = raw_ctx.get("tools") or []
-        ctx_tools = [ToolSpec.model_validate(t) for t in tools_raw]
-
     instructions = build_supervisor_instructions(
         DEFAULT_SUPERVISOR_INSTRUCTIONS,
-        ctx_tools,
+        ctx.tools,
     )
     _, model_messages = build_context(
         mem0=list(state.get("mem0_memories") or []),
@@ -197,4 +224,4 @@ def supervisor_node(state: AgentState) -> dict[str, list[BaseMessage]]:
     reply = extract_latest_ai_text(result_messages)
     if not reply:
         reply = "（无回复）"
-    return {"messages": [AIMessage(content=reply)]}
+    return _merge_carry(state, {"messages": [AIMessage(content=reply)]})

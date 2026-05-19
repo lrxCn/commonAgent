@@ -49,3 +49,10 @@ def test_get_graph_returns_compiled_instance() -> None:
 
     build_mod._compiled_graph = graph
     assert get_graph() is graph
+
+
+def test_compile_graph_registers_context_schema() -> None:
+    from graph.context import GraphContextSchema
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    assert graph.context_schema is GraphContextSchema

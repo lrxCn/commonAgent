@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, NotRequired, TypedDict
+from typing import Annotated
 
 from langchain_core.messages import BaseMessage
+from langgraph.channels.ephemeral_value import EphemeralValue
 from langgraph.graph.message import add_messages
+from typing_extensions import TypedDict
 
 from rag.retriever import RagChunk
 
@@ -13,19 +15,18 @@ from rag.retriever import RagChunk
 class AgentState(TypedDict, total=False):
     """Main graph state.
 
-    ``context`` is supplied on every invoke from the gateway and must not be
-    treated as the authority for permissions when resuming from an old checkpoint.
+    Per-turn pipeline fields use ``EphemeralValue`` so they are not read from
+    checkpoint on the next ``invoke``. Request identity and tools live in
+    ``context_schema`` (see ``graph.context.GraphContextSchema``).
     """
 
     messages: Annotated[list[BaseMessage], add_messages]
-    user_message: str
-    context: dict[str, Any]
-    mem0_memories: list[str]
-    mem0_text: str
-    rolling_summary: str | None
-    rewritten_query: str
-    rag_skipped: bool
-    rag_chunks: list[RagChunk]
-    system_prompt: str
-    inbound_blocked: bool
-    inbound_block_message: str
+    mem0_memories: Annotated[list[str], EphemeralValue]
+    mem0_text: Annotated[str, EphemeralValue]
+    rolling_summary: Annotated[str | None, EphemeralValue]
+    rewritten_query: Annotated[str, EphemeralValue]
+    rag_skipped: Annotated[bool, EphemeralValue]
+    rag_chunks: Annotated[list[RagChunk], EphemeralValue]
+    system_prompt: Annotated[str, EphemeralValue]
+    inbound_blocked: Annotated[bool, EphemeralValue]
+    inbound_block_message: Annotated[str, EphemeralValue]

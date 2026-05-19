@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         description="OpenAI-compatible base URL for chat completions.",
     )
     OPENAI_MODEL_NAME: str = Field(
-        default="Pro/deepseek-ai/DeepSeek-V3.2",
+        default="Pro/moonshotai/Kimi-K2.6",
         description="Default chat model identifier on the provider.",
     )
     REWRITE_MODEL_NAME: str | None = Field(

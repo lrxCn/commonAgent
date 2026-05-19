@@ -10,6 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from gateway.schemas import RequestContext
 from graph.build import compile_graph
+from graph.context import graph_context_from_request
 from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
 from memory.history import set_history_checkpointer
 from rag.retriever import RagChunk, reset_retriever_overrides
@@ -73,18 +74,15 @@ def _context(
         role_id=role_id,
         tools=tools or [],
     )
-    return ctx.model_dump()
+    return graph_context_from_request(ctx)
 
 
 def test_invoke_appends_ai_message() -> None:
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     config = {"configurable": {"thread_id": "thread-mock-1"}}
     result = graph.invoke(
-        {
-            "messages": [HumanMessage(content="你好")],
-            "user_message": "你好",
-            "context": _context(),
-        },
+        {"messages": [HumanMessage(content="你好")]},
+        context=_context(),
         config=config,
     )
 
@@ -94,6 +92,7 @@ def test_invoke_appends_ai_message() -> None:
     assert any("mock-reply" in text for text in ai_texts)
     assert result.get("rewritten_query") == "rewritten query text"
     assert result.get("rag_skipped") is True
+    assert "context" not in result
 
 
 def test_rag_skipped_does_not_call_retriever() -> None:
@@ -104,11 +103,8 @@ def test_rag_skipped_does_not_call_retriever() -> None:
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     graph.invoke(
-        {
-            "messages": [HumanMessage(content="你好")],
-            "user_message": "你好",
-            "context": _context(),
-        },
+        {"messages": [HumanMessage(content="你好")]},
+        context=_context(),
         config={"configurable": {"thread_id": "thread-mock-2"}},
     )
 
@@ -134,11 +130,8 @@ def test_rag_retrieval_runs_when_router_requests() -> None:
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     result = graph.invoke(
-        {
-            "messages": [HumanMessage(content="报销制度是什么？")],
-            "user_message": "报销制度是什么？",
-            "context": _context(),
-        },
+        {"messages": [HumanMessage(content="报销制度是什么？")]},
+        context=_context(),
         config={"configurable": {"thread_id": "thread-mock-3"}},
     )
 
@@ -146,3 +139,62 @@ def test_rag_retrieval_runs_when_router_requests() -> None:
     assert result.get("rag_skipped") is False
     chunks = result.get("rag_chunks") or []
     assert len(chunks) == 1
+
+
+def test_ephemeral_fields_not_visible_at_start_of_second_invoke(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Second invoke must not read prior turn's rewritten_query from checkpoint."""
+    from graph.nodes import rewrite_graph_node as _orig_rewrite
+
+    seen: list[str | None] = []
+
+    def _capture_rewrite(state):  # type: ignore[no-untyped-def]
+        seen.append(state.get("rewritten_query"))
+        return _orig_rewrite(state)
+
+    monkeypatch.setattr("graph.build.rewrite_graph_node", _capture_rewrite)
+
+    # Compile after patch so the graph binds the wrapped rewrite node.
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    config = {"configurable": {"thread_id": "thread-ephemeral-1"}}
+    graph.invoke(
+        {"messages": [HumanMessage(content="第一轮")]},
+        context=_context(),
+        config=config,
+    )
+    seen.clear()
+    graph.invoke(
+        {"messages": [HumanMessage(content="第二轮")]},
+        context=_context(),
+        config=config,
+    )
+    assert seen == [None]
+
+
+def test_role_id_from_context_not_checkpoint() -> None:
+    """RAG retrieval must use the current invoke's role_id, not a stale checkpoint value."""
+    set_router_classifier(lambda _prompt: '{"need_rag": true}')
+    role_ids: list[str] = []
+
+    def _track_retrieve(role_id: str, query: str, **kwargs):  # type: ignore[no-untyped-def]
+        role_ids.append(role_id)
+        return []
+
+    import rag.retriever as retriever_mod
+
+    retriever_mod.retrieve = _track_retrieve
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    config = {"configurable": {"thread_id": "thread-role-ctx"}}
+    graph.invoke(
+        {"messages": [HumanMessage(content="问政策")]},
+        context=_context(role_id="role-a"),
+        config=config,
+    )
+    graph.invoke(
+        {"messages": [HumanMessage(content="再问")]},
+        context=_context(role_id="role-b"),
+        config=config,
+    )
+    assert role_ids == ["role-a", "role-b"]
