@@ -61,6 +61,16 @@ class Settings(BaseSettings):
         description="Chat model for query rewrite; defaults to OPENAI_MODEL_NAME when unset.",
     )
 
+    # --- RAG router ---
+    RAG_ROUTER_MODE: str = Field(
+        default="hybrid",
+        description="RAG routing: rules-only or rules + LLM for uncertain cases.",
+    )
+    RAG_ROUTER_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Chat model for hybrid RAG router; defaults to OPENAI_MODEL_NAME when unset.",
+    )
+
     # --- Embedding ---
     EMBEDDING_MODEL: str = Field(
         default="BAAI/bge-large-zh-v1.5",
@@ -137,6 +147,17 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return value
+
+    @field_validator("RAG_ROUTER_MODE", mode="before")
+    @classmethod
+    def _normalize_rag_router_mode(cls, value: object) -> str:
+        if value is None:
+            return "hybrid"
+        mode = str(value).strip().lower()
+        if mode not in {"rules", "hybrid"}:
+            msg = "RAG_ROUTER_MODE must be 'rules' or 'hybrid'"
+            raise ValueError(msg)
+        return mode
 
     @model_validator(mode="after")
     def _apply_langchain_api_key_fallback(self) -> Self:
