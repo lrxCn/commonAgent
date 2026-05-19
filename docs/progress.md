@@ -9,9 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 23 |
-| 已完成 | 0 |
+| 已完成 | 1 |
 | 进行中 | — |
 | 阻塞 | 0 |
+
+**当前建议下一步**：[02 - 配置层 settings + .env 契约](./prompts/02-agent-settings.md)
 
 
 ---
@@ -22,7 +24,7 @@
 
 | ID | 任务 | 状态 | 完成时间 | 备注 |
 |----|------|------|--------|------|
-| 01 | [项目骨架与 uv/deepagents 初始化](./prompts/01-project-init.md) | ⬜ | | |
+| 01 | [项目骨架与 uv/deepagents 初始化](./prompts/01-project-init.md) | ✅ | 2026-05-19 | deepagents-python 模板；根 `.gitignore`；`agent/.env.example` 统一契约 |
 | 02 | [配置层 settings + .env 契约](./prompts/02-agent-settings.md) | ⬜ | | |
 | 03 | [Postgres Checkpointer](./prompts/03-postgres-checkpointer.md) | ⬜ | | |
 | 04 | [请求 Context 模型](./prompts/04-request-context-models.md) | ⬜ | | |
@@ -54,3 +56,4 @@
 |------|------|
 | 2026-05-19 | 初始化进度文档与 23 项任务卡 |
 | 2026-05-19 | 文档：任务 01 固化 .env 契约（SiliconFlow LLM/Embedding/Rerank、LangSmith、Qdrant）；同步 architecture §10.1、任务 02 字段列表 |
+| 2026-05-19 | 完成任务 01：三目录 + uv/deepagents 骨架 + `.env.example` 契约 |
