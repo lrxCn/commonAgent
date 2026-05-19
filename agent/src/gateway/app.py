@@ -9,8 +9,11 @@ from fastapi.responses import StreamingResponse
 
 from gateway.chat import build_chat_response, invoke_chat_turn, iter_sse_text_events
 from gateway.history import list_thread_messages
+from gateway.ingest import ingest_kb
 from gateway.schemas import ChatRequest, ChatResponse
 from gateway.schemas_history import HistoryMessagesResponse
+from gateway.schemas_ingest import KbIngestRequest, KbIngestResponse
+from rag.ingest import IngestError
 from guardrails.inbound import check_inbound
 from memory.history import ThreadIdError
 from settings.config import Settings, get_settings
@@ -53,6 +56,17 @@ def create_app() -> FastAPI:
             iter_sse_text_events(outcome.text or ""),
             media_type="text/event-stream",
         )
+
+    @application.post(
+        "/internal/kb/ingest",
+        response_model=KbIngestResponse,
+        tags=["kb"],
+    )
+    def internal_kb_ingest(body: KbIngestRequest) -> KbIngestResponse:
+        try:
+            return ingest_kb(body)
+        except IngestError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @application.get(
         "/internal/threads/{thread_id}/messages",

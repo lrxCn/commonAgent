@@ -103,6 +103,16 @@ class Settings(BaseSettings):
         description="Maximum merged rag_chunks after primary + RagSubAgent passes.",
     )
 
+    # --- KB ingest ---
+    CHUNK_SIZE_TOKENS: int = Field(
+        default=768,
+        description="Target chunk size in estimated tokens (architecture: 512–1024).",
+    )
+    CHUNK_OVERLAP_RATIO: float = Field(
+        default=0.12,
+        description="Chunk overlap ratio (architecture: 10–15%).",
+    )
+
     # --- Qdrant ---
     QDRANT_HOST: str = Field(
         default="localhost",
