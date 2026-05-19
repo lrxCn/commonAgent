@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 23 |
-| 已完成 | 4 |
+| 已完成 | 5 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[05 - Gateway 最小骨架](./prompts/05-gateway-minimal.md)
+**当前建议下一步**：[06 - 入站护栏](./prompts/06-guardrails-inbound.md)
 
 
 ---
@@ -28,7 +28,7 @@
 | 02 | [配置层 settings + .env 契约](./prompts/02-agent-settings.md) | ✅ | 2026-05-19 | `agent/src/settings/config.py`；`pydantic-settings`；`LANGCHAIN_API_KEY` fallback |
 | 03 | [Postgres Checkpointer](./prompts/03-postgres-checkpointer.md) | ✅ | 2026-05-19 | `memory/checkpointer.py`；README 本地 Postgres 说明；`langgraph-checkpoint-postgres` |
 | 04 | [请求 Context 模型](./prompts/04-request-context-models.md) | ✅ | 2026-05-19 | `gateway/schemas.py`；`test_schemas.py` 6 用例 |
-| 05 | [Gateway 最小骨架](./prompts/05-gateway-minimal.md) | ⬜ | | |
+| 05 | [Gateway 最小骨架](./prompts/05-gateway-minimal.md) | ✅ | 2026-05-19 | `gateway/app.py`、`main.py`；FastAPI health + chat stub |
 | 06 | [入站护栏](./prompts/06-guardrails-inbound.md) | ⬜ | | |
 | 07 | [mem0 读取](./prompts/07-mem0-read.md) | ⬜ | | |
 | 08 | [Checkpoint 历史读取](./prompts/08-checkpoint-history-read.md) | ⬜ | | |
@@ -60,3 +60,4 @@
 | 2026-05-19 | 完成任务 02：Pydantic Settings + `get_settings()` 单例与测试 |
 | 2026-05-19 | 完成任务 03：Postgres Checkpointer 工厂、集成测试 thread 往返 |
 | 2026-05-19 | 完成任务 04：ChatRequest/RequestContext/ToolSpec/ClientAction/ChatResponse Pydantic 模型 |
+| 2026-05-19 | 完成任务 05：FastAPI Gateway `GET /health`、`POST /internal/chat` stub；`test_gateway_health.py` 3 用例 |

@@ -26,6 +26,16 @@ cp .env.example .env
 uv run langgraph dev
 ```
 
+3. 启动内网 Gateway（HTTP，任务 05+）：
+
+```bash
+uv run uvicorn main:app --host 127.0.0.1 --port 18080
+# 或使用 .env 中的 AGENT_HOST / AGENT_PORT：
+uv run python -m main
+```
+
+默认 `AGENT_HOST=0.0.0.0` 便于容器内监听；**生产环境应仅在内网/VPC 暴露该端口**（防火墙、Service Mesh 或反向代理限制），勿对公网开放。
+
 ## 环境变量说明
 
 完整 key 列表见 [.env.example](./.env.example)，与项目统一契约一致：
@@ -95,6 +105,9 @@ make format
 # Checkpointer（任务 03）
 uv run pytest tests/test_checkpointer.py -v -m "not integration"
 uv run pytest tests/test_checkpointer.py -v -m integration   # 需 DATABASE_URL 可连
+
+# Gateway（任务 05）
+uv run pytest tests/test_gateway_health.py -v
 ```
 
 ## 参考
