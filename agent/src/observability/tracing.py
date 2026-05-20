@@ -140,8 +140,20 @@ def traceable(
 
 
 def _rewrite_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    from memory.mem0_client import format_mem0_for_system
+
     user_message = str(inputs.get("user_message") or "")
+    memories = inputs.get("mem0_memories") or []
     mem0_text = str(inputs.get("mem0_text") or "")
+    if not mem0_text.strip() and isinstance(memories, list) and memories:
+        mem0_text = format_mem0_for_system(memories)
+    facts_count_raw = inputs.get("mem0_facts_count")
+    if isinstance(facts_count_raw, int):
+        mem0_facts_count = facts_count_raw
+    elif isinstance(memories, list):
+        mem0_facts_count = len(memories)
+    else:
+        mem0_facts_count = 0
     recent = inputs.get("recent_messages") or []
     secrets = _collect_secret_values()
     return {
@@ -149,6 +161,7 @@ def _rewrite_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
         "user_message": truncate_for_trace(redact_secrets(user_message, secrets)),
         "user_message_len": len(user_message),
         "mem0_text_len": len(mem0_text),
+        "mem0_facts_count": mem0_facts_count,
         "recent_message_count": len(recent),
     }
 

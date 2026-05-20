@@ -23,7 +23,6 @@ class AgentState(TypedDict, total=False):
 
     messages: Annotated[list[BaseMessage], add_messages]
     mem0_memories: Annotated[list[str], EphemeralValue]
-    mem0_text: Annotated[str, EphemeralValue]
     rolling_summary: Annotated[str | None, EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]

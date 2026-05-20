@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from memory.mem0_client import format_mem0_for_system
 from observability.tracing import rewrite_traceable
@@ -23,7 +23,6 @@ class RewriteNodeState(TypedDict, total=False):
     """Minimal state slice for rewrite_node (full AgentState comes in task 13)."""
 
     user_message: str
-    mem0_text: str
     mem0_memories: list[str]
     recent_messages: list[BaseMessage]
     messages: list[BaseMessage]
@@ -74,14 +73,6 @@ def build_rewrite_prompt(
     )
 
 
-def _resolve_mem0_text(mem0_text: str, mem0_memories: list[str] | None) -> str:
-    if mem0_text.strip():
-        return mem0_text
-    if mem0_memories:
-        return format_mem0_for_system(mem0_memories)
-    return ""
-
-
 def _create_chat_model(settings: Settings, model_name: str | None) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
@@ -113,6 +104,7 @@ def rewrite_query(
     mem0_text: str = "",
     recent_messages: Sequence[BaseMessage] | None = None,
     *,
+    mem0_facts_count: int | None = None,
     model_name: str | None = None,
 ) -> str:
     """
@@ -121,6 +113,7 @@ def rewrite_query(
     Does not read RAG results. On empty input or LLM failure, returns the
     trimmed original message.
     """
+    del mem0_facts_count  # consumed by tracing metadata via process_inputs.
     original = user_message.strip()
     if not original:
         return ""
@@ -152,10 +145,8 @@ def _extract_user_message(state: RewriteNodeState) -> str:
 def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
     """LangGraph node: set ``rewritten_query`` from mem0 + recent context."""
     user_message = _extract_user_message(state)
-    mem0_text = _resolve_mem0_text(
-        str(state.get("mem0_text") or ""),
-        state.get("mem0_memories"),
-    )
+    mem0_memories = list(state.get("mem0_memories") or [])
+    mem0_block = format_mem0_for_system(mem0_memories)
     recent_messages = state.get("recent_messages")
     if recent_messages is None:
         messages = state.get("messages") or []
@@ -163,7 +154,8 @@ def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
 
     rewritten = rewrite_query(
         user_message,
-        mem0_text=mem0_text,
+        mem0_text=mem0_block,
         recent_messages=recent_messages,
+        mem0_facts_count=len(mem0_memories),
     )
     return {"rewritten_query": rewritten}

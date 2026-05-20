@@ -32,7 +32,7 @@ from guardrails.inbound import check_inbound
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.assembly import build_context
 from memory.history import get_rolling_summary, load_thread_messages
-from memory.mem0_client import fetch_user_memories, format_mem0_for_system
+from memory.mem0_client import fetch_user_memories
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from rag.retriever import RagChunk
 from rag.rewrite import rewrite_node
@@ -44,7 +44,6 @@ from settings.config import get_settings
 # needed downstream within the same invoke.
 _EPHEMERAL_CARRY_KEYS = (
     "mem0_memories",
-    "mem0_text",
     "rolling_summary",
     "rewritten_query",
     "rag_skipped",
@@ -142,7 +141,6 @@ def load_memory_node(
 
     updates: dict[str, object] = {
         "mem0_memories": mem0_memories,
-        "mem0_text": format_mem0_for_system(mem0_memories),
         "rolling_summary": rolling_summary,
     }
 
@@ -160,7 +158,6 @@ def rewrite_graph_node(state: AgentState) -> dict[str, str]:
     """Delegate to rag.rewrite.rewrite_node with graph state."""
     payload: dict[str, object] = {
         "user_message": _extract_user_message(state),
-        "mem0_text": state.get("mem0_text") or "",
         "mem0_memories": state.get("mem0_memories") or [],
         "messages": state.get("messages") or [],
     }

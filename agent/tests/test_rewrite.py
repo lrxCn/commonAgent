@@ -121,6 +121,20 @@ def test_rewrite_node_extracts_message_from_messages() -> None:
     assert "报销" in out["rewritten_query"]
 
 
+def test_rewrite_node_empty_mem0_memories_uses_placeholder() -> None:
+    captured: dict[str, str] = {}
+
+    def mock_llm(prompt: str) -> str:
+        captured["prompt"] = prompt
+        return "改写后"
+
+    set_rewrite_llm(mock_llm)
+
+    rewrite_node({"user_message": "它", "mem0_memories": [], "recent_messages": []})
+
+    assert "（无）" in captured["prompt"]
+
+
 def test_rewrite_node_formats_mem0_memories() -> None:
     captured: dict[str, str] = {}
 
@@ -138,7 +152,8 @@ def test_rewrite_node_formats_mem0_memories() -> None:
         }
     )
 
-    assert "常用差旅报销" in captured["prompt"]
+    assert "## User preferences" in captured["prompt"]
+    assert "- 常用差旅报销" in captured["prompt"]
 
 
 def test_rewrite_uses_rewrite_model_name_from_settings(
