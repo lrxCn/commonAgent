@@ -95,7 +95,7 @@ def test_invoke_appends_ai_message() -> None:
     assert any(isinstance(message, AIMessage) for message in messages)
     ai_texts = [str(message.content) for message in messages if isinstance(message, AIMessage)]
     assert any("mock-reply" in text for text in ai_texts)
-    assert result.get("rewritten_query") == "rewritten query text"
+    assert result.get("rewritten_query") == "你好"
     assert result.get("rag_skipped") is True
     assert "context" not in result
 

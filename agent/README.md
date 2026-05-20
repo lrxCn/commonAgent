@@ -137,7 +137,7 @@ LANGCHAIN_PROJECT=common-agent
 3. 在 LangSmith **Traces** 列表按时间找到该次 `invoke`；展开可看到 LangGraph 节点链，以及带标签的子 span：
    - `rewrite`、`rag_router`、`retrieve`、`rerank`（metadata 含 `rerank=true`）、`supervisor`、`guardrails_inbound` / `guardrails_outbound`
 4. 点击 run 的 **Metadata** 查看 RAG 命中数、护栏拦截原因等；**不会**记录完整 API Key。长文本可通过环境变量 `LANGCHAIN_TRACE_MESSAGE_MAX_CHARS`（默认 500）截断。
-5. **Rewrite 条件跳过**（任务 26，目标态）：寒暄等轮次 `rewrite` span 的 metadata 含 `rewrite_skipped=true`、`rewrite_skip_reason`（如 `chitchat`），且无子 LLM 调用；可通过 `REWRITE_SKIP_ENABLED=false` 恢复每轮 LLM 改写。见 [26-rewrite-conditional-skip](../docs/prompts/26-rewrite-conditional-skip.md)。
+5. **Rewrite 条件跳过**（任务 26）：寒暄等轮次 `rewrite` span 的 metadata 含 `rewrite_skipped=true`、`rewrite_skip_reason`（如 `chitchat`），且无子 LLM 调用；可通过 `REWRITE_SKIP_ENABLED=false` 恢复每轮 LLM 改写。见 [26-rewrite-conditional-skip](../docs/prompts/26-rewrite-conditional-skip.md)。
 
 可选：使用独立 test project key 跑一条真实 invoke 后在 UI 人工核对（CI 不依赖外网）。
 

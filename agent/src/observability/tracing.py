@@ -155,14 +155,18 @@ def _rewrite_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     else:
         mem0_facts_count = 0
     recent = inputs.get("recent_messages") or []
+    rewrite_skipped = bool(inputs.get("rewrite_skipped", False))
+    rewrite_skip_reason = str(inputs.get("rewrite_skip_reason") or "")
     secrets = _collect_secret_values()
     return {
         "span": "rewrite",
         "user_message": truncate_for_trace(redact_secrets(user_message, secrets)),
         "user_message_len": len(user_message),
-        "mem0_text_len": len(mem0_text),
-        "mem0_facts_count": mem0_facts_count,
+        "mem0_text_len": len(mem0_text) if not rewrite_skipped else 0,
+        "mem0_facts_count": mem0_facts_count if not rewrite_skipped else 0,
         "recent_message_count": len(recent),
+        "rewrite_skipped": rewrite_skipped,
+        "rewrite_skip_reason": rewrite_skip_reason,
     }
 
 

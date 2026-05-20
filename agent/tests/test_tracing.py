@@ -80,6 +80,21 @@ def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:
     assert meta["mem0_text_len"] > 0
 
 
+def test_rewrite_process_inputs_skip_metadata() -> None:
+    meta = _rewrite_process_inputs(
+        {
+            "user_message": "你好",
+            "rewrite_skipped": True,
+            "rewrite_skip_reason": "chitchat",
+            "recent_messages": [],
+        }
+    )
+    assert meta["rewrite_skipped"] is True
+    assert meta["rewrite_skip_reason"] == "chitchat"
+    assert meta["mem0_facts_count"] == 0
+    assert meta["mem0_text_len"] == 0
+
+
 def test_rewrite_process_inputs_uses_mem0_text_kwarg_len() -> None:
     block = "## User preferences (from memory)\n\n- 事实"
     meta = _rewrite_process_inputs(

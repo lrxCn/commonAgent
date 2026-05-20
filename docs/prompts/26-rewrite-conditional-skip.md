@@ -143,10 +143,10 @@ uv run pytest tests/test_rewrite.py tests/test_rag_router.py tests/test_graph_in
 
 ## 完成标准
 
-- [ ] `should_rewrite` 可单测且覆盖上表。
-- [ ] 问候类轮次 rewrite span 显示 `rewrite_skipped=true`，端到端少一次 LLM 调用。
-- [ ] `architecture.md` §5/§6、`agent/README.md`、`progress.md` 任务 26 标为 ✅。
-- [ ] `.env.example` 含 `REWRITE_SKIP_ENABLED`。
+- [x] `should_rewrite` 可单测且覆盖上表。
+- [x] 问候类轮次 rewrite span 显示 `rewrite_skipped=true`，端到端少一次 LLM 调用。
+- [x] `architecture.md` §5/§6、`agent/README.md`、`progress.md` 任务 26 标为 ✅。
+- [x] `.env.example` 含 `REWRITE_SKIP_ENABLED`。
 
 ## 验证清单（手工）
 

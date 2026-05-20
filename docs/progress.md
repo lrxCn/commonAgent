@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 27 |
-| 已完成 | 25 |
+| 已完成 | 26 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 **[26 - Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)**（降延迟；依赖 09/10/25 已 ✅）
+**当前建议下一步**：第一期 01–26 已完成；后续按产品排期扩展（如 rewrite/rag_router 合并 LLM、更激进跳过规则等）。
 
 
 ---
@@ -50,7 +50,7 @@
 | 23 | [Front 占位](./prompts/23-front-stub.md) | ✅ | 2026-05-19 | `front/` 单页 HTML+JS；sessionStorage thread_id；SSE + client_actions console；Back CORS |
 | 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；`agent/README.md` 迁移说明；`test_mem0_write` 4 用例 |
 | 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ✅ | 2026-05-20 | 移除 state `mem0_text`；rewrite 内格式化；`test_graph_load_memory` + tracing metadata |
-| 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ⬜ | — | `should_rewrite` 规则短路；跳过时不调 LLM；`REWRITE_SKIP_ENABLED` |
+| 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ✅ | 2026-05-20 | `should_rewrite`+`rag/intent.py`；`rewrite_passthrough` tracing；`test_rewrite.py` 17 用例 |
 
 ---
 
@@ -91,3 +91,4 @@
 | 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；architecture §3.1 目标态（仅 `mem0_memories`） |
 | 2026-05-20 | 完成任务 25：AgentState 仅 `mem0_memories`；rewrite 节点内 `format_mem0_for_system` |
 | 2026-05-20 | 文档：新增任务 **26** [Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)；architecture §5/§6、README LangSmith 说明 |
+| 2026-05-20 | 完成任务 26：`should_rewrite` 条件跳过 rewrite LLM；`REWRITE_SKIP_ENABLED`；LangSmith `rewrite_skipped` metadata |

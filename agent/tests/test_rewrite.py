@@ -11,6 +11,7 @@ from rag.rewrite import (
     rewrite_node,
     rewrite_query,
     set_rewrite_llm,
+    should_rewrite,
 )
 from settings.config import Settings, reset_settings, set_settings_override
 
@@ -154,6 +155,85 @@ def test_rewrite_node_formats_mem0_memories() -> None:
 
     assert "## User preferences" in captured["prompt"]
     assert "- 常用差旅报销" in captured["prompt"]
+
+
+def test_should_rewrite_chitchat() -> None:
+    need, reason = should_rewrite("你好", recent_messages=[])
+    assert need is False
+    assert reason == "chitchat"
+
+
+def test_should_rewrite_standalone_faq() -> None:
+    need, reason = should_rewrite(
+        "公司报销流程是什么",
+        recent_messages=[],
+        mem0_memories=[],
+    )
+    assert need is False
+    assert reason == "standalone_no_context"
+
+
+def test_should_rewrite_anaphora_with_recent() -> None:
+    need, reason = should_rewrite(
+        "它怎么办",
+        recent_messages=[HumanMessage(content="公司的报销流程是什么？")],
+    )
+    assert need is True
+    assert reason == "needs_disambiguation"
+
+
+def test_should_rewrite_self_contained_with_mem0() -> None:
+    need, reason = should_rewrite(
+        "公司报销流程是什么",
+        recent_messages=[],
+        mem0_memories=["偏好简洁回答"],
+    )
+    assert need is False
+    assert reason == "self_contained"
+
+
+def test_rewrite_node_skips_llm_for_chitchat() -> None:
+    calls: list[str] = []
+
+    def mock_llm(_prompt: str) -> str:
+        calls.append("llm")
+        return "不应调用"
+
+    set_rewrite_llm(mock_llm)
+
+    out = rewrite_node({"user_message": "你好", "recent_messages": []})
+
+    assert out["rewritten_query"] == "你好"
+    assert calls == []
+
+
+def test_rewrite_node_skips_llm_for_standalone_faq() -> None:
+    calls: list[str] = []
+
+    set_rewrite_llm(lambda _prompt: calls.append("llm") or "x")
+
+    out = rewrite_node(
+        {
+            "user_message": "公司报销流程是什么",
+            "mem0_memories": [],
+            "recent_messages": [],
+        }
+    )
+
+    assert out["rewritten_query"] == "公司报销流程是什么"
+    assert calls == []
+
+
+def test_rewrite_node_invokes_llm_when_skip_disabled() -> None:
+    set_settings_override(_settings(REWRITE_SKIP_ENABLED=False))
+    calls: list[str] = []
+
+    set_rewrite_llm(lambda _prompt: calls.append("llm") or "改写问候")
+
+    out = rewrite_node({"user_message": "你好", "recent_messages": []})
+
+    assert out["rewritten_query"] == "改写问候"
+    assert len(calls) == 1
 
 
 def test_rewrite_uses_rewrite_model_name_from_settings(

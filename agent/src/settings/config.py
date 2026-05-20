@@ -60,6 +60,18 @@ class Settings(BaseSettings):
         default=None,
         description="Chat model for query rewrite; defaults to OPENAI_MODEL_NAME when unset.",
     )
+    REWRITE_SKIP_ENABLED: bool = Field(
+        default=True,
+        description="When true, skip rewrite LLM for chitchat/standalone/self-contained turns.",
+    )
+    REWRITE_MIN_SELF_CONTAINED_LEN: int = Field(
+        default=8,
+        description="Minimum user message length for standalone/self-contained rewrite skip rules.",
+    )
+    REWRITE_FORCE: bool = Field(
+        default=False,
+        description="Debug: always invoke rewrite LLM even when skip rules would apply.",
+    )
 
     # --- RAG router ---
     RAG_ROUTER_MODE: str = Field(
