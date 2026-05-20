@@ -4,6 +4,8 @@
 
 **安全边界**：真正鉴权在 Back；Agent 仅内网可达，浏览器不直连 Agent。第一期无 JWT，使用 `.env` 演示用户；可选 `INTERNAL_API_KEY` 在转发时带 `X-Internal-Key`（Agent 第一期不校验）。
 
+**用户长期记忆**：由 Agent 内 mem0 + Qdrant 按 `user_id` 维护（Back 不读写）。计划中的 [mem0 All-in（infer=True）](../docs/prompts/24-allin-mem0.md) 在 Agent 侧落地后，同一 `user_id` 跨 thread 偏好由 mem0 去重写入；本地联调若见重复记忆，可按任务卡清空 `QDRANT_COLLECTION_MEM0` 后重试。
+
 ## 启动顺序
 
 1. **先启动 Agent**（内网 Gateway）  
@@ -67,4 +69,4 @@ curl -X POST http://127.0.0.1:8080/api/chat \
 - JWT / 真实用户表
 - 工具执行结果回灌 Agent
 
-任务卡：[docs/prompts/22-back-stub.md](../docs/prompts/22-back-stub.md)
+任务卡：[22-back-stub](../docs/prompts/22-back-stub.md) · Agent mem0 演进：[24-allin-mem0](../docs/prompts/24-allin-mem0.md)

@@ -93,7 +93,7 @@ commonAgent/
 |------|------|-----|----------|
 | 完整对话 | Postgres Checkpointer | `thread_id` | 权威历史；分页 API 同源 |
 | 模型上下文 | 运行时组装 | `thread_id` | system：指令+mem0+summary+RAG；messages：前 K + 近 M + 本轮 human |
-| 用户偏好 | **本地** mem0（OSS `Memory`）+ **本地** Qdrant | `user_id` | system；写入=提取式事实（异步） |
+| 用户偏好 | **本地** mem0（OSS `Memory`）+ **本地** Qdrant | `user_id` | system；写入=mem0 `infer=True` 抽取+hash 去重（异步，见任务 **24**） |
 | 知识库 | Qdrant | `role_id`（每轮 context） | system；RAG 片段带 doc/chunk 引用 |
 
 **mem0 部署（第一期硬约束）**
@@ -101,6 +101,13 @@ commonAgent/
 - 只用 `mem0ai` 包的自托管 **`Memory`**，向量库指向本机/内网 **Qdrant**（`QDRANT_COLLECTION_MEM0`，与 KB collection 分离）。
 - **禁止** mem0 托管云、`MemoryClient`、`MEM0_API_KEY`、`api.mem0.ai`。
 - 开发/CI 无 Qdrant 时：`MEM0_MOCK=true` 跳过读取（返回空列表），不改为连云。
+
+**mem0 写入（目标态，任务 [24-allin-mem0](./prompts/24-allin-mem0.md)）**
+
+- post_turn 将 **本轮** `user` / `assistant` 原文传给 `Memory.add(..., infer=True)`；由 mem0 检索已有记忆、LLM 抽取、`md5(text)` **hash 去重** 后写入。
+- **禁止** 应用层再用 `mem0_extract.txt` 抽一遍后以 `infer=False` 盲插（会导致重复 point，且与 mem0 去重管线脱节）。
+- 抽取规则通过 `MemoryConfig.custom_instructions`（`mem0_custom_instructions.txt`）约束：只记稳定偏好、**不从助手复述当新事实**。
+- 自任务 24 起，旧 Qdrant 中 `User preference facts:\n- ...` 格式数据建议迁移或清空 collection，避免与新格式并存。
 
 **滚动 summary**
 
@@ -136,7 +143,7 @@ sequenceDiagram
   end
   G->>G: 出站护栏（整段，第一期）
   G-->>Back: SSE tokens 或 client_actions JSON
-  Note over G: 异步：summary 更新、mem0 写入
+  Note over G: 异步：summary 更新、mem0 add(infer=true)
 ```
 
 **性能原则**：mem0 与 checkpoint 并行；RAG 可跳过；summary/mem0 不阻塞首 token。
@@ -240,7 +247,7 @@ POST /internal/kb/ingest
 
 - Back：JWT、工具表、完整审批 UI
 - Front：sessionStorage `thread_id`、client_actions 执行
-- Agent 服务间鉴权；mem0 用户删记忆
+- Agent 服务间鉴权；mem0 用户删记忆；读侧语义去重（若未清库）
 - RAG：SubAgent 触发分数阈值；同 thread 检索缓存
 - Admin：文档/工具管理 UI
 - 服务端工具 + Agent 第二轮回（若产品需要）
@@ -249,4 +256,4 @@ POST /internal/kb/ingest
 
 ## 12. 任务拆分索引
 
-实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。
+实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。第一期 01–23 完成后，mem0 写入演进见 [24-allin-mem0.md](./prompts/24-allin-mem0.md)。

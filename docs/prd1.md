@@ -16,7 +16,7 @@ isProject: false
 |------|------|------|------|
 | 完整对话 | Postgres Checkpointer | `thread_id` | 权威历史、分页展示 |
 | 模型上下文 | 运行时组装 | `thread_id` | K + M + 滚动 summary |
-| 用户偏好 | mem0 + Qdrant | `user_id` | 跨 thread；写入=提取式事实 |
+| 用户偏好 | mem0 + Qdrant | `user_id` | 跨 thread；写入=mem0 `infer=True`（抽取+hash 去重，见任务 24） |
 | 知识库 | Qdrant | `role_id`（每轮 context） | RAG |
 
 **身份/权限**：`user_id`、`role_id`、`tools[]` 放在**每轮请求 context**，不写死在 checkpoint state。同 `thread_id` 可继续聊；权限变更后 back 传最新 `role_id` 即可。
@@ -67,7 +67,7 @@ sequenceDiagram
 
 1. 入站护栏 → 并行读 mem0、checkpoint → **rewrite** → **RAG 路由+检索** → 拆开放组装 → Supervisor（+ 可选 RagSubAgent 二查）。
 2. 出站：**整段**生成后再护栏（第一期）。
-3. 事后异步：滚动 summary 更新、mem0 写入。
+3. 事后异步：滚动 summary 更新、mem0 `add(infer=true)` 写入（去重由 mem0 负责）。
 4. 性能：能并行则并行；RAG 可跳过；summary/mem0 不挡首 token。
 
 ---
@@ -122,7 +122,7 @@ Front → Back（登录、role、滤 tools、审批 UI）→ Agent（仅内网�
 
 - Back：JWT、工具表、`requires_approval`、完整审批 UI
 - Front：sessionStorage thread_id、client_actions 执行与确认
-- Agent 服务间鉴权；mem0 用户删记忆
+- Agent 服务间鉴权；mem0 用户删记忆；任务 24 上线前 Qdrant mem0 collection 迁移/清库
 - RAG：SubAgent 触发分数阈值；同 thread 检索缓存
 - Admin：文档/工具管理 UI
 - 服务端工具 + agent 第二轮回（若产品需要）
