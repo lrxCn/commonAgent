@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 26 |
+| 总任务数 | 27 |
 | 已完成 | 25 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：第一期 01–25 已完成；见 [architecture.md](./architecture.md) §11 后期 todo
+**当前建议下一步**：执行任务 **[26 - Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)**（降延迟；依赖 09/10/25 已 ✅）
 
 
 ---
@@ -50,6 +50,7 @@
 | 23 | [Front 占位](./prompts/23-front-stub.md) | ✅ | 2026-05-19 | `front/` 单页 HTML+JS；sessionStorage thread_id；SSE + client_actions console；Back CORS |
 | 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；`agent/README.md` 迁移说明；`test_mem0_write` 4 用例 |
 | 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ✅ | 2026-05-20 | 移除 state `mem0_text`；rewrite 内格式化；`test_graph_load_memory` + tracing metadata |
+| 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ⬜ | — | `should_rewrite` 规则短路；跳过时不调 LLM；`REWRITE_SKIP_ENABLED` |
 
 ---
 
@@ -89,3 +90,4 @@
 | 2026-05-20 | 完成任务 24：mem0 `infer=True` 写入；移除应用层 `mem0_extract` 热路径 |
 | 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；architecture §3.1 目标态（仅 `mem0_memories`） |
 | 2026-05-20 | 完成任务 25：AgentState 仅 `mem0_memories`；rewrite 节点内 `format_mem0_for_system` |
+| 2026-05-20 | 文档：新增任务 **26** [Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)；architecture §5/§6、README LangSmith 说明 |

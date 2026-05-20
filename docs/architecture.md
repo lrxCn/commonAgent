@@ -145,7 +145,7 @@ sequenceDiagram
     G->>G: mem0 读取
     G->>G: checkpoint 读取
   end
-  G->>G: query rewrite (mem0 + 短期，不用 RAG)
+  G->>G: query rewrite（条件：规则跳过或 LLM，mem0+短期）
   G->>G: RAG 路由?
   alt 需要 RAG
     G->>G: 检索 → rag_chunks 写入 state
@@ -160,12 +160,20 @@ sequenceDiagram
   Note over G: 异步：summary 更新、mem0 add(infer=true)
 ```
 
-**性能原则**：mem0 与 checkpoint 并行；RAG 可跳过；summary/mem0 不阻塞首 token。
+**性能原则**：mem0 与 checkpoint 并行；RAG 可跳过；summary/mem0 不阻塞首 token；rewrite 在节点内 **条件跳过** LLM（见任务 **26**），降低关键路径 RTT。
+
+**Query Rewrite（目标态，任务 [26-rewrite-conditional-skip](./prompts/26-rewrite-conditional-skip.md)）**
+
+- 图顺序仍为 `load_memory → rewrite → rag_router`；**不** 为省延迟而调换节点。
+- `rewrite_node` 内先执行零成本 **`should_rewrite`**（规则：寒暄、无上下文自包含问句、无指代清晰 FAQ 等）；为 `False` 时 **`rewritten_query = 用户原文`**，**不** 调用改写 LLM。
+- 为 `True` 时行为与任务 **09** 一致（`rewrite.txt` + mem0 + 近期对话 → LLM）。
+- 配置：`REWRITE_SKIP_ENABLED`（默认开启跳过）；观测：`rewrite_skipped` / `rewrite_skip_reason`（LangSmith metadata）。
+- 跳过 rewrite **不等于** 跳过 RAG；路由仍独立判定 `rag_skipped`。
 
 ## 6. RAG 设计
 
 1. **路由（混合）**：规则（闲聊、纯 client tool 意图等）→ 不确定时小模型分类 → 不需要则跳过整段 RAG。
-2. **顺序**：`rewrite → RAG`；检索使用 `rewritten_query`。
+2. **顺序**：`rewrite → RAG`；检索使用 `rewritten_query`（可能为原文 pass-through，见任务 **26**）。
 3. **检索**：Qdrant `role_id` 过滤 + dense + sparse + rerank → system；回答须带 doc/chunk 标识。
 4. **只查一次（主链路）**：结果写入当轮 state `rag_chunks`；**RagSubAgent** 仅在 Supervisor 认为不够时二查。
 5. **Ingest**：`doc_id` + version；按 doc 名删旧再写；分块约 **512–1024 token**，overlap **10–15%**。
@@ -270,4 +278,4 @@ POST /internal/kb/ingest
 
 ## 12. 任务拆分索引
 
-实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。第一期 01–23 完成后，mem0 写入演进见 [24-allin-mem0.md](./prompts/24-allin-mem0.md)；state 中 mem0 字段精简见 [25-state-mem0-text-cleanup.md](./prompts/25-state-mem0-text-cleanup.md)。
+实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。第一期 01–23 完成后，mem0 写入演进见 [24-allin-mem0.md](./prompts/24-allin-mem0.md)；state 中 mem0 字段精简见 [25-state-mem0-text-cleanup.md](./prompts/25-state-mem0-text-cleanup.md)；rewrite 条件跳过见 [26-rewrite-conditional-skip.md](./prompts/26-rewrite-conditional-skip.md)。
