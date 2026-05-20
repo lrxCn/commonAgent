@@ -9,5 +9,6 @@ __pycache__/
 build/
 dist/
 .langgraph_api/
+logs/*.json
 .DS_Store
 .claude/

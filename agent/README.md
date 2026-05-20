@@ -123,6 +123,27 @@ LANGCHAIN_PROJECT=common-agent
 
 可选：使用独立 test project key 跑一条真实 invoke 后在 UI 人工核对（CI 不依赖外网）。
 
+### 导出 trace（CLI）
+
+在 `agent/` 目录执行（自动加载 `.env`，拉取当前项目最新一条 root trace）：
+
+```bash
+./scripts/fetch_trace.sh --latest
+```
+
+- 输出目录：`logs/`
+- 文件名：`{UTC开始时间}_{run名}_{id前8位}.json`，例如 `20260519_232654_agent_019e4290.json`
+- 默认内容为摘要 JSON（各 span 状态、耗时、metadata 等）
+
+可选：
+
+```bash
+./scripts/fetch_trace.sh --latest --full           # 完整 inputs/outputs
+./scripts/fetch_trace.sh --latest --last-minutes 30  # 仅在最近 30 分钟内取最新
+```
+
+`logs/*.json` 已加入 `.gitignore`，勿将导出文件提交到 git。
+
 ## 测试与 lint
 
 ```bash

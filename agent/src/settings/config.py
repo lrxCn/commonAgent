@@ -131,13 +131,13 @@ class Settings(BaseSettings):
         description="Qdrant collection for mem0 user-preference vectors (separate from KB).",
     )
     QDRANT_MOCK: bool = Field(
-        default=True,
+        default=False,
         description="When true, skip live Qdrant retrieval and return fixture chunks.",
     )
 
     # --- mem0 (local OSS + Qdrant; do not use MEM0_API_KEY / MemoryClient) ---
     MEM0_MOCK: bool = Field(
-        default=True,
+        default=False,
         description="When true, skip mem0/Qdrant reads and return an empty memory list.",
     )
     MEM0_READ_LIMIT: int = Field(
