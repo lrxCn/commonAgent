@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 25 |
+| 总任务数 | 26 |
 | 已完成 | 24 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：第一期 01–24 已完成；见 [architecture.md](./architecture.md) §11 后期 todo
+**当前建议下一步**：执行任务 **[25 - State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)**（依赖 13.5/09/12 已 ✅）
 
 
 ---
@@ -49,6 +49,7 @@
 | 22 | [Back 占位服务](./prompts/22-back-stub.md) | ✅ | 2026-05-19 | `back/` FastAPI；`POST /api/chat` 注入 demo context 转发 Agent；`test_back_forward.py` 6 用例 |
 | 23 | [Front 占位](./prompts/23-front-stub.md) | ✅ | 2026-05-19 | `front/` 单页 HTML+JS；sessionStorage thread_id；SSE + client_actions console；Back CORS |
 | 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；`agent/README.md` 迁移说明；`test_mem0_write` 4 用例 |
+| 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ⬜ | — | 仅 `mem0_memories` 进 state；rewrite 内 `format_mem0_for_system`；文档已同步 architecture §3.1 |
 
 ---
 
@@ -86,3 +87,4 @@
 | 2026-05-19 | 完成任务 23：`front/` 占位页；手动测试说明；Back 增加 Front CORS；**第一期完成** |
 | 2026-05-20 | 文档：新增任务 **24** [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md)；同步 architecture §4、prd1 记忆写入说明（目标态） |
 | 2026-05-20 | 完成任务 24：mem0 `infer=True` 写入；移除应用层 `mem0_extract` 热路径 |
+| 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；architecture §3.1 目标态（仅 `mem0_memories`） |

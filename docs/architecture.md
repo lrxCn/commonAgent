@@ -79,13 +79,27 @@ commonAgent/
 
 | 机制 | 内容 | 持久化 | 来源 |
 |------|------|--------|------|
-| **`state_schema`（`AgentState`）** | `messages`（`add_messages`）；单轮字段（`rewritten_query`、`rag_chunks`、`mem0_*`、`system_prompt` 等）使用 **`EphemeralValue`** | 仅 `messages` 跨轮持久化；单轮字段在当次 `invoke` 内传递，**不**依赖 checkpoint 中的上一轮残留 | 图节点读写 |
+| **`state_schema`（`AgentState`）** | `messages`（`add_messages`）；单轮字段（`rewritten_query`、`rag_chunks`、`mem0_memories`、`system_prompt` 等）使用 **`EphemeralValue`** | 仅 `messages` 跨轮持久化；单轮字段在当次 `invoke` 内传递，**不**依赖 checkpoint 中的上一轮残留 | 图节点读写 |
 | **`context_schema`（`GraphContext`）** | `user_id`、`role_id`、`tools[]`（与 `gateway.schemas.RequestContext` 同构） | **不**作为权限依据写入 checkpoint | 每轮 `graph.invoke(..., context=...)`，由 Back/Gateway 注入 |
 | **`configurable.thread_id`** | 会话键 | checkpointer 主键 | 每轮 `config={"configurable": {"thread_id": ...}}` |
 
 **禁止**：把 `user_id` / `role_id` / `tools[]` 仅依赖 checkpoint 内残留的 `state["context"]` 做鉴权或 RAG 过滤（resume 时必须以当轮 `context=` 为准）。
 
 实现任务卡：[13.5_fix_state_2_context_schema.md](./prompts/13.5_fix_state_2_context_schema.md)。
+
+**mem0 在 state 中的形态（目标态，任务 [25-state-mem0-text-cleanup](./prompts/25-state-mem0-text-cleanup.md)）**
+
+| 键 | 写入节点 | 含义 |
+|----|----------|------|
+| `mem0_memories` | `load_memory` | mem0 `get_all` 解析后的事实列表（**唯一** canonical） |
+| ~~`mem0_text`~~ | — | **已移除**；不在 state 存派生 Markdown |
+
+格式化规则（`format_mem0_for_system`）由 **消费方** 在当轮调用：
+
+- **rewrite**：`rewrite_node` 内格式化为 prompt 块（`rewrite.txt` 的 mem0 段）。
+- **Supervisor system**：`context_assembly` / `build_system_prompt(mem0=mem0_memories)` 内再次格式化。
+
+禁止在 `load_memory` 预写 `mem0_text`，避免与 assembly 双写、违背单一事实源。
 
 ## 4. 记忆分层
 
@@ -256,4 +270,4 @@ POST /internal/kb/ingest
 
 ## 12. 任务拆分索引
 
-实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。第一期 01–23 完成后，mem0 写入演进见 [24-allin-mem0.md](./prompts/24-allin-mem0.md)。
+实现按 [docs/prompts/](./prompts/) 序号顺序推进；依赖关系见各任务卡 **依赖** 节。总进度见 [progress.md](./progress.md)。第一期 01–23 完成后，mem0 写入演进见 [24-allin-mem0.md](./prompts/24-allin-mem0.md)；state 中 mem0 字段精简见 [25-state-mem0-text-cleanup.md](./prompts/25-state-mem0-text-cleanup.md)。
