@@ -69,7 +69,7 @@ def chunk_text(
     """
     Split ``text`` into chunks of roughly ``chunk_size_tokens`` with overlap.
 
-    Overlap ratio is clamped to [0.1, 0.15] per architecture §6.5 when out of range
+    Overlap ratio follows the root README target range when configured out of range
     only for the configured setting — callers pass settings-validated values.
     """
     body = text.strip()

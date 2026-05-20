@@ -1,4 +1,4 @@
-"""Pydantic models for KB ingest API (architecture §8.3)."""
+"""Pydantic models for KB ingest API (see root README API contract)."""
 
 from __future__ import annotations
 

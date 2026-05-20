@@ -1,4 +1,4 @@
-"""Parse and validate Supervisor LLM output for external client_actions (architecture §7)."""
+"""Parse and validate Supervisor LLM output for external client_actions."""
 
 from __future__ import annotations
 

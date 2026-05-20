@@ -38,7 +38,7 @@
 | `agent/src/observability/tracing.py` | rewrite span metadata：由 `mem0_memories` 推导 `mem0_text_len`（或 `mem0_facts_count`），勿读 state 中已删除的键 |
 | `agent/tests/test_rewrite.py` | 用例改为传 `mem0_memories`；断言 prompt 中含格式化块 |
 | `agent/tests/test_graph_*.py` | 若有 `mem0_text` 断言则更新 |
-| `docs/architecture.md` §3.1 | state 字段表同步（目标态） |
+| 根目录 `README.md` | state 字段表同步（目标态） |
 | `docs/progress.md` | 本任务行状态 |
 
 ## 非范围
@@ -46,7 +46,7 @@
 - 修改 `format_mem0_for_system` 的 Markdown 模板（除非测试断言需要）。
 - mem0 读/写 API、`MEM0_MOCK`、任务 **24** 写入管线。
 - 为 Studio 调试 **重新** 在 state 中暴露 `mem0_text`（若需要，应由 `rewrite_node` **可选** 写回调试键，本任务默认不做）。
-- 修改历史任务卡 **13.5** 文件正文（architecture 以新契约为准）。
+- 修改历史任务卡 **13.5** 文件正文（根 README 以新契约为准）。
 
 ## 实现要点
 
@@ -108,7 +108,7 @@ uv run pytest tests/test_rewrite.py tests/test_graph_invoke_mock.py tests/test_g
 - [ ] `load_memory` 仅写 `mem0_memories`。
 - [ ] rewrite 从 `mem0_memories` 格式化；`_resolve_mem0_text` 已删除。
 - [ ] 上述 pytest 通过。
-- [ ] `architecture.md` §3.1、`progress.md` 任务 25 标为 ✅。
+- [ ] 根目录 `README.md`、`progress.md` 任务 25 标为 ✅。
 
 ## 验证清单（手工，可选）
 

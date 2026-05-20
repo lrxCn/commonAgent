@@ -22,7 +22,7 @@ _PROMPT_PATH = Path(__file__).parent / "prompts" / "router_classify.txt"
 
 _classifier_override: BaseChatModel | Callable[[str], str] | None = None
 
-# --- Rule patterns (architecture §6: client-tool / navigation) ---
+# --- Rule patterns (client-tool / navigation) ---
 
 _NAV_INTENT_RE = re.compile(
     r"(?:打开|跳转|前往|进入|切换到|去|open|goto|go\s+to|navigate)",

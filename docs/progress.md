@@ -1,19 +1,19 @@
 # 通用 Agent 实现进度
 
-> **维护方式**：执行 `docs/prompts/` 任务卡时由 Cursor skill [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 在测试通过后更新本文。人工改代码时也请同步更新对应行。
+> **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**架构**：[architecture.md](./architecture.md) · **需求**：[prd1.md](./prd1.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[prd1.md](./prd1.md)
 
 ## 总览
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 27 |
-| 已完成 | 26 |
+| 已完成 | 27 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：第一期 01–26 已完成；后续按产品排期扩展（如 rewrite/rag_router 合并 LLM、更激进跳过规则等）。
+**当前建议下一步**：第一期 01–26（含 13.5）已完成；后续按产品排期扩展（如 rewrite/rag_router 合并 LLM、更激进跳过规则等）。
 
 
 ---
@@ -48,7 +48,7 @@
 | 21 | [LangSmith 接入](./prompts/21-langsmith-integration.md) | ✅ | 2026-05-19 | `observability/tracing.py`；关键 span 标签；`test_tracing.py` |
 | 22 | [Back 占位服务](./prompts/22-back-stub.md) | ✅ | 2026-05-19 | `back/` FastAPI；`POST /api/chat` 注入 demo context 转发 Agent；`test_back_forward.py` 6 用例 |
 | 23 | [Front 占位](./prompts/23-front-stub.md) | ✅ | 2026-05-19 | `front/` 单页 HTML+JS；sessionStorage thread_id；SSE + client_actions console；Back CORS |
-| 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；`agent/README.md` 迁移说明；`test_mem0_write` 4 用例 |
+| 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；根 README 迁移说明；`test_mem0_write` 4 用例 |
 | 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ✅ | 2026-05-20 | 移除 state `mem0_text`；rewrite 内格式化；`test_graph_load_memory` + tracing metadata |
 | 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ✅ | 2026-05-20 | `should_rewrite`+`rag/intent.py`；`rewrite_passthrough` tracing；`test_rewrite.py` 17 用例 |
 
@@ -59,14 +59,14 @@
 | 日期 | 说明 |
 |------|------|
 | 2026-05-19 | 初始化进度文档与 23 项任务卡 |
-| 2026-05-19 | 文档：任务 01 固化 .env 契约（SiliconFlow LLM/Embedding/Rerank、LangSmith、Qdrant）；同步 architecture §10.1、任务 02 字段列表 |
+| 2026-05-19 | 文档：任务 01 固化 .env 契约（SiliconFlow LLM/Embedding/Rerank、LangSmith、Qdrant）；同步根 README 环境变量表、任务 02 字段列表 |
 | 2026-05-19 | 完成任务 01：三目录 + uv/deepagents 骨架 + `.env.example` 契约 |
 | 2026-05-19 | 完成任务 02：Pydantic Settings + `get_settings()` 单例与测试 |
 | 2026-05-19 | 完成任务 03：Postgres Checkpointer 工厂、集成测试 thread 往返 |
 | 2026-05-19 | 完成任务 04：ChatRequest/RequestContext/ToolSpec/ClientAction/ChatResponse Pydantic 模型 |
 | 2026-05-19 | 完成任务 05：FastAPI Gateway `GET /health`、`POST /internal/chat` stub；`test_gateway_health.py` 3 用例 |
 | 2026-05-19 | 完成任务 06：入站规则护栏 + Gateway 集成；`test_guardrails_inbound.py` 7 用例 |
-| 2026-05-19 | 文档：任务 07/17、architecture §4/§10.1 明确 mem0 仅本地 OSS+Qdrant，禁止托管云 |
+| 2026-05-19 | 文档：任务 07/17、根 README 明确 mem0 仅本地 OSS+Qdrant，禁止托管云 |
 | 2026-05-19 | 完成任务 07：本地 mem0 读取 + Qdrant 配置；`mem0ai`/`qdrant-client`；`test_mem0_read.py` 9 用例 |
 | 2026-05-19 | 完成任务 08：checkpoint 历史读取 + rolling summary；`test_history.py` 10 用例（含 integration） |
 | 2026-05-19 | 完成任务 09：mem0+短期 query rewrite、`rewrite_node`；`langchain-openai`；`test_rewrite.py` 9 用例 |
@@ -74,7 +74,7 @@
 | 2026-05-19 | 完成任务 11：`retrieve` + `rag_retrieval_node`；dense/sparse(文本回退)+rerank；`QDRANT_MOCK` fixture |
 | 2026-05-19 | 完成任务 12：`build_context` K+M+summary 组装；prefix/recent 去重；`test_context_assembly.py` 9 用例 |
 | 2026-05-19 | 完成任务 13：Supervisor 主图（护栏→并行 mem0/history→rewrite→RAG→组装→deepagents）；`test_graph_*.py` 5 用例 |
-| 2026-05-19 | 文档：新增任务 13.5（State/context_schema 拆分）及影响面清单；architecture §3.1 |
+| 2026-05-19 | 文档：新增任务 13.5（State/context_schema 拆分）及影响面清单；根 README 同步 State/Context 契约 |
 | 2026-05-19 | 完成任务 13.5：`GraphContextSchema` + `EphemeralValue`；图测试 7 用例 |
 | 2026-05-19 | 完成任务 14：RagSubAgent 规则委派二查、合并去重、`retrieve(second_pass=True)` |
 | 2026-05-19 | 完成任务 15：出站整段护栏、`supervisor`→`outbound_guard`、违规安全回复 |
@@ -86,9 +86,11 @@
 | 2026-05-19 | 完成任务 21：`observability/tracing.py`；rewrite/router/retrieve/rerank/supervisor/guardrails span；README LangSmith 查看说明 |
 | 2026-05-19 | 完成任务 22：`back/` 占位网关；demo context + 转发 `/internal/chat`；respx mock 测试 6 用例 |
 | 2026-05-19 | 完成任务 23：`front/` 占位页；手动测试说明；Back 增加 Front CORS；**第一期完成** |
-| 2026-05-20 | 文档：新增任务 **24** [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md)；同步 architecture §4、prd1 记忆写入说明（目标态） |
+| 2026-05-20 | 文档：新增任务 **24** [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md)；同步根 README、prd1 记忆写入说明（目标态） |
 | 2026-05-20 | 完成任务 24：mem0 `infer=True` 写入；移除应用层 `mem0_extract` 热路径 |
-| 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；architecture §3.1 目标态（仅 `mem0_memories`） |
+| 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；根 README 同步目标态（仅 `mem0_memories`） |
 | 2026-05-20 | 完成任务 25：AgentState 仅 `mem0_memories`；rewrite 节点内 `format_mem0_for_system` |
-| 2026-05-20 | 文档：新增任务 **26** [Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)；architecture §5/§6、README LangSmith 说明 |
+| 2026-05-20 | 文档：新增任务 **26** [Rewrite 条件跳过](./prompts/26-rewrite-conditional-skip.md)；根 README 同步条件 rewrite 与 LangSmith 说明 |
+| 2026-05-20 | 文档：删除旧架构文档与 Agent 局部 README，根目录 README 作为唯一项目入口 |
+| 2026-05-20 | 文档：新增根 `AGENTS.md` 作为跨工具 AI 规则源，`.cursor/skills` 改为 Cursor 适配层 |
 | 2026-05-20 | 完成任务 26：`should_rewrite` 条件跳过 rewrite LLM；`REWRITE_SKIP_ENABLED`；LangSmith `rewrite_skipped` metadata |

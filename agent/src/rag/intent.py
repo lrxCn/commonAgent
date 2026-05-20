@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-# --- Rule patterns (architecture §6: chitchat / knowledge) ---
+# --- Rule patterns (chitchat / knowledge) ---
 
 _CHITCHAT_RE = re.compile(
     r"^(?:你好|您好|嗨|hi|hello|早上好|下午好|晚上好|谢谢|感谢|多谢|再见|拜拜|"

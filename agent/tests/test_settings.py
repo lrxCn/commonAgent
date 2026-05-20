@@ -116,7 +116,7 @@ def test_guardrails_enabled_parses_string(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch)
-    assert settings.MEM0_MOCK is True
+    assert settings.MEM0_MOCK is False
     assert settings.QDRANT_COLLECTION_MEM0 == "common_agent_mem0"
     assert settings.MEM0_READ_LIMIT == 50
 
@@ -126,9 +126,9 @@ def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.MEM0_MOCK is False
 
 
-def test_qdrant_mock_defaults_true(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_qdrant_mock_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch)
-    assert settings.QDRANT_MOCK is True
+    assert settings.QDRANT_MOCK is False
 
 
 def test_qdrant_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:

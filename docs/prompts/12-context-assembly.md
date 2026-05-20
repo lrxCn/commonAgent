@@ -36,7 +36,7 @@ uv run pytest tests/test_context_assembly.py -v
 ## 完成标准
 
 - 单测覆盖边界 N < K+M
-- 与 architecture §4、§5 一致
+- 与根目录 README 的记忆分层和单轮流水线一致
 
 ## 进度更新
 

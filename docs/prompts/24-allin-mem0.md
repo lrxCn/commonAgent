@@ -31,7 +31,7 @@
 | `agent/src/memory/mem0_client.py` | `build_mem0_config` 增加 `custom_instructions`（新文件见下） |
 | `agent/src/memory/prompts/mem0_custom_instructions.txt` | **新建**：面向 mem0 _additive_ 抽取的英文/中文规则（勿复用带 `{turn_text}` 占位符的 `mem0_extract.txt`） |
 | `agent/tests/test_mem0_write.py` | 断言 `infer=True`、payload 为原始 turn 消息列表 |
-| `docs/architecture.md` §4 | 写入语义同步（由 skill/人工随实现更新） |
+| 根目录 `README.md` | 写入语义同步（由 skill/人工随实现更新） |
 | `docs/prd1.md` | 用户偏好写入一句同步 |
 | `docs/progress.md` | 本任务行状态 |
 
@@ -102,7 +102,7 @@ turn_messages (HumanMessage + AIMessage)
 
 ### 7. 与架构图一致
 
-异步写入仍在 `post_turn_jobs_node` 之后，不阻塞首 token（见 [architecture.md](../architecture.md) §5）。
+异步写入仍在 `post_turn_jobs_node` 之后，不阻塞首 token（见根目录 [README.md](../../README.md) 的单轮流水线）。
 
 ## 测试方案
 
@@ -122,8 +122,8 @@ uv run pytest tests/test_mem0_write.py tests/test_mem0_read.py -v
 - [ ] 写入路径仅 `infer=True` + 原始 turn messages。
 - [ ] `custom_instructions` 已配置且单测/手工验证 Turn2 不重复写入。
 - [ ] `test_mem0_write.py` 全部通过。
-- [ ] `architecture.md` §4、`prd1.md` 记忆表、本任务在 `progress.md` 标为 ✅。
-- [ ] 迁移说明写入 `agent/README.md`（或本任务卡「数据迁移」已执行并记录）。
+- [ ] 根目录 `README.md`、`prd1.md` 记忆表、本任务在 `progress.md` 标为 ✅。
+- [ ] 迁移说明写入根目录 `README.md`（或本任务卡「数据迁移」已执行并记录）。
 
 ## 验证清单（手工）
 

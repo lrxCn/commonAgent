@@ -11,7 +11,7 @@ LangGraph 使用 **Postgres Checkpointer** 持久化对话；`thread_id` 为会�
 ## 范围
 
 - `agent/src/memory/checkpointer.py`：`get_checkpointer()` / `get_pooled_checkpointer()` 工厂
-- `agent/README.md`：本地 Postgres 说明（已有实例，如 OrbStack；创建 `common_agent` 库、`DATABASE_URL`）
+- 根目录 `README.md`：本地 Postgres 说明（已有实例，如 OrbStack；创建 `common_agent` 库、`DATABASE_URL`）
 - 最小集成测试：写入一条 thread 后能 `get_state`
 
 ## 非范围
@@ -38,7 +38,7 @@ uv run pytest tests/test_checkpointer.py -v -m integration       # 有 DB 时
 ## 完成标准
 
 - Checkpointer 可被 graph compile 注入
-- `agent/README.md` 说明如何连接本地 Postgres（不强制仓库内 docker-compose）
+- 根目录 `README.md` 说明如何连接本地 Postgres（不强制仓库内 docker-compose）
 
 ## 进度更新
 

@@ -35,7 +35,7 @@ uv run pytest tests/test_rag_router.py -v
 ## 完成标准
 
 - 规则路径无外部依赖即可测
-- 与 architecture §6.1 一致
+- 与根目录 README 的 RAG 设计一致
 
 ## 进度更新
 

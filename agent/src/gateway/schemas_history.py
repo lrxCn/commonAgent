@@ -1,4 +1,4 @@
-"""Pydantic models for history pagination API (architecture §8.2)."""
+"""Pydantic models for history pagination API (see root README API contract)."""
 
 from __future__ import annotations
 

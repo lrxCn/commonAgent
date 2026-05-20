@@ -1,5 +1,7 @@
 # Agents
 
+Read the repository root `AGENTS.md` first, then `README.md`, before changing this service. The root files are the cross-tool behavior and architecture sources of truth.
+
 The production Supervisor graph is defined in `src/graph/build.py` (`compile_graph` / `get_graph` for LangGraph CLI).
 
 Supervisor LLM wiring lives in `src/graph/supervisor.py` (`create_deep_agent` from the `deepagents` package).

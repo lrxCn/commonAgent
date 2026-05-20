@@ -35,7 +35,7 @@ mock Qdrant：ingest 后 search 能命中；同 doc_name 再 ingest 旧 version 
 
 ## 完成标准
 
-- 与 architecture §6.5、§8.3 一致
+- 与根目录 README 的 RAG Ingest 与 KB API 契约一致
 
 ## 进度更新
 

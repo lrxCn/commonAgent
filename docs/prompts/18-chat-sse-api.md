@@ -38,7 +38,7 @@ curl -N -X POST http://127.0.0.1:18080/internal/chat \
 
 ## 完成标准
 
-- 与 architecture §8.1 一致
+- 与根目录 README 的 Agent Gateway Chat API 一致
 - mock 图下 SSE 至少 1 个 token 事件
 
 ## 进度更新

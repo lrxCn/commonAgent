@@ -13,7 +13,7 @@
 - 根目录 `.gitignore`：`.env`、`**/.env`、`__pycache__`、`.venv` 等
 - `agent/pyproject.toml` + `uv.lock`（若 lock 生成失败可后续补）
 - `agent/.env.example`：**必须**与下方「环境变量清单」一致（值用 `***` / 占位，禁止真实密钥入库）
-- `agent/README.md`：本地启动说明（`cp .env.example .env` 后填入 SiliconFlow / LangSmith 等）
+- 根目录 `README.md`：本地启动说明（`cp .env.example .env` 后填入 SiliconFlow / LangSmith 等）
 - `front/README.md`、`back/README.md`：占位说明
 
 ## 非范围

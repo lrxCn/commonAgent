@@ -1,4 +1,4 @@
-"""Incremental rolling summary updates after each turn (architecture §4)."""
+"""Incremental rolling summary updates after each turn."""
 
 from __future__ import annotations
 

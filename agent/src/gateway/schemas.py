@@ -1,4 +1,4 @@
-"""Pydantic models for Gateway chat request/response (architecture §8.1, §7)."""
+"""Pydantic models for Gateway chat request/response (see root README API contract)."""
 
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ class ChatRequest(BaseModel):
 
 
 class ClientAction(BaseModel):
-    """Structured external tool invocation for the client to execute (architecture §7)."""
+    """Structured external tool invocation for the client to execute (see root README)."""
 
     model_config = ConfigDict(
         json_schema_extra={

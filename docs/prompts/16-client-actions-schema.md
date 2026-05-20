@@ -36,7 +36,7 @@ uv run pytest tests/test_client_actions.py -v
 
 ## 完成标准
 
-- 与 architecture §7 示例一致
+- 与根目录 README 的 client_actions 示例一致
 - Gateway stub 可返回带 client_actions 的 JSON
 
 ## 进度更新

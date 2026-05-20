@@ -118,11 +118,11 @@ class Settings(BaseSettings):
     # --- KB ingest ---
     CHUNK_SIZE_TOKENS: int = Field(
         default=768,
-        description="Target chunk size in estimated tokens (architecture: 512–1024).",
+        description="Target chunk size in estimated tokens (README target: 512–1024).",
     )
     CHUNK_OVERLAP_RATIO: float = Field(
         default=0.12,
-        description="Chunk overlap ratio (architecture: 10–15%).",
+        description="Chunk overlap ratio (README target: 10–15%).",
     )
 
     # --- Qdrant ---

@@ -24,7 +24,7 @@
 
 - `tools` 默认 `[]`
 - 校验 `thread_id` 非空字符串
-- 与 [architecture.md](../architecture.md) §8.1 一致
+- 与根目录 [README.md](../../README.md) 的 API 契约一致
 
 ## 测试方案
 

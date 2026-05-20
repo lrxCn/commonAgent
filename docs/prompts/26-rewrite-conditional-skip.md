@@ -36,9 +36,9 @@
 | `agent/src/observability/tracing.py` | rewrite metadata：`rewrite_skipped`、`rewrite_skip_reason` |
 | `agent/tests/test_rewrite.py` | 跳过/不跳过用例；问候不调 mock LLM |
 | `agent/tests/test_graph_invoke_mock.py` | 可选：问候轮 mock LLM 未被调用（若可注入计数） |
-| `docs/architecture.md` §5、§6 | 条件 rewrite 目标态 |
+| 根目录 `README.md` | 条件 rewrite 目标态 |
 | `docs/progress.md` | 本任务行 |
-| `agent/README.md` | LangSmith 查看说明补一句 |
+| 根目录 `README.md` | LangSmith 查看说明补一句 |
 
 ## 非范围
 
@@ -145,7 +145,7 @@ uv run pytest tests/test_rewrite.py tests/test_rag_router.py tests/test_graph_in
 
 - [x] `should_rewrite` 可单测且覆盖上表。
 - [x] 问候类轮次 rewrite span 显示 `rewrite_skipped=true`，端到端少一次 LLM 调用。
-- [x] `architecture.md` §5/§6、`agent/README.md`、`progress.md` 任务 26 标为 ✅。
+- [x] 根目录 `README.md`、`progress.md` 任务 26 标为 ✅。
 - [x] `.env.example` 含 `REWRITE_SKIP_ENABLED`。
 
 ## 验证清单（手工）
