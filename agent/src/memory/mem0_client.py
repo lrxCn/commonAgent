@@ -1,12 +1,18 @@
-"""Local mem0 (OSS Memory + Qdrant) read path for user preference facts."""
+"""Local mem0 (OSS Memory + Qdrant) read/write client for user preference facts."""
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from settings.config import Settings, get_settings
+
+_CUSTOM_INSTRUCTIONS_PATH = (
+    Path(__file__).parent / "prompts" / "mem0_custom_instructions.txt"
+)
 
 _memory_instance: Any | None = None
 _memory_factory: Callable[[], Any] | None = None
@@ -28,9 +34,14 @@ def reset_mem0_memory() -> None:
     set_memory_factory(None)
 
 
+@lru_cache
+def _load_custom_instructions() -> str:
+    return _CUSTOM_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+
+
 def build_mem0_config(settings: Settings) -> dict[str, Any]:
     """Build mem0 OSS config: Qdrant vector store + OpenAI-compatible LLM/embedder."""
-    return {
+    config: dict[str, Any] = {
         "vector_store": {
             "provider": "qdrant",
             "config": {
@@ -59,6 +70,10 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
             },
         },
     }
+    instructions = _load_custom_instructions()
+    if instructions:
+        config["custom_instructions"] = instructions
+    return config
 
 
 def _require_user_id(user_id: str | None) -> str:

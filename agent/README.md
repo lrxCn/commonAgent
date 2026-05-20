@@ -45,7 +45,8 @@ uv run python -m main
 | LangSmith | `LANGSMITH_API_KEY`、`LANGCHAIN_*`；不需要追踪时可设 `LANGCHAIN_TRACING_V2=false` |
 | LLM | `OPENAI_API_KEY` + `OPENAI_BASE_URL` 对接 SiliconFlow，模型见 `OPENAI_MODEL_NAME` |
 | Embedding / Rerank | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS`（须与 Qdrant 向量维度一致，默认 1024）、`RERANK_*` |
-| Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB` |
+| Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`、`QDRANT_COLLECTION_MEM0` |
+| mem0 | `MEM0_MOCK`、`MEM0_READ_LIMIT`；写入走 `Memory.add(..., infer=True)` + `custom_instructions` |
 | Postgres | `DATABASE_URL`（LangGraph Checkpointer，见下文） |
 | Gateway | `AGENT_HOST`、`AGENT_PORT`（任务 05 起用） |
 
@@ -93,6 +94,22 @@ graph = builder.compile(checkpointer=checkpointer)
 ```
 
 首次连接会自动执行 `checkpointer.setup()` 建表。
+
+## mem0 用户偏好（本地 OSS + Qdrant）
+
+- 读取/写入均使用 `mem0ai` 包的自托管 **`Memory`**，向量落在 `QDRANT_COLLECTION_MEM0`（与 KB collection 分离）。
+- **禁止** mem0 托管云、`MemoryClient`、`MEM0_API_KEY`。
+- post_turn 将本轮 `user` / `assistant` 原文交给 `Memory.add(..., infer=True)`；抽取与 hash 去重由 mem0 负责，规则见 `src/memory/prompts/mem0_custom_instructions.txt`。
+- mem0 会在 `~/.mem0/history.db`（或环境变量 `MEM0_DIR`）维护辅助 SQLite；向量仍在 Qdrant。多实例部署时请统一 `MEM0_DIR` 或接受每实例独立 history 文件。
+
+### 从任务 17（`infer=False`）迁移
+
+旧写入格式为 `User preference facts:\n- ...` 包装文本，与新管线生成的短句事实 **hash 不同**，短期可能并存。上线前建议在开发/测试环境对 `QDRANT_COLLECTION_MEM0` 执行其一：
+
+1. **推荐**：按 `user_id` 清空或重建 collection（Qdrant UI / API `delete_collection` 后重启 Agent 让 mem0 重建）。
+2. **或**：删除 `payload.data` 以 `User preference facts:` 开头的 point。
+
+生产 rollout 时在变更单中记录上述步骤。
 
 ## LangSmith 追踪
 

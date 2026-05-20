@@ -1,0 +1,7 @@
+Extract durable user preference and profile facts from the conversation turn.
+
+Rules:
+- Store only stable preferences and profile facts (name, language, response format, role, location, habits). Do not store one-off Q&A or transient requests.
+- Extract facts only from user messages. When the user asks a recall question (e.g. "what is my name?") and the assistant repeats a known fact, do not add that fact again.
+- Write each stored fact in the same language as the user's input.
+- If there are no new storable facts, return an empty result (no new memories).

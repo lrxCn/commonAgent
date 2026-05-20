@@ -1,4 +1,4 @@
-"""Tests for memory.mem0_write — extractive local mem0 storage."""
+"""Tests for memory.mem0_write — mem0 infer=True post-turn storage."""
 
 from __future__ import annotations
 
@@ -7,14 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from memory.mem0_client import build_mem0_config
 from memory.mem0_write import (
-    build_mem0_add_payload,
     extract_and_store,
-    extract_facts_from_turn,
-    format_turn_transcript,
     reset_mem0_write_overrides,
     set_mem0_add_fn,
-    set_mem0_extract_llm,
+    turn_messages_to_mem0_payload,
 )
 from settings.config import Settings, reset_settings, set_settings_override
 
@@ -23,11 +21,6 @@ _REQUIRED_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
 }
-
-_LONG_TRANSCRIPT = "\n".join(
-    f"用户: 历史消息片段 {index}\n助手: 很长的回复 " * 20
-    for index in range(30)
-)
 
 
 @pytest.fixture(autouse=True)
@@ -39,56 +32,43 @@ def _clean_mem0_write() -> None:
     reset_settings()
 
 
-def test_format_turn_transcript_only_current_turn() -> None:
+def test_turn_messages_to_mem0_payload_roles() -> None:
     turn = [
-        HumanMessage(content="我喜欢简洁回答"),
-        AIMessage(content="好的，我会简短回复。"),
+        HumanMessage(content="我叫刘日兴"),
+        AIMessage(content="你好，刘日兴！"),
     ]
-    text = format_turn_transcript(turn)
-    assert "简洁" in text
-    assert "历史消息片段" not in text
+    payload = turn_messages_to_mem0_payload(turn)
+    assert payload == [
+        {"role": "user", "content": "我叫刘日兴"},
+        {"role": "assistant", "content": "你好，刘日兴！"},
+    ]
 
 
-def test_extract_facts_from_turn_parses_bullets() -> None:
-    set_mem0_extract_llm(
-        lambda _prompt: "- Prefers concise answers\n- Works in Shanghai"
-    )
-    facts = extract_facts_from_turn(
-        [HumanMessage(content="我在上海，喜欢简洁回答")],
-    )
-    assert facts == ["Prefers concise answers", "Works in Shanghai"]
-
-
-def test_build_mem0_add_payload_is_not_full_transcript() -> None:
-    payload = build_mem0_add_payload(["Likes bullet lists"])
-    assert len(payload) == 1
-    content = payload[0]["content"]
-    assert "Likes bullet lists" in content
-    assert len(content) < len(_LONG_TRANSCRIPT)
-
-
-def test_extract_and_store_calls_add_with_short_payload() -> None:
+def test_extract_and_store_calls_add_with_raw_turn_and_infer_true() -> None:
     set_settings_override(Settings(**{**_REQUIRED_ENV, "MEM0_MOCK": False}))  # type: ignore[arg-type]
-    set_mem0_extract_llm(lambda _prompt: "- Prefers vegetarian food")
 
-    add_mock = MagicMock()
+    add_mock = MagicMock(
+        return_value={"results": [{"memory": "用户名叫刘日兴", "event": "ADD"}]}
+    )
     set_mem0_add_fn(add_mock)
 
     turn = [
         HumanMessage(content="我是素食主义者"),
         AIMessage(content="已记录您的饮食偏好。"),
     ]
-    facts = extract_and_store("user-99", turn)
+    stored = extract_and_store("user-99", turn)
 
-    assert facts == ["Prefers vegetarian food"]
+    assert stored == ["用户名叫刘日兴"]
     add_mock.assert_called_once()
     payload, kwargs = add_mock.call_args
     assert kwargs["user_id"] == "user-99"
-    assert kwargs.get("infer") is False
-    stored_content = payload[0][0]["content"]
-    assert "vegetarian" in stored_content
-    assert len(stored_content) < len(_LONG_TRANSCRIPT)
-    assert "已记录您的饮食偏好" not in stored_content
+    assert kwargs.get("infer") is True
+    messages = payload[0]
+    assert len(messages) == 2
+    assert messages[0] == {"role": "user", "content": "我是素食主义者"}
+    assert messages[1] == {"role": "assistant", "content": "已记录您的饮食偏好。"}
+    for item in messages:
+        assert "User preference facts" not in item["content"]
 
 
 def test_extract_and_store_skips_when_mem0_mock() -> None:
@@ -96,10 +76,17 @@ def test_extract_and_store_skips_when_mem0_mock() -> None:
     add_mock = MagicMock()
     set_mem0_add_fn(add_mock)
 
-    facts = extract_and_store(
+    stored = extract_and_store(
         "user-1",
         [HumanMessage(content="hello")],
     )
 
-    assert facts == []
+    assert stored == []
     add_mock.assert_not_called()
+
+
+def test_build_mem0_config_includes_custom_instructions() -> None:
+    config = build_mem0_config(Settings(**_REQUIRED_ENV))  # type: ignore[arg-type]
+    instructions = config.get("custom_instructions", "")
+    assert "stable preferences" in instructions.lower()
+    assert "user messages" in instructions.lower()
