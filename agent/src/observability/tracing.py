@@ -85,6 +85,9 @@ def configure_tracing_from_settings(settings: Any | None = None) -> bool:
         os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
     os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
     os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
+    os.environ["LANGCHAIN_TRACE_MESSAGE_MAX_CHARS"] = str(
+        settings.LANGCHAIN_TRACE_MESSAGE_MAX_CHARS
+    )
     return bool(settings.LANGCHAIN_TRACING_V2)
 
 
@@ -274,6 +277,39 @@ def _supervisor_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _chitchat_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    user_message = str(inputs.get("user_message") or "")
+    model_name = str(inputs.get("model_name") or "")
+    explicit_use_llm = "use_llm" in inputs
+    use_llm = bool(inputs.get("use_llm", False))
+    max_tokens = None
+    timeout_seconds = None
+    try:
+        from settings.config import get_settings
+
+        settings = get_settings()
+        use_llm = settings.CHITCHAT_USE_LLM if not explicit_use_llm else use_llm
+        model_name = model_name or (
+            settings.CHITCHAT_MODEL_NAME or settings.OPENAI_MODEL_NAME
+        )
+        max_tokens = settings.CHITCHAT_MAX_TOKENS
+        timeout_seconds = settings.CHITCHAT_TIMEOUT_SECONDS
+    except Exception:
+        pass
+    return {
+        "span": "chitchat",
+        "executor": "small_chat_executor" if use_llm else "template_executor",
+        "chitchat.use_llm": use_llm,
+        "chitchat.model_name": model_name if use_llm else "",
+        "chitchat.max_tokens": max_tokens if use_llm else None,
+        "chitchat.timeout_seconds": timeout_seconds if use_llm else None,
+        "user_message": truncate_for_trace(
+            redact_secrets(user_message, _collect_secret_values())
+        ),
+        "user_message_len": len(user_message),
+    }
+
+
 def _guardrails_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     text = str(inputs.get("text") or "")
     direction = str(inputs.get("direction") or "unknown")
@@ -331,6 +367,16 @@ def supervisor_traceable() -> Callable[[Callable[P, R]], Callable[P, R]]:
         tags=["supervisor"],
         metadata={"span": "supervisor"},
         process_inputs=_supervisor_process_inputs,
+    )
+
+
+def chitchat_traceable() -> Callable[[Callable[P, R]], Callable[P, R]]:
+    return traceable(
+        name="chitchat",
+        run_type="chain",
+        tags=["chitchat"],
+        metadata={"span": "chitchat"},
+        process_inputs=_chitchat_process_inputs,
     )
 
 

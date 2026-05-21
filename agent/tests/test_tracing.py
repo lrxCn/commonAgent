@@ -9,6 +9,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from graph.build import compile_graph
 from observability.tracing import (
+    _chitchat_process_inputs,
     _rewrite_process_inputs,
     attach_run_metadata,
     configure_tracing_from_settings,
@@ -107,6 +108,36 @@ def test_rewrite_process_inputs_uses_mem0_text_kwarg_len() -> None:
     )
     assert meta["mem0_text_len"] == len(block)
     assert meta["mem0_facts_count"] == 1
+
+
+def test_chitchat_process_inputs_uses_template_executor_by_default() -> None:
+    set_settings_override(
+        Settings(  # type: ignore[arg-type]
+            **_REQUIRED_ENV,
+            CHITCHAT_USE_LLM=False,
+            CHITCHAT_MODEL_NAME=None,
+            _env_file=None,
+        )
+    )
+    meta = _chitchat_process_inputs({"user_message": "谢谢"})
+    assert meta["executor"] == "template_executor"
+    assert meta["chitchat.use_llm"] is False
+    assert meta["chitchat.model_name"] == ""
+
+
+def test_chitchat_process_inputs_uses_small_chat_executor_when_enabled() -> None:
+    set_settings_override(
+        Settings(  # type: ignore[arg-type]
+            **_REQUIRED_ENV,
+            CHITCHAT_USE_LLM=True,
+            CHITCHAT_MODEL_NAME=None,
+            _env_file=None,
+        )
+    )
+    meta = _chitchat_process_inputs({"user_message": "你好"})
+    assert meta["executor"] == "small_chat_executor"
+    assert meta["chitchat.use_llm"] is True
+    assert meta["chitchat.model_name"] == "Pro/moonshotai/Kimi-K2.6"
 
 
 def test_traceable_imports_on_core_modules() -> None:

@@ -94,9 +94,9 @@ def test_invoke_appends_ai_message() -> None:
     messages = result.get("messages") or []
     assert any(isinstance(message, AIMessage) for message in messages)
     ai_texts = [str(message.content) for message in messages if isinstance(message, AIMessage)]
-    assert any("mock-reply" in text for text in ai_texts)
-    assert result.get("rewritten_query") == "你好"
-    assert result.get("rag_skipped") is True
+    assert "你好。" in ai_texts
+    assert result.get("rewritten_query") is None
+    assert result.get("rag_skipped") is None
     assert "context" not in result
 
 
@@ -129,6 +129,21 @@ def test_rag_skipped_does_not_call_retriever() -> None:
     )
 
     assert retrieve_mock.call_count == 0
+
+
+def test_chitchat_does_not_call_supervisor() -> None:
+    supervisor = MagicMock(return_value=[AIMessage(content="mock-reply:你好")])
+    set_supervisor_invoke(supervisor)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="你好")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-mock-chitchat"}},
+    )
+
+    assert supervisor.call_count == 0
+    assert result.get("path_metrics", {}).get("fast_path") is True
 
 
 def test_rag_retrieval_runs_when_router_requests() -> None:

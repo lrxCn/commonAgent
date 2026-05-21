@@ -8,6 +8,7 @@ import pytest
 
 from gateway.schemas import RequestContext
 from graph.build import compile_graph
+from graph.chitchat_executor import set_chitchat_llm
 from graph.context import graph_context_from_request
 from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
 from memory.history import set_history_checkpointer
@@ -36,6 +37,7 @@ def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
     monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
     set_rewrite_llm(lambda _prompt: "rewritten query text")
+    set_chitchat_llm(None)
     set_router_classifier(None)
     reset_retriever_overrides()
     reset_supervisor_overrides()
@@ -48,6 +50,7 @@ def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     yield
     set_rewrite_llm(None)
+    set_chitchat_llm(None)
     set_router_classifier(None)
     reset_retriever_overrides()
     retriever_mod.retrieve = _ORIGINAL_RETRIEVE
@@ -90,11 +93,13 @@ def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:
 
     metrics = result["path_metrics"]
     assert metrics["turn_type"] == "chitchat"
+    assert metrics["fast_path"] is True
     assert metrics["path_contract"] == "pass"
-    assert metrics["llm_call_count"] == 1
+    assert metrics["llm_call_count"] == 0
     assert metrics["rewrite"] == {"should_call": False, "called": False}
     assert metrics["rag_router"] == {"should_call": False, "called": False}
     assert metrics["rag"] == {"should_call": False, "called": False}
+    assert metrics["supervisor"] == {"should_call": False, "called": False}
 
 
 def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
@@ -114,7 +119,7 @@ def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
     assert metrics["supervisor"] == {"should_call": True, "called": True}
 
 
-def test_path_contract_fails_when_rewrite_llm_called_without_should() -> None:
+def test_chitchat_fast_path_wins_over_rewrite_force() -> None:
     settings = Settings(  # type: ignore[arg-type]
         **_REQUIRED_ENV,
         REWRITE_FORCE=True,
@@ -124,7 +129,27 @@ def test_path_contract_fails_when_rewrite_llm_called_without_should() -> None:
     result = _invoke("你好", thread_id="path-rewrite-force-fail")
 
     metrics = result["path_metrics"]
-    assert metrics["path_contract"] == "fail"
-    assert metrics["path_contract_reason"] == "rewrite.called_without_should"
-    assert metrics["llm_call_count"] == 2
-    assert metrics["rewrite"] == {"should_call": False, "called": True}
+    assert metrics["path_contract"] == "pass"
+    assert metrics["fast_path"] is True
+    assert metrics["llm_call_count"] == 0
+    assert metrics["rewrite"] == {"should_call": False, "called": False}
+
+
+def test_chitchat_small_model_path_contract_records_executor_llm() -> None:
+    settings = Settings(  # type: ignore[arg-type]
+        **_REQUIRED_ENV,
+        CHITCHAT_USE_LLM=True,
+    )
+    set_settings_override(settings)
+    set_chitchat_llm(lambda _prompt: "你好呀。")
+
+    result = _invoke("你好", thread_id="path-chitchat-small-llm")
+
+    metrics = result["path_metrics"]
+    assert metrics["turn_type"] == "chitchat"
+    assert metrics["path_contract"] == "pass"
+    assert metrics["llm_call_count"] == 1
+    assert metrics["rewrite"] == {"should_call": False, "called": False}
+    assert metrics["rag_router"] == {"should_call": False, "called": False}
+    assert metrics["rag"] == {"should_call": False, "called": False}
+    assert metrics["supervisor"] == {"should_call": True, "called": True}

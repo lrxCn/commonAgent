@@ -22,6 +22,7 @@ from graph.client_actions import (
     build_client_actions_assistant_message,
     parse_client_actions_from_llm,
 )
+from graph.chitchat_executor import chitchat_reply
 from graph.supervisor import (
     DEFAULT_SUPERVISOR_INSTRUCTIONS,
     build_supervisor_instructions,
@@ -189,10 +190,14 @@ def load_memory_node(
     return _merge_carry(state, updates)
 
 
-def route_after_load_memory(state: AgentState) -> Literal["fact_update_confirm", "rewrite"]:
-    """Route fact updates to the template fast path after turn classification."""
+def route_after_load_memory(
+    state: AgentState,
+) -> Literal["fact_update_confirm", "chitchat_reply", "rewrite"]:
+    """Route fact updates/chitchat to lightweight executors after turn classification."""
     if state.get("turn_type") == "fact_update":
         return "fact_update_confirm"
+    if state.get("turn_type") == "chitchat":
+        return "chitchat_reply"
     return "rewrite"
 
 
@@ -204,6 +209,30 @@ def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
         {
             "messages": [AIMessage(content=FACT_UPDATE_CONFIRMATION)],
             "supervisor_draft": FACT_UPDATE_CONFIRMATION,
+            "client_actions": None,
+            "client_actions_error": None,
+            "outbound_blocked": False,
+            "path_metrics": path_metrics,
+        },
+    )
+
+
+def chitchat_reply_node(state: AgentState) -> dict[str, object]:
+    """Append a lightweight chitchat reply without rewrite/RAG/deepagents."""
+    user_message = _extract_user_message(state)
+    outcome = chitchat_reply(user_message)
+    path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
+    path_metrics = update_path_component(
+        path_metrics,
+        "supervisor",
+        should_call=outcome["executor"] == "small_chat_executor",
+        called=outcome["executor"] == "small_chat_executor",
+    )
+    return _merge_carry(
+        state,
+        {
+            "messages": [AIMessage(content=outcome["reply"])],
+            "supervisor_draft": outcome["reply"],
             "client_actions": None,
             "client_actions_error": None,
             "outbound_blocked": False,

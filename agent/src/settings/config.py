@@ -12,7 +12,7 @@ _settings_override: Settings | None = None
 
 
 class Settings(BaseSettings):
-    """Environment-backed configuration aligned with agent/.env.example."""
+    """Environment-backed configuration aligned with agent/.env.example and agent/.env."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -42,8 +42,12 @@ class Settings(BaseSettings):
         default=None,
         description="Optional LangChain API key; falls back to LANGSMITH_API_KEY if omitted.",
     )
+    LANGCHAIN_TRACE_MESSAGE_MAX_CHARS: int = Field(
+        default=500,
+        description="Maximum characters kept for message previews in trace metadata.",
+    )
 
-    # --- LLM (SiliconFlow, OpenAI-compatible) ---
+    # --- LLM provider (SiliconFlow, OpenAI-compatible) ---
     OPENAI_API_KEY: str = Field(
         ...,
         description="API key for LLM calls via OPENAI_BASE_URL (e.g. SiliconFlow).",
@@ -56,6 +60,8 @@ class Settings(BaseSettings):
         default="Pro/moonshotai/Kimi-K2.6",
         description="Default chat model identifier on the provider.",
     )
+
+    # --- Query rewrite ---
     REWRITE_MODEL_NAME: str | None = Field(
         default=None,
         description="Chat model for query rewrite; defaults to OPENAI_MODEL_NAME when unset.",
@@ -79,6 +85,24 @@ class Settings(BaseSettings):
     REWRITE_FORCE: bool = Field(
         default=False,
         description="Debug: always invoke rewrite LLM even when skip rules would apply.",
+    )
+
+    # --- Chitchat lightweight executor ---
+    CHITCHAT_USE_LLM: bool = Field(
+        default=False,
+        description="When true, chitchat uses a small LLM instead of template replies.",
+    )
+    CHITCHAT_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Chat model for chitchat; defaults to OPENAI_MODEL_NAME when unset.",
+    )
+    CHITCHAT_MAX_TOKENS: int = Field(
+        default=48,
+        description="Maximum completion tokens for chitchat small-model calls.",
+    )
+    CHITCHAT_TIMEOUT_SECONDS: float = Field(
+        default=5,
+        description="Timeout in seconds for chitchat small-model calls.",
     )
 
     # --- RAG router ---
@@ -118,6 +142,8 @@ class Settings(BaseSettings):
         default=10,
         description="Maximum number of candidates sent to the reranker.",
     )
+
+    # --- RagSubAgent second retrieval ---
     RAG_SUBAGENT_SCORE_THRESHOLD: float = Field(
         default=0.3,
         description="Delegate RagSubAgent when primary max chunk score is below this.",
@@ -195,7 +221,7 @@ class Settings(BaseSettings):
         description="When false, inbound/outbound text guardrails are skipped.",
     )
 
-    # --- Context assembly (code defaults only; not in .env contract) ---
+    # --- Context assembly ---
     CONTEXT_PREFIX_TURNS: int = Field(
         default=4,
         description="First K conversation turns in model messages (prefix).",
@@ -211,15 +237,32 @@ class Settings(BaseSettings):
 
     @field_validator(
         "LANGCHAIN_TRACING_V2",
+        "REWRITE_SKIP_ENABLED",
+        "REWRITE_FORCE",
         "GUARDRAILS_ENABLED",
         "MEM0_MOCK",
         "QDRANT_MOCK",
+        "CHITCHAT_USE_LLM",
         mode="before",
     )
     @classmethod
     def _parse_bool_flag(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "on"}
+        return value
+
+    @field_validator(
+        "LANGCHAIN_API_KEY",
+        "REWRITE_MODEL_NAME",
+        "CHITCHAT_MODEL_NAME",
+        "RAG_ROUTER_MODEL_NAME",
+        "RAG_SUBAGENT_TOP_K",
+        mode="before",
+    )
+    @classmethod
+    def _empty_string_as_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
         return value
 
     @field_validator("RAG_ROUTER_MODE", mode="before")

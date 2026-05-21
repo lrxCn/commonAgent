@@ -27,7 +27,11 @@ If you work inside `agent/`, also read [agent/AGENTS.md](agent/AGENTS.md) for gr
 - Do not overwrite user changes. If existing edits affect the task, work with them.
 - Do not commit, push, or create PRs unless explicitly asked.
 - Do not commit `.env` files or real secrets.
-- When changing `.env` contracts, update the matching `.env.example` with masked example values.
+- Agent environment contracts must keep `agent/src/settings/config.py`, `agent/.env.example`, and `agent/.env` synchronized:
+  - Every environment-backed `Settings` field must appear in both env files with clear comments.
+  - `.env.example` uses masked or blank example values; `.env` may contain local real values and must not be committed.
+  - When adding, renaming, removing, or changing the meaning/default of a setting, update all three in the same change.
+  - Run `cd agent && uv run pytest tests/test_settings.py -v` after environment contract changes; `test_env_files_match_settings_contract` is the guardrail.
 - Prefer existing project patterns over new abstractions.
 - Use `rg` / `rg --files` for repository search.
 - Run the relevant tests from the task card or the smallest meaningful test set for the change.

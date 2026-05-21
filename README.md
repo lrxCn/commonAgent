@@ -127,11 +127,13 @@ DATABASE_URL=postgresql://postgres:<password>@localhost:5432/common_agent
 
 Agent 变量以 [agent/.env.example](agent/.env.example) 为准：
 
+环境契约规则：`agent/src/settings/config.py`、`agent/.env.example`、`agent/.env` 必须同步。新增、删除、重命名或改变含义/默认值时，三处要在同一次变更里更新；`.env.example` 使用 masked/空示例值，`.env` 保留本机真实值但不要提交；环境契约变更后运行 `cd agent && uv run pytest tests/test_settings.py -v`，其中 `test_env_files_match_settings_contract` 会检查三者变量名一致。
+
 | 分组 | 关键变量 | 用途 |
 |------|----------|------|
 | LangSmith | `LANGSMITH_API_KEY`、`LANGCHAIN_TRACING_V2`、`LANGCHAIN_PROJECT`、`LANGCHAIN_ENDPOINT` | Trace |
 | LLM | `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME` | SiliconFlow / OpenAI 兼容对话模型 |
-| Rewrite | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE` | Query rewrite、小任务输出/超时保护与条件跳过 |
+| Rewrite / Chitchat | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE`、`CHITCHAT_USE_LLM`、`CHITCHAT_MODEL_NAME`、`CHITCHAT_MAX_TOKENS`、`CHITCHAT_TIMEOUT_SECONDS` | Query rewrite 与 chitchat 轻量执行器的小任务模型、输出/超时保护 |
 | Router | `RAG_ROUTER_MODE`、`RAG_ROUTER_MODEL_NAME`、`RAG_ROUTER_MAX_TOKENS`、`RAG_ROUTER_TIMEOUT_SECONDS` | RAG 规则/混合路由与分类小模型保护 |
 | Embedding | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS` | Qdrant 向量维度，默认 1024 |
 | Rerank | `RERANK_MODEL`、`RERANK_TOP_K` | rerank 模型与候选上限 |
@@ -234,8 +236,9 @@ sequenceDiagram
 性能原则：
 
 - mem0、checkpoint history、rolling summary 并行读取。
-- turn_type 在 `load_memory` 后确定；`fact_update` 直接走模板确认快速路径，其余类型继续正常路径。
+- turn_type 在 `load_memory` 后确定；`fact_update` 直接走模板确认快速路径；`chitchat` 走轻量执行器（默认模板，可切换小模型）；其余类型继续正常路径。
 - `fact_update` 快速路径跳过 rewrite、rag_router、RAG、RagSubAgent、context assembly、Supervisor 和 outbound guard；当前 human 与模板 assistant 仍写入 checkpoint，并继续调度 post_turn summary + mem0 写入。模板确认只表示已接收事实，不承诺 mem0 已持久化成功。
+- `chitchat` 轻量执行器跳过 rewrite、rag_router、RAG、RagSubAgent、context assembly 与 deepagents Supervisor；默认模板回复，开启 `CHITCHAT_USE_LLM=true` 时改用低延迟小模型。
 - path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`fast_path`、`post_turn_scheduled`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata。
 - rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。

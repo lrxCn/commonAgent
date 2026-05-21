@@ -55,7 +55,7 @@
 | 28 | [Turn Type 路由层](./prompts/28-turn-type-routing.md) | ✅ | 2026-05-21 | 统一 `turn_type` 分类；只写 state/metadata，不改执行路径 |
 | 29 | [Path Contract 路径契约与可观测性](./prompts/29-path-contract-observability.md) | ✅ | 2026-05-21 | `path_metrics` 记录 should/called、LLM 调用次数与 path contract 结果 |
 | 30 | [fact_update 快速路径](./prompts/30-fact-update-fast-path.md) | ✅ | 2026-05-21 | 模板确认 + 异步 mem0；跳过 rewrite/RAG/Supervisor |
-| 31 | [chitchat 轻量执行器](./prompts/31-chitchat-lightweight-executor.md) | ⬜ | — | 模板/小模型回复；跳过 RAG 与主模型 |
+| 31 | [chitchat 轻量执行器](./prompts/31-chitchat-lightweight-executor.md) | ✅ | 2026-05-21 | 模板/小模型回复；跳过 rewrite/RAG/deepagents；新增 executor tracing |
 | 32 | [rewrite/router 按 turn_type 收敛](./prompts/32-rewrite-router-turn-type-convergence.md) | ⬜ | — | 消费 `turn_type`，减少小模型调用 |
 | 33 | [Executor Router 与 deepagents 分层启用](./prompts/33-executor-router-deepagents-gating.md) | ⬜ | — | deepagents 仅复杂任务启用；简单路径走轻量 executor |
 | 34 | [mem0 小模型配置与写入可观测性](./prompts/34-mem0-small-model-observability.md) | ⬜ | — | mem0 infer 使用专用小模型；写入失败可追踪 |
@@ -116,3 +116,5 @@
 | 2026-05-21 | 完成任务 28：新增 `turn_type` 分类层，写入单轮 state 与 LangSmith metadata；执行路径保持不变 |
 | 2026-05-21 | 完成任务 29：新增 `path_metrics` 单轮路径契约，记录 rewrite/router/RAG/supervisor should/called、LLM 调用次数与 pass/fail metadata |
 | 2026-05-21 | 完成任务 30：`fact_update` 走模板确认快速路径，跳过 rewrite/router/RAG/Supervisor，保留 checkpoint 与 post_turn mem0 调度观测 |
+| 2026-05-21 | 完成任务 31：`chitchat` 走轻量执行器，默认模板回复，可选小模型；跳过 rewrite/RAG/deepagents，并补充 executor tracing 与路径契约测试 |
+| 2026-05-21 | 文档规则：固化 Agent 环境契约三者同步要求（`config.py` / `.env.example` / `.env`），并以 `test_env_files_match_settings_contract` 自动校验 |

@@ -33,6 +33,7 @@ def test_compile_graph_has_expected_nodes() -> None:
         "inbound_guard",
         "load_memory",
         "fact_update_confirm",
+        "chitchat_reply",
         "rewrite",
         "rag_router",
         "rag_retrieval",

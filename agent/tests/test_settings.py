@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -12,6 +14,12 @@ _REQUIRED_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
 }
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_ENV_CONTRACT_FILES = (
+    _REPO_ROOT / ".env.example",
+    _REPO_ROOT / ".env",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +42,18 @@ def _settings(monkeypatch: pytest.MonkeyPatch, **extra: str) -> Settings:
     return Settings(_env_file=None)
 
 
+def _env_keys(path: Path) -> set[str]:
+    keys: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key = stripped.split("=", 1)[0]
+        if key and key.replace("_", "").isalnum() and key.upper() == key:
+            keys.add(key)
+    return keys
+
+
 def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch)
     assert settings.OPENAI_API_KEY == "sk-test"
@@ -45,8 +65,17 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.CONTEXT_ORIGINAL_HUMAN_METADATA_KEY == "original_human_content"
     assert settings.REWRITE_MAX_TOKENS == 64
     assert settings.REWRITE_TIMEOUT_SECONDS == 15
+    assert settings.CHITCHAT_USE_LLM is False
+    assert settings.CHITCHAT_MAX_TOKENS == 48
+    assert settings.CHITCHAT_TIMEOUT_SECONDS == 5
     assert settings.RAG_ROUTER_MAX_TOKENS == 32
     assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 5
+
+
+def test_env_files_match_settings_contract() -> None:
+    settings_keys = set(Settings.model_fields)
+    for path in _ENV_CONTRACT_FILES:
+        assert _env_keys(path) == settings_keys
 
 
 def test_qdrant_url_uses_host_and_port(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -145,10 +174,16 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
         monkeypatch,
         REWRITE_MAX_TOKENS="48",
         REWRITE_TIMEOUT_SECONDS="7.5",
+        CHITCHAT_USE_LLM="true",
+        CHITCHAT_MAX_TOKENS="24",
+        CHITCHAT_TIMEOUT_SECONDS="2.5",
         RAG_ROUTER_MAX_TOKENS="16",
         RAG_ROUTER_TIMEOUT_SECONDS="3.25",
     )
     assert settings.REWRITE_MAX_TOKENS == 48
     assert settings.REWRITE_TIMEOUT_SECONDS == 7.5
+    assert settings.CHITCHAT_USE_LLM is True
+    assert settings.CHITCHAT_MAX_TOKENS == 24
+    assert settings.CHITCHAT_TIMEOUT_SECONDS == 2.5
     assert settings.RAG_ROUTER_MAX_TOKENS == 16
     assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 3.25
