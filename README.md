@@ -173,7 +173,7 @@ mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除�
 |------|------|----|----------|
 | 完整对话 | Postgres Checkpointer | `thread_id` | 权威历史；分页 API 同源 |
 | 模型上下文 | 运行时组装 | `thread_id` | system: 指令 + mem0 + summary + RAG；messages: 前 K + 近 M + 本轮 human |
-| 用户偏好 | 本地 mem0 OSS `Memory` + 本地 Qdrant | `user_id` | system；post_turn 异步写入 |
+| 用户偏好 | 本地 mem0 OSS `Memory` + 本地 Qdrant | `user_id` | system；post_turn 异步写入；运行时归一化为 `memory_profile` |
 | 知识库 | Qdrant | `role_id` | system；RAG 片段带 doc/chunk 引用 |
 
 mem0 约束：
@@ -183,6 +183,7 @@ mem0 约束：
 - `MEM0_MOCK=true` 时跳过 mem0/Qdrant 读取，返回空列表。
 - post_turn 将本轮 user/assistant 原文传给 `Memory.add(..., infer=True)`；抽取、已有记忆检索、hash 去重由 mem0 管线负责。
 - mem0 infer 写入使用专用小模型配置：`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS`；不要回退到 `OPENAI_MODEL_NAME`，避免后台成本和队列压力跟主模型绑定。
+- system 注入前会从 mem0 自由文本归一化第一版 `memory_profile`：`profile.name`、`profile.birth_year`、`profile.city`、`profile.job`、`company.address`、`preference.answer_style`。同类事实保留最新/最明确值；已归类事实不再重复进入自由文本区，未归类事实仍按原 mem0 列表注入。
 - 抽取规则在 [agent/src/memory/prompts/mem0_custom_instructions.txt](agent/src/memory/prompts/mem0_custom_instructions.txt)。
 - mem0 可能在 `~/.mem0/history.db` 或 `MEM0_DIR` 存辅助 SQLite；向量仍在 Qdrant。
 

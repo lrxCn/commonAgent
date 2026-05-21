@@ -7,6 +7,10 @@ from collections.abc import Sequence
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from memory.mem0_client import format_mem0_for_system
+from memory.profile import (
+    format_memory_profile_for_system,
+    normalize_memory_profile,
+)
 from rag.retriever import RagChunk, format_rag_chunks_for_system
 from settings.config import Settings, get_settings
 
@@ -113,7 +117,12 @@ def build_system_prompt(
     if instr:
         sections.append(instr)
 
-    mem0_block = format_mem0_for_system(list(mem0))
+    normalized = normalize_memory_profile(mem0)
+    profile_block = format_memory_profile_for_system(normalized.profile)
+    if profile_block:
+        sections.append(profile_block)
+
+    mem0_block = format_mem0_for_system(normalized.residual_facts)
     if mem0_block:
         sections.append(mem0_block)
 

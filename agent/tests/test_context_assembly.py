@@ -65,6 +65,7 @@ def test_build_context_n30_includes_rag_and_excludes_middle() -> None:
 
     assert "你是企业助手。" in system_str
     assert "User preferences" in system_str or "preferences" in system_str.lower()
+    assert "- 用户偏好素食" in system_str
     assert "摘要：turn 5-10" in system_str
     assert "[doc:doc-a/chunk:c1]" in system_str
     assert "报销须在30日内提交" in system_str
@@ -80,6 +81,30 @@ def test_build_context_n30_includes_rag_and_excludes_middle() -> None:
 
     # 4 prefix + 20 recent turns × 2 messages + 1 current human
     assert len(lc_messages) == 4 * 2 + 20 * 2 + 1
+
+
+def test_build_system_prompt_uses_profile_and_filters_categorized_mem0() -> None:
+    system_str = build_system_prompt(
+        instructions="你是企业助手。",
+        mem0=[
+            "用户叫刘日兴",
+            "用户生活在哈尔滨",
+            "用户偏好简洁回答",
+            "用户常用差旅报销",
+        ],
+        summary=None,
+        rag_chunks=[],
+    )
+
+    assert "## Memory profile" in system_str
+    assert "profile.name: 刘日兴" in system_str
+    assert "profile.city: 哈尔滨" in system_str
+    assert "preference.answer_style: 简洁回答" in system_str
+    assert "## User preferences" in system_str
+    assert "- 用户常用差旅报销" in system_str
+    assert "- 用户叫刘日兴" not in system_str
+    assert "- 用户生活在哈尔滨" not in system_str
+    assert "- 用户偏好简洁回答" not in system_str
 
 
 def test_build_context_boundary_n_less_than_k_plus_m() -> None:
