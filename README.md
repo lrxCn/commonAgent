@@ -8,11 +8,40 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-40 已完成，另含 13.5 修复任务；后续进入回归验证与自定义优化 |
+| 核心任务 | 01-40 已完成，另含 13.5 修复任务；41-48 为待执行大重构任务队列 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
+
+## 下一阶段重构
+
+[Agent 大重构 PRD](docs/prd/agent-major-refactor.md) 是后续结构优化讨论稿，目标是契约优先、薄图编排、显式状态生命周期、ContextBundle、RAG 模块化、LLM Gateway 与 observability 事件化。
+
+该 PRD 不替代本 README 的当前运行契约。执行重构时按 [docs/progress.md](docs/progress.md) 中 41-48 的任务卡逐步推进；当某个任务实际改变目录、API、状态、环境变量或运行契约时，再在同一任务中同步更新本 README。
+
+## 文档秩序与更新机制
+
+本仓库的文档层级固定如下：
+
+| 文档 | 作用 | 更新时机 |
+|------|------|----------|
+| [AGENTS.md](AGENTS.md) | 跨工具 AI 工作规则与治理规则 | AI 行为规则或文档治理规则变化时 |
+| [README.md](README.md) | 当前运行架构、API、状态、环境和边界契约 | 代码或任务实际改变运行契约时 |
+| [docs/progress.md](docs/progress.md) | 任务状态、依赖和变更日志 | 新增任务、完成任务或文档治理变化时 |
+| [docs/prompts/](docs/prompts/) | 单个可执行任务的范围和测试计划 | 拆任务或任务范围变化时 |
+| [docs/prd/](docs/prd/) | 设计意图、草案、历史决策和未来方向 | 讨论方案或记录设计取舍时 |
+| `docs/maps/` | 重构完成后的代码导航地图 | 代码结构真实存在后再生成或更新 |
+
+更新原则：
+
+- `README.md` 只描述当前事实，不提前写尚未落地的未来目录或 API。
+- PRD 可以先于代码存在，但 PRD 不能覆盖 README 的当前契约。
+- 执行 `docs/prompts/` 任务时，一次只做一张任务卡，并按任务卡测试计划验证。
+- 如果任务改变架构、API、状态/context、memory、RAG、`client_actions`、目录布局或环境变量，必须在同一变更中同步 README。
+- 如果任务改变 AI 工作规则或本文档秩序，必须同步 AGENTS.md。
+- 如果其他 AI 认为这套秩序应该改进，必须先说明具体问题、替代规则、收益和风险，并取得用户同意后再修改。
+- 任务 48 是大重构后的文档收口任务：等 41-47 的实际结构迁移完成后，再生成 `docs/maps/` 并重写 README 的结构章节。
 
 ## AI 执行规则
 
@@ -63,6 +92,7 @@ commonAgent/
 │   ├── prd/
 │   │   ├── common-agent-architecture.md
 │   │   ├── agent-runtime-optimization.md
+│   │   ├── agent-major-refactor.md
 │   │   └── agent-architecture-learning-notes.md
 │   ├── origin.md
 │   ├── progress.md

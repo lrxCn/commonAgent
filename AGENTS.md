@@ -18,7 +18,31 @@ If you work inside `agent/`, also read [agent/AGENTS.md](agent/AGENTS.md) for gr
 - `AGENTS.md` is the cross-tool behavior contract for AI agents.
 - `docs/progress.md` is the progress ledger.
 - `docs/prompts/*.md` are task-level implementation scopes.
+- `docs/prd/*.md` are design proposals, historical decisions, or future plans; they do not override `README.md` unless a completed task updates `README.md`.
+- `docs/maps/*.md`, when present, are navigation maps derived from the current code and README; they must not introduce new contracts by themselves.
 - `.cursor/skills/*/SKILL.md` are Cursor adapters only; do not duplicate core rules there.
+
+## Governance
+
+The repository uses this documentation order:
+
+1. `AGENTS.md` defines how AI agents must work in this repository.
+2. `README.md` defines the current runtime architecture, contracts, and operating rules.
+3. `docs/progress.md` records task status, dependencies, and the recommended next task.
+4. `docs/prompts/*.md` define the scope and test plan for one executable task.
+5. `docs/prd/*.md` explain design intent and future direction.
+6. `docs/maps/*.md` help humans and AI navigate the current code after large refactors.
+
+Do not silently change this order or weaken these rules. If an AI agent believes the governance/documentation order should change, it must first explain the concrete problem, the proposed replacement rule, the expected benefit, and the risk, then ask the user for approval before editing the rule.
+
+When a task changes architecture, API, state/context rules, memory semantics, RAG flow, `client_actions`, directory layout, environment contracts, or the documentation governance itself, update the relevant documents in the same change. Prefer the narrowest correct update:
+
+- Runtime contract changes go in `README.md`.
+- AI working-rule changes go in `AGENTS.md`.
+- Task status and changelog entries go in `docs/progress.md`.
+- Task scope changes go in the affected `docs/prompts/*.md`.
+- Design rationale goes in `docs/prd/*.md`.
+- Navigation and code maps go in `docs/maps/*.md` after the code structure exists.
 
 ## Working Rules
 
@@ -59,6 +83,8 @@ If a task card or user request changes architecture, API fields, state/context r
 1. Update `README.md` in the same change.
 2. Update affected task cards only when their scope/API would otherwise become misleading.
 3. Update `docs/progress.md` changelog for documentation-only contract changes.
+
+If the change modifies AI working rules or the documentation governance itself, update `AGENTS.md` in the same change. If the change is a proposed improvement rather than a direct user instruction, get explicit user approval before editing `AGENTS.md`.
 
 ## Core Project Constraints
 

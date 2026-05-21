@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 41 |
+| 总任务数 | 49 |
 | 已完成 | 40 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：运行全量回归或进入后续自定义优化任务。
+**当前建议下一步**：进入大重构 Phase 0：执行 [41 - 行为冻结与验证入口](./prompts/41-refactor-behavior-freeze.md)，先补测试护栏再改结构。
 
 
 ---
@@ -65,6 +65,14 @@
 | 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ✅ | 2026-05-21 | optimistic streaming 增量检查；支持 `retract` / `replace` SSE 事件 |
 | 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ✅ | 2026-05-21 | 本地 seed 覆盖核心 turn type；提供 LangSmith Dataset 同步脚本与 smoke test |
 | 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ✅ | 2026-05-21 | 本地 BM25 fallback + RAG eval seed + `role_id` 防越权评测 |
+| 41 | [大重构 Phase 0：行为冻结与验证入口](./prompts/41-refactor-behavior-freeze.md) | ⬜ | — | 先修测试入口并补 state lifecycle、path、SSE contract 护栏 |
+| 42 | [大重构 Phase 1：契约层与类型化运行对象](./prompts/42-refactor-contracts-layer.md) | ⬜ | — | 新增 `contracts/`，集中 `TurnType`、`ExecutorType`、`PathMetrics`、SSE 等契约 |
+| 43 | [大重构 Phase 2：ContextBundle 单一上下文来源](./prompts/43-refactor-context-bundle.md) | ⬜ | — | 模型 system/messages/budget 由 `ContextBundle` 一次性产出 |
+| 44 | [大重构 Phase 3：Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md) | ⬜ | — | 拆分 `graph/nodes.py`，保留 facade 兼容与图拓扑不变 |
+| 45 | [大重构 Phase 4：RAG 模块边界与可替换检索服务](./prompts/45-refactor-rag-module-boundaries.md) | ⬜ | — | 拆出 RAG service、Qdrant store、BM25、rerank、formatting |
+| 46 | [大重构 Phase 5：统一 LLM Gateway 与模型用途策略](./prompts/46-refactor-llm-gateway.md) | ⬜ | — | 按 `ModelUseCase` 收敛 chat/embedding/rerank/model policy |
+| 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ⬜ | — | 用 domain events 解耦业务逻辑与 LangSmith metadata |
+| 48 | [大重构 Phase 7：代码地图与 README 最终对齐](./prompts/48-refactor-docs-maps-readme.md) | ⬜ | — | 41-47 完成后新增 `docs/maps/`，README/AGENTS 对齐重构后真实结构与文档治理 |
 
 ---
 
@@ -127,3 +135,6 @@
 | 2026-05-21 | 完成任务 38：流式输出增加增量出站检查与 `segment_id`，违规时发送 `retract` / `replace`；Front demo 支持撤回和替换已展示片段 |
 | 2026-05-21 | 完成任务 39：新增 `agent/evals/seed.json` 与 `sync_langsmith_dataset.py`；将 `answer_score` / `path_score` 预期拆开，并补 seed smoke test |
 | 2026-05-21 | 完成任务 40：RAG 检索增加本地 BM25 fallback，dense 失败仍可词法召回；补 RAG seed、检索评测脚本与 role_id 防越权测试 |
+| 2026-05-21 | 文档：新增 [Agent 大重构 PRD](./prd/agent-major-refactor.md)，目标是契约优先、薄图编排、显式状态生命周期、ContextBundle、RAG 模块化、LLM Gateway 与 observability 事件化 |
+| 2026-05-21 | 文档：基于大重构 PRD 新增任务 41-48，将行为冻结、契约层、ContextBundle、Graph nodes 拆分、RAG 模块化、LLM Gateway、observability 事件化和代码地图拆成可执行任务卡 |
+| 2026-05-21 | 文档治理：在根 `AGENTS.md` 与 README 固化文档层级和更新机制；PRD 不覆盖 README 当前契约，`docs/maps/` 等重构后生成；其它 AI 若要改进此秩序需先说明原因并取得用户同意 |
