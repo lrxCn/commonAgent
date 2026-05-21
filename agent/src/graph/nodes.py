@@ -39,7 +39,7 @@ from graph.supervisor import (
 from graph.turn_type import classify_turn_type
 from guardrails.inbound import check_inbound
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
-from memory.assembly import build_context
+from memory.assembly import build_context, build_context_with_budget
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import (
@@ -69,6 +69,7 @@ _EPHEMERAL_CARRY_KEYS = (
     "rag_skipped",
     "rag_chunks",
     "system_prompt",
+    "context_budget",
     "executor",
     "executor_reason",
     "inbound_blocked",
@@ -389,7 +390,7 @@ def context_assembly_node(
         DEFAULT_SUPERVISOR_INSTRUCTIONS,
         ctx.tools,
     )
-    system_str, _ = build_context(
+    system_str, _, budget = build_context_with_budget(
         mem0=list(state.get("mem0_memories") or []),
         summary=state.get("rolling_summary"),
         rag_chunks=state.get("rag_chunks") or [],
@@ -397,7 +398,13 @@ def context_assembly_node(
         messages=state.get("messages") or [],
         current_human=_extract_user_message(state) or None,
     )
-    return _merge_carry(state, {"system_prompt": system_str})
+    return _merge_carry(
+        state,
+        {
+            "system_prompt": system_str,
+            "context_budget": budget.as_metadata(),
+        },
+    )
 
 
 def supervisor_node(
@@ -472,6 +479,7 @@ def supervisor_node(
             model_messages,
             executor=decision.executor.value,
             executor_reason=decision.reason,
+            context_budget=state.get("context_budget") or {},
         )
     else:
         result_messages = invoke_supervisor(
@@ -479,6 +487,7 @@ def supervisor_node(
             model_messages,
             executor=decision.executor.value,
             executor_reason=decision.reason,
+            context_budget=state.get("context_budget") or {},
         )
         reply = extract_latest_ai_text(result_messages)
 

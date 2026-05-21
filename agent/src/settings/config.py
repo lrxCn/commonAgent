@@ -246,6 +246,38 @@ class Settings(BaseSettings):
         default="original_human_content",
         description="HumanMessage metadata key for pre-rewrite user text.",
     )
+    MEMORY_PROFILE_MAX_FACTS: int = Field(
+        default=6,
+        description="Maximum normalized memory_profile facts injected into the system prompt.",
+    )
+    MEM0_FREE_TEXT_MAX_FACTS: int = Field(
+        default=10,
+        description="Maximum uncategorized mem0 facts injected into the system prompt.",
+    )
+    SUMMARY_MAX_CHARS: int = Field(
+        default=4000,
+        description="Maximum rolling-summary characters injected into the system prompt.",
+    )
+    RAG_CHUNK_MAX_CHARS: int = Field(
+        default=1200,
+        description="Maximum characters kept per RAG chunk in the system prompt.",
+    )
+    RAG_CONTEXT_MAX_CHARS: int = Field(
+        default=6000,
+        description="Maximum formatted RAG excerpt block characters in the system prompt.",
+    )
+    TOOLS_SCHEMA_MAX_CHARS: int = Field(
+        default=3000,
+        description="Maximum formatted external client tool schema characters per turn.",
+    )
+    MODEL_MESSAGE_MAX_TURNS: int = Field(
+        default=24,
+        description="Maximum historical conversation turns sent to the main model.",
+    )
+    MODEL_MESSAGE_MAX_CHARS: int = Field(
+        default=20000,
+        description="Maximum total message-content characters sent to the main model.",
+    )
 
     @field_validator(
         "LANGCHAIN_TRACING_V2",

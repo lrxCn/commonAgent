@@ -139,6 +139,7 @@ Agent 变量以 [agent/.env.example](agent/.env.example) 为准：
 | Rerank | `RERANK_MODEL`、`RERANK_TOP_K` | rerank 模型与候选上限 |
 | Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`、`QDRANT_COLLECTION_MEM0`、`QDRANT_MOCK` | KB 与 mem0 分 collection |
 | mem0 | `MEM0_MOCK`、`MEM0_READ_LIMIT`、`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS` | 本地 OSS mem0 与 infer 写入小模型配置 |
+| Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEM0_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 主模型 system prompt、工具 schema 与消息窗口预算 |
 | Postgres | `DATABASE_URL` | LangGraph Checkpointer |
 | Gateway | `AGENT_HOST`、`AGENT_PORT` | Agent HTTP 入口 |
 | Guardrails | `GUARDRAILS_ENABLED` | 入站/出站文本护栏 |
@@ -195,6 +196,15 @@ mem0 约束：
 - summary 只覆盖 `[K+1, N-M]`，与 prefix/recent 不重叠。
 - 只摘要上次总结之后的新消息并合并旧 summary，不全量重算。
 - 更新在回复后异步执行，不阻塞首 token。
+
+上下文预算：
+
+- system prompt 注入顺序固定为：base instructions + external tools、`memory_profile`、未归类 mem0、rolling summary、RAG excerpts。
+- `memory_profile` 按字段顺序最多注入 `MEMORY_PROFILE_MAX_FACTS` 条；未归类 mem0 按原顺序最多注入 `MEM0_FREE_TEXT_MAX_FACTS` 条。
+- rolling summary 按 `SUMMARY_MAX_CHARS` 截断；RAG 先按 `RAG_CHUNK_MAX_CHARS` 裁剪单 chunk，再按 `RAG_CONTEXT_MAX_CHARS` 稳定保留靠前 chunk。
+- external tools 只进入 system prompt，schema block 受 `TOOLS_SCHEMA_MAX_CHARS` 限制；Agent 仍不执行外部工具。
+- messages 先按 K/M 选择，再受 `MODEL_MESSAGE_MAX_TURNS` 和 `MODEL_MESSAGE_MAX_CHARS` 限制；超预算时优先保留最近消息和本轮 human。
+- LangSmith metadata 会记录 `system_prompt_len`、`mem0_count`、`rag_chunk_count`、`message_chars`、`budget_truncated` 等预算使用情况。
 
 ## 单轮流水线
 

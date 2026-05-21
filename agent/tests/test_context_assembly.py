@@ -8,12 +8,27 @@ from langchain_core.messages import AIMessage, HumanMessage
 from memory.assembly import (
     ContextAssemblyError,
     build_context,
+    build_context_with_budget,
     build_system_prompt,
+    build_system_prompt_with_budget,
     select_turn_index_ranges,
     split_into_turns,
 )
-from settings.config import get_settings
+from settings.config import Settings, get_settings, reset_settings, set_settings_override
 from rag.retriever import RagChunk
+
+_REQUIRED_ENV = {
+    "LANGSMITH_API_KEY": "lsv2_test",
+    "OPENAI_API_KEY": "sk-test",
+    "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
+}
+
+
+@pytest.fixture(autouse=True)
+def _reset_settings_override() -> None:
+    reset_settings()
+    yield
+    reset_settings()
 
 
 def _turn(human: str, ai: str) -> list[HumanMessage | AIMessage]:
@@ -173,3 +188,74 @@ def test_build_system_prompt_skips_empty_sections() -> None:
 def test_select_turn_ranges_rejects_negative() -> None:
     with pytest.raises(ValueError):
         select_turn_index_ranges(-1)
+
+
+def test_system_prompt_applies_mem0_summary_and_rag_budgets() -> None:
+    settings = Settings(  # type: ignore[arg-type]
+        **_REQUIRED_ENV,
+        MEMORY_PROFILE_MAX_FACTS=2,
+        MEM0_FREE_TEXT_MAX_FACTS=1,
+        SUMMARY_MAX_CHARS=20,
+        RAG_CHUNK_MAX_CHARS=15,
+        RAG_CONTEXT_MAX_CHARS=95,
+        _env_file=None,
+    )
+    system_str, budget = build_system_prompt_with_budget(
+        instructions="指令",
+        mem0=[
+            "用户叫刘日兴",
+            "用户出生于1997年",
+            "用户生活在哈尔滨",
+            "自由事实 A",
+            "自由事实 B",
+        ],
+        summary="s" * 80,
+        rag_chunks=[
+            RagChunk("doc1", "c1", "a" * 80, 0.9),
+            RagChunk("doc2", "c2", "b" * 80, 0.8),
+        ],
+        settings=settings,
+    )
+
+    assert "profile.name: 刘日兴" in system_str
+    assert "profile.birth_year: 1997" in system_str
+    assert "profile.city" not in system_str
+    assert "- 自由事实 A" in system_str
+    assert "- 自由事实 B" not in system_str
+    assert "s" * 30 not in system_str
+    assert "a" * 30 not in system_str
+    assert "[doc:doc1/chunk:c1]" in system_str
+    assert "[doc:doc2/chunk:c2]" not in system_str
+    assert budget.mem0_count == 3
+    assert budget.memory_profile_count == 2
+    assert budget.mem0_free_text_count == 1
+    assert budget.rag_chunk_count == 1
+    assert budget.budget_truncated is True
+
+
+def test_build_context_caps_model_turns_and_message_chars() -> None:
+    set_settings_override(
+        Settings(  # type: ignore[arg-type]
+            **_REQUIRED_ENV,
+            MODEL_MESSAGE_MAX_TURNS=2,
+            MODEL_MESSAGE_MAX_CHARS=25,
+            _env_file=None,
+        )
+    )
+    _system, lc_messages, budget = build_context_with_budget(
+        mem0=[],
+        summary=None,
+        rag_chunks=[],
+        instructions="",
+        messages=_history(5, mark_middle_turns=False),
+        k=4,
+        m=20,
+        current_human="当前问题很长很长",
+    )
+
+    flat = " ".join(str(message.content) for message in lc_messages)
+    assert "turn-1-human" not in flat
+    assert "turn-5-" in flat
+    assert "当前问题" in flat
+    assert budget.message_chars <= 25
+    assert budget.budget_truncated is True

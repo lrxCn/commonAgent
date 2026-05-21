@@ -31,6 +31,7 @@ class AgentState(TypedDict, total=False):
     rag_skipped: Annotated[bool, EphemeralValue]
     rag_chunks: Annotated[list[RagChunk], EphemeralValue]
     system_prompt: Annotated[str, EphemeralValue]
+    context_budget: Annotated[dict[str, object], EphemeralValue]
     executor: Annotated[str, EphemeralValue]
     executor_reason: Annotated[str, EphemeralValue]
     inbound_blocked: Annotated[bool, EphemeralValue]

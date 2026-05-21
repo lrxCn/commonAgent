@@ -267,18 +267,37 @@ def _supervisor_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     system_prompt = str(inputs.get("system_prompt") or "")
     executor = str(inputs.get("executor") or "deepagents_executor")
     executor_reason = str(inputs.get("executor_reason") or "")
+    context_budget = inputs.get("context_budget") or {}
+    if not isinstance(context_budget, Mapping):
+        context_budget = {}
     secrets = _collect_secret_values()
-    return {
+    meta = {
         "span": "supervisor",
         "executor": executor,
         "executor_reason": executor_reason,
         "system_prompt_len": len(system_prompt),
+        "mem0_count": 0,
+        "rag_chunk_count": 0,
+        "budget_truncated": False,
         "message_count": len(messages),
         "system_prompt_preview": truncate_for_trace(
             redact_secrets(system_prompt, secrets),
             limit=200,
         ),
     }
+    for key in (
+        "system_prompt_len",
+        "mem0_count",
+        "memory_profile_count",
+        "mem0_free_text_count",
+        "rag_chunk_count",
+        "message_count",
+        "message_chars",
+        "budget_truncated",
+    ):
+        if key in context_budget:
+            meta[key] = context_budget[key]
+    return meta
 
 
 def _chitchat_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:

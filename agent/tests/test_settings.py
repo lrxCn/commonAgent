@@ -63,6 +63,14 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.CONTEXT_PREFIX_TURNS == 4
     assert settings.CONTEXT_RECENT_TURNS == 20
     assert settings.CONTEXT_ORIGINAL_HUMAN_METADATA_KEY == "original_human_content"
+    assert settings.MEMORY_PROFILE_MAX_FACTS == 6
+    assert settings.MEM0_FREE_TEXT_MAX_FACTS == 10
+    assert settings.SUMMARY_MAX_CHARS == 4000
+    assert settings.RAG_CHUNK_MAX_CHARS == 1200
+    assert settings.RAG_CONTEXT_MAX_CHARS == 6000
+    assert settings.TOOLS_SCHEMA_MAX_CHARS == 3000
+    assert settings.MODEL_MESSAGE_MAX_TURNS == 24
+    assert settings.MODEL_MESSAGE_MAX_CHARS == 20000
     assert settings.REWRITE_MAX_TOKENS == 64
     assert settings.REWRITE_TIMEOUT_SECONDS == 15
     assert settings.CHITCHAT_USE_LLM is False
@@ -196,3 +204,25 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.MEM0_LLM_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
     assert settings.MEM0_LLM_MAX_TOKENS == 96
     assert settings.MEM0_LLM_TIMEOUT_SECONDS == 4.5
+
+
+def test_context_budget_settings_parse_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(
+        monkeypatch,
+        MEMORY_PROFILE_MAX_FACTS="3",
+        MEM0_FREE_TEXT_MAX_FACTS="4",
+        SUMMARY_MAX_CHARS="800",
+        RAG_CHUNK_MAX_CHARS="300",
+        RAG_CONTEXT_MAX_CHARS="900",
+        TOOLS_SCHEMA_MAX_CHARS="700",
+        MODEL_MESSAGE_MAX_TURNS="5",
+        MODEL_MESSAGE_MAX_CHARS="6000",
+    )
+    assert settings.MEMORY_PROFILE_MAX_FACTS == 3
+    assert settings.MEM0_FREE_TEXT_MAX_FACTS == 4
+    assert settings.SUMMARY_MAX_CHARS == 800
+    assert settings.RAG_CHUNK_MAX_CHARS == 300
+    assert settings.RAG_CONTEXT_MAX_CHARS == 900
+    assert settings.TOOLS_SCHEMA_MAX_CHARS == 700
+    assert settings.MODEL_MESSAGE_MAX_TURNS == 5
+    assert settings.MODEL_MESSAGE_MAX_CHARS == 6000

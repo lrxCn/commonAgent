@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 41 |
-| 已完成 | 35 |
+| 已完成 | 36 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 36 上下文预算控制；36 完成后再逐步执行 37-40。
+**当前建议下一步**：执行任务 37 Chat 真流式 SSE；37 完成后再逐步执行 38-40。
 
 
 ---
@@ -60,7 +60,7 @@
 | 33 | [Executor Router 与 deepagents 分层启用](./prompts/33-executor-router-deepagents-gating.md) | ✅ | 2026-05-21 | 新增 executor router；简单 RAG/action 走轻量路径，复杂任务保留 deepagents |
 | 34 | [mem0 小模型配置与写入可观测性](./prompts/34-mem0-small-model-observability.md) | ✅ | 2026-05-21 | mem0 infer 使用专用小模型；写入结果改为结构化状态并补 trace/log |
 | 35 | [memory_profile 类别化记忆视图](./prompts/35-memory-profile-schema.md) | ✅ | 2026-05-21 | 运行时归一化 name/birth_year/city/job/company.address/answer_style；过滤已归类自由文本 |
-| 36 | [上下文预算控制](./prompts/36-context-budget-controls.md) | ⬜ | — | 为 mem0、summary、RAG、tools、messages 设置明确预算 |
+| 36 | [上下文预算控制](./prompts/36-context-budget-controls.md) | ✅ | 2026-05-21 | 为 mem0、summary、RAG、tools、messages 设置明确预算并补 trace metadata |
 | 37 | [Chat 真流式 SSE](./prompts/37-chat-true-streaming-sse.md) | ⬜ | — | 首 token 真流式；`client_actions` 仍结构化输出 |
 | 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ⬜ | — | optimistic streaming；增加 retract/replace SSE 事件 |
 | 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ⬜ | — | `answer_score` + `path_score`；本地 seed 同步 Dataset |
@@ -122,3 +122,4 @@
 | 2026-05-21 | 完成任务 34：新增 mem0 专用小模型配置；mem0 写入返回结构化 `status/reason/stored_count`，并补日志与 trace metadata |
 | 2026-05-21 | 完成任务 35：新增 `memory_profile` 运行时归一化视图；system prompt 优先注入 profile，并保留未归类 mem0 自由文本 |
 | 2026-05-21 | 文档规则：固化 Agent 环境契约三者同步要求（`config.py` / `.env.example` / `.env`），并以 `test_env_files_match_settings_contract` 自动校验 |
+| 2026-05-21 | 完成任务 36：新增上下文预算配置；限制 memory_profile、mem0、summary、RAG、tools schema 与 model messages，并输出 `budget_truncated` 等 metadata |

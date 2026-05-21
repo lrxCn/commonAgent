@@ -148,22 +148,33 @@ def _dedupe(facts: Iterable[str]) -> list[str]:
     return out
 
 
-def format_memory_profile_for_system(profile: MemoryProfile) -> str:
+def format_memory_profile_for_system(
+    profile: MemoryProfile,
+    *,
+    max_facts: int | None = None,
+) -> str:
     """Format normalized memory profile for system prompt injection."""
     if profile.is_empty():
         return ""
 
-    lines = ["## Memory profile", ""]
+    facts: list[str] = []
     if profile.name:
-        lines.append(f"- profile.name: {profile.name}")
+        facts.append(f"- profile.name: {profile.name}")
     if profile.birth_year:
-        lines.append(f"- profile.birth_year: {profile.birth_year}")
+        facts.append(f"- profile.birth_year: {profile.birth_year}")
     if profile.city:
-        lines.append(f"- profile.city: {profile.city}")
+        facts.append(f"- profile.city: {profile.city}")
     if profile.job:
-        lines.append(f"- profile.job: {profile.job}")
+        facts.append(f"- profile.job: {profile.job}")
     if profile.company_address:
-        lines.append(f"- company.address: {profile.company_address}")
+        facts.append(f"- company.address: {profile.company_address}")
     if profile.answer_style:
-        lines.append(f"- preference.answer_style: {profile.answer_style}")
+        facts.append(f"- preference.answer_style: {profile.answer_style}")
+
+    if max_facts is not None:
+        facts = facts[: max(0, max_facts)]
+    if not facts:
+        return ""
+
+    lines = ["## Memory profile", "", *facts]
     return "\n".join(lines)

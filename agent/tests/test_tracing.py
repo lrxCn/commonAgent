@@ -148,11 +148,21 @@ def test_supervisor_process_inputs_records_executor_metadata() -> None:
             "messages": [],
             "executor": "rag_answer_executor",
             "executor_reason": "rag_chunks_available_score_0.92",
+            "context_budget": {
+                "system_prompt_len": 123,
+                "mem0_count": 3,
+                "rag_chunk_count": 2,
+                "budget_truncated": True,
+            },
         }
     )
 
     assert meta["executor"] == "rag_answer_executor"
     assert meta["executor_reason"] == "rag_chunks_available_score_0.92"
+    assert meta["system_prompt_len"] == 123
+    assert meta["mem0_count"] == 3
+    assert meta["rag_chunk_count"] == 2
+    assert meta["budget_truncated"] is True
 
 
 def test_traceable_imports_on_core_modules() -> None:

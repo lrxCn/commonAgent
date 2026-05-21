@@ -13,7 +13,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from gateway.schemas import ToolSpec
 from graph.client_actions import supervisor_client_actions_instruction_block
-from observability.tracing import supervisor_traceable
+from observability.tracing import attach_run_metadata, supervisor_traceable
 from settings.config import Settings, get_settings
 
 _supervisor_agent_override: CompiledStateGraph | None = None
@@ -63,7 +63,19 @@ def format_external_tools_for_prompt(tools: Sequence[ToolSpec | dict[str, Any]])
     if not tools:
         return ""
 
+    max_chars = max(0, int(get_settings().TOOLS_SCHEMA_MAX_CHARS))
+    if max_chars <= 0:
+        attach_run_metadata(
+            {
+                "tools_count": len(tools),
+                "tools_schema_len": 0,
+                "tools_schema_truncated": True,
+            }
+        )
+        return ""
+
     lines = ["## External client tools (this turn only)", ""]
+    truncated = False
     for item in tools:
         if isinstance(item, ToolSpec):
             spec = item
@@ -71,10 +83,35 @@ def format_external_tools_for_prompt(tools: Sequence[ToolSpec | dict[str, Any]])
             spec = ToolSpec.model_validate(item)
         schema = json.dumps(spec.parameters, ensure_ascii=False)
         approval = "requires approval" if spec.requires_approval else "no approval required"
-        lines.append(
-            f"- **{spec.name}**: {spec.description} ({approval})\n  parameters schema: {schema}"
-        )
-    return "\n".join(lines)
+        line_prefix = f"- **{spec.name}**: {spec.description} ({approval})\n  parameters schema: "
+        candidate_line = f"{line_prefix}{schema}"
+        candidate_block = "\n".join([*lines, candidate_line])
+        if len(candidate_block) <= max_chars:
+            lines.append(candidate_line)
+            continue
+        truncated = True
+        remaining = max_chars - len("\n".join([*lines, line_prefix]))
+        if remaining > 0:
+            suffix = "...[truncated]"
+            if remaining > len(suffix):
+                schema = f"{schema[: remaining - len(suffix)]}{suffix}"
+            else:
+                schema = schema[:remaining]
+            lines.append(f"{line_prefix}{schema}")
+        break
+
+    block = "\n".join(lines)
+    if max_chars > 0 and len(block) > max_chars:
+        block = block[:max_chars]
+        truncated = True
+    attach_run_metadata(
+        {
+            "tools_count": len(tools),
+            "tools_schema_len": len(block),
+            "tools_schema_truncated": truncated,
+        }
+    )
+    return block
 
 
 def build_supervisor_instructions(
@@ -131,8 +168,10 @@ def invoke_supervisor(
     *,
     executor: str = "deepagents_executor",
     executor_reason: str = "",
+    context_budget: dict[str, object] | None = None,
 ) -> list[BaseMessage]:
     """Run the supervisor and return the resulting message list."""
+    del context_budget  # tracing metadata only
     del executor, executor_reason  # tracing metadata only
     if _supervisor_invoke_override is not None:
         return _supervisor_invoke_override(system_prompt, messages)
@@ -152,8 +191,10 @@ def invoke_answer_executor(
     *,
     executor: str = "rag_answer_executor",
     executor_reason: str = "",
+    context_budget: dict[str, object] | None = None,
 ) -> str:
     """Run a plain ChatOpenAI answer path without deepagents middleware."""
+    del context_budget  # tracing metadata only
     del executor, executor_reason  # tracing metadata only
     if _answer_invoke_override is not None:
         return _answer_invoke_override(system_prompt, messages).strip()
