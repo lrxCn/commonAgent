@@ -104,6 +104,15 @@ def attach_run_metadata(metadata: Mapping[str, Any]) -> None:
         pass
 
 
+def build_path_contract_trace_metadata(
+    path_metrics: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Return trace metadata for passive path-contract observability."""
+    from observability.path_contract import path_metrics_metadata
+
+    return path_metrics_metadata(path_metrics)
+
+
 def traceable(
     *,
     name: str,

@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-28 已完成，另含 13.5 修复任务；29-40 为运行时优化待执行任务 |
+| 核心任务 | 01-29 已完成，另含 13.5 修复任务；30-40 为运行时优化待执行任务 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
@@ -149,7 +149,7 @@ Back 变量见 [back/.env.example](back/.env.example)：`AGENT_URL`、`BACK_HOST
 
 | 机制 | 内容 | 持久化 | 来源 |
 |------|------|--------|------|
-| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`turn_type`、`turn_type_reason`、`rewritten_query`、`rag_chunks`、`system_prompt` 等单轮字段用 `EphemeralValue` | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
+| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`turn_type`、`turn_type_reason`、`path_metrics`、`rewritten_query`、`rag_chunks`、`system_prompt` 等单轮字段用 `EphemeralValue` | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
 | `context_schema` / `GraphContextSchema` | `user_id`、`role_id`、`tools[]`，与 `gateway.schemas.RequestContext` 同构 | 不进入 checkpoint 作为权限依据 | 每轮 `graph.invoke(..., context=...)` |
 | `configurable.thread_id` | 会话键 | checkpointer 主键 | 每轮 `config={"configurable": {"thread_id": ...}}` |
 
@@ -231,6 +231,7 @@ sequenceDiagram
 
 - mem0、checkpoint history、rolling summary 并行读取。
 - turn_type 在 `load_memory` 后确定，当前只写入 `AgentState` 单轮字段和 LangSmith metadata，不改变 rewrite、RAG、Supervisor 执行路径。
+- path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata；该契约只做可观测性，不改变业务路径。
 - rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。

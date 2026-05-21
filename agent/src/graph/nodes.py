@@ -34,11 +34,16 @@ from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.assembly import build_context
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
-from observability.tracing import attach_run_metadata
+from observability.path_contract import (
+    finalize_path_metrics,
+    new_path_metrics,
+    update_path_component,
+)
+from observability.tracing import attach_run_metadata, build_path_contract_trace_metadata
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from rag.retriever import RagChunk
-from rag.rewrite import rewrite_node
-from rag.router import rag_router_node
+from rag.rewrite import rewrite_node, should_rewrite
+from rag.router import RuleDecision, classify_with_rules, rag_router_node
 from rag.retriever import rag_retrieval_node
 from settings.config import get_settings
 
@@ -49,6 +54,7 @@ _EPHEMERAL_CARRY_KEYS = (
     "rolling_summary",
     "turn_type",
     "turn_type_reason",
+    "path_metrics",
     "rewritten_query",
     "rag_skipped",
     "rag_chunks",
@@ -166,6 +172,10 @@ def load_memory_node(
     )
     updates["turn_type"] = decision.turn_type.value
     updates["turn_type_reason"] = decision.reason
+    updates["path_metrics"] = new_path_metrics(
+        turn_type=decision.turn_type.value,
+        turn_type_reason=decision.reason,
+    )
     attach_run_metadata(
         {
             "turn_type": decision.turn_type.value,
@@ -175,42 +185,83 @@ def load_memory_node(
     return _merge_carry(state, updates)
 
 
-def rewrite_graph_node(state: AgentState) -> dict[str, str]:
+def rewrite_graph_node(state: AgentState) -> dict[str, object]:
     """Delegate to rag.rewrite.rewrite_node with graph state."""
+    user_message = _extract_user_message(state)
+    messages = list(state.get("messages") or [])
+    recent_messages = list(messages[:-1]) if messages else []
+    settings = get_settings()
+    use_skip = settings.REWRITE_SKIP_ENABLED and not settings.REWRITE_FORCE
+    should_call, _reason = should_rewrite(
+        user_message,
+        recent_messages=recent_messages,
+        mem0_memories=list(state.get("mem0_memories") or []),
+    )
+    called = bool(user_message) and (should_call or not use_skip)
     payload: dict[str, object] = {
-        "user_message": _extract_user_message(state),
+        "user_message": user_message,
         "mem0_memories": state.get("mem0_memories") or [],
-        "messages": state.get("messages") or [],
+        "messages": messages,
     }
-    return _merge_carry(state, rewrite_node(cast(Any, payload)))
+    updates = rewrite_node(cast(Any, payload))
+    path_metrics = update_path_component(
+        state.get("path_metrics"),
+        "rewrite",
+        should_call=should_call,
+        called=called,
+    )
+    return _merge_carry(state, {**updates, "path_metrics": path_metrics})
 
 
 def rag_router_graph_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
-) -> dict[str, bool]:
+) -> dict[str, object]:
     """Delegate to rag router with tools from request context."""
     ctx = request_context_from_runtime(runtime)
+    message = _extract_user_message(state)
+    rewritten = state.get("rewritten_query")
+    settings = get_settings()
+    rule_decision = classify_with_rules(message, rewritten, ctx.tools)
+    should_call = (
+        rule_decision is RuleDecision.UNCERTAIN
+        and settings.RAG_ROUTER_MODE == "hybrid"
+    )
     payload: dict[str, object] = {
-        "user_message": _extract_user_message(state),
-        "rewritten_query": state.get("rewritten_query"),
+        "user_message": message,
+        "rewritten_query": rewritten,
         "tools_context": ctx.tools,
     }
-    return _merge_carry(state, rag_router_node(cast(Any, payload)))
+    updates = rag_router_node(cast(Any, payload))
+    path_metrics = update_path_component(
+        state.get("path_metrics"),
+        "rag_router",
+        should_call=should_call,
+        called=should_call,
+    )
+    return _merge_carry(state, {**updates, "path_metrics": path_metrics})
 
 
 def rag_retrieval_graph_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
-) -> dict[str, list[RagChunk]]:
+) -> dict[str, object]:
     """Delegate to retriever with role_id from request context."""
     ctx = request_context_from_runtime(runtime)
+    should_call = not bool(state.get("rag_skipped", False))
     payload: dict[str, object] = {
         "role_id": ctx.role_id,
         "rewritten_query": state.get("rewritten_query"),
         "rag_skipped": state.get("rag_skipped", False),
     }
-    return _merge_carry(state, rag_retrieval_node(cast(Any, payload)))
+    updates = rag_retrieval_node(cast(Any, payload))
+    path_metrics = update_path_component(
+        state.get("path_metrics"),
+        "rag",
+        should_call=should_call,
+        called=should_call,
+    )
+    return _merge_carry(state, {**updates, "path_metrics": path_metrics})
 
 
 def route_after_rag_retrieval(
@@ -268,7 +319,7 @@ def context_assembly_node(
 def supervisor_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
-) -> dict[str, list[BaseMessage]]:
+) -> dict[str, object]:
     """Run deepagents Supervisor on assembled context; append AI reply to checkpoint messages."""
     ctx = request_context_from_runtime(runtime)
     system_prompt = _text(state.get("system_prompt"))
@@ -288,6 +339,12 @@ def supervisor_node(
     full_system = system_prompt or instructions
     result_messages = invoke_supervisor(full_system, model_messages)
     reply = extract_latest_ai_text(result_messages)
+    path_metrics = update_path_component(
+        state.get("path_metrics"),
+        "supervisor",
+        should_call=True,
+        called=True,
+    )
 
     if ctx.tools:
         outcome = parse_client_actions_from_llm(reply, ctx.tools)
@@ -295,6 +352,7 @@ def supervisor_node(
             return _merge_carry(
                 state,
                 {
+                    "path_metrics": path_metrics,
                     "client_actions": list(outcome.actions),
                     "client_actions_error": None,
                     "supervisor_draft": "",
@@ -311,6 +369,7 @@ def supervisor_node(
             return _merge_carry(
                 state,
                 {
+                    "path_metrics": path_metrics,
                     "client_actions": None,
                     "client_actions_error": {
                         "code": code,
@@ -324,7 +383,12 @@ def supervisor_node(
         reply = "（无回复）"
     return _merge_carry(
         state,
-        {"supervisor_draft": reply, "client_actions": None, "client_actions_error": None},
+        {
+            "path_metrics": path_metrics,
+            "supervisor_draft": reply,
+            "client_actions": None,
+            "client_actions_error": None,
+        },
     )
 
 
@@ -360,18 +424,21 @@ def post_turn_jobs_node(
     if state.get("inbound_blocked"):
         return _merge_carry(state, {})
 
+    finalized_metrics = finalize_path_metrics(state.get("path_metrics"))
+    attach_run_metadata(build_path_contract_trace_metadata(finalized_metrics))
+
     ctx = request_context_from_runtime(runtime)
     thread_id = _thread_id(config)
     turn_messages = extract_current_turn_messages(state.get("messages") or [])
     if not turn_messages:
-        return _merge_carry(state, {})
+        return _merge_carry(state, {"path_metrics": finalized_metrics})
 
     schedule_post_turn_jobs(
         thread_id=thread_id,
         user_id=ctx.user_id,
         turn_messages=turn_messages,
     )
-    return _merge_carry(state, {})
+    return _merge_carry(state, {"path_metrics": finalized_metrics})
 
 
 def outbound_guard_node(state: AgentState) -> dict[str, object]:

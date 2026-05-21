@@ -22,6 +22,7 @@ If you work inside `agent/`, also read [agent/AGENTS.md](agent/AGENTS.md) for gr
 
 ## Working Rules
 
+- Communicate with the user in Chinese by default, unless the user explicitly asks for another language or the content is better kept in its original language.
 - Keep changes scoped to the requested task.
 - Do not overwrite user changes. If existing edits affect the task, work with them.
 - Do not commit, push, or create PRs unless explicitly asked.

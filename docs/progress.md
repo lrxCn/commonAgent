@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 41 |
-| 已完成 | 29 |
+| 已完成 | 30 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 29 Path Contract 路径契约与可观测性；29 完成后再逐步执行 30-40。
+**当前建议下一步**：执行任务 30 fact_update 快速路径；30 完成后再逐步执行 31-40。
 
 
 ---
@@ -53,7 +53,7 @@
 | 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ✅ | 2026-05-20 | `should_rewrite`+`rag/intent.py`；`rewrite_passthrough` tracing；`test_rewrite.py` 17 用例 |
 | 27 | [Rewrite / RAG Router 小模型与超时保护](./prompts/27-rewrite-router-small-model.md) | ✅ | 2026-05-21 | `Qwen/Qwen2.5-7B-Instruct`；rewrite/router max token + timeout；个人/公司事实 passthrough + router skip RAG |
 | 28 | [Turn Type 路由层](./prompts/28-turn-type-routing.md) | ✅ | 2026-05-21 | 统一 `turn_type` 分类；只写 state/metadata，不改执行路径 |
-| 29 | [Path Contract 路径契约与可观测性](./prompts/29-path-contract-observability.md) | ⬜ | — | 记录 should/called、LLM 调用次数与 path contract 结果 |
+| 29 | [Path Contract 路径契约与可观测性](./prompts/29-path-contract-observability.md) | ✅ | 2026-05-21 | `path_metrics` 记录 should/called、LLM 调用次数与 path contract 结果 |
 | 30 | [fact_update 快速路径](./prompts/30-fact-update-fast-path.md) | ⬜ | — | 模板确认 + 异步 mem0；跳过 rewrite/RAG/Supervisor |
 | 31 | [chitchat 轻量执行器](./prompts/31-chitchat-lightweight-executor.md) | ⬜ | — | 模板/小模型回复；跳过 RAG 与主模型 |
 | 32 | [rewrite/router 按 turn_type 收敛](./prompts/32-rewrite-router-turn-type-convergence.md) | ⬜ | — | 消费 `turn_type`，减少小模型调用 |
@@ -114,3 +114,4 @@
 | 2026-05-21 | 修复任务 27 router timeout 回归：`rag_router` 对「我公司在天翔街188号」类公司事实陈述直接 skip RAG；router timeout 默认 5 秒且小任务 LLM 禁用自动重试 |
 | 2026-05-21 | 文档：基于运行时优化 PRD 新增任务 28-40，将 turn_type、路径契约、快速路径、deepagents 分层、流式与评测拆成小任务卡 |
 | 2026-05-21 | 完成任务 28：新增 `turn_type` 分类层，写入单轮 state 与 LangSmith metadata；执行路径保持不变 |
+| 2026-05-21 | 完成任务 29：新增 `path_metrics` 单轮路径契约，记录 rewrite/router/RAG/supervisor should/called、LLM 调用次数与 pass/fail metadata |

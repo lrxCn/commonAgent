@@ -26,6 +26,7 @@ class AgentState(TypedDict, total=False):
     rolling_summary: Annotated[str | None, EphemeralValue]
     turn_type: Annotated[str, EphemeralValue]
     turn_type_reason: Annotated[str, EphemeralValue]
+    path_metrics: Annotated[dict[str, object], EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]
     rag_chunks: Annotated[list[RagChunk], EphemeralValue]
