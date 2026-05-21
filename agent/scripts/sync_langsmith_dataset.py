@@ -57,6 +57,8 @@ def example_payload(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]
         "input": row["input"],
         "context": row["context"],
     }
+    if "kb_fixture" in row:
+        inputs["kb_fixture"] = row["kb_fixture"]
     outputs = {
         "expected_answer": row["expected_answer"],
         "expected_path": row["expected_path"],
@@ -65,6 +67,8 @@ def example_payload(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]
         "id": row["id"],
         "seed_version": "local-json-v1",
     }
+    if "eval_tags" in row:
+        metadata["eval_tags"] = row["eval_tags"]
     return inputs, outputs, metadata
 
 

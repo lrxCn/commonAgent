@@ -29,7 +29,65 @@
     "id": "knowledge-reimbursement-001",
     "input": "报销制度是什么？",
     "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
-    "expected_answer": {"kind": "knowledge_answer", "requires_rag": true},
+    "kb_fixture": [
+      {
+        "role_id": "role-sales",
+        "doc_id": "doc-reimbursement-eval",
+        "doc_name": "报销制度",
+        "version": "eval-v1",
+        "content": "报销制度：差旅费需在出差结束后30日内提交审批，单笔超过5000元需部门负责人加签。"
+      },
+      {
+        "role_id": "role-hr",
+        "doc_id": "doc-hr-leave-eval",
+        "doc_name": "年假制度",
+        "version": "eval-v1",
+        "content": "年假制度：工作满一年享有5天带薪年假。"
+      }
+    ],
+    "eval_tags": ["rag", "bm25", "role_filter"],
+    "expected_answer": {
+      "kind": "knowledge_answer",
+      "requires_rag": true,
+      "expected_doc_ids": ["doc-reimbursement-eval"],
+      "forbidden_doc_ids": ["doc-hr-leave-eval"],
+      "must_include": ["30日", "5000"]
+    },
+    "expected_path": {
+      "turn_type": "knowledge_query",
+      "llm_call_count_max": 1,
+      "rag_called": true,
+      "supervisor_called": true
+    }
+  },
+  {
+    "id": "knowledge-role-filter-001",
+    "input": "DELTA策略是什么？",
+    "context": {"user_id": "u1", "role_id": "role-hr", "tools": []},
+    "kb_fixture": [
+      {
+        "role_id": "role-sales",
+        "doc_id": "doc-sales-secret-eval",
+        "doc_name": "销售内部策略",
+        "version": "eval-v1",
+        "content": "DELTA策略：内部返点策略只允许销售角色查看，不得向其他角色开放。"
+      },
+      {
+        "role_id": "role-hr",
+        "doc_id": "doc-hr-delta-eval",
+        "doc_name": "HR DELTA说明",
+        "version": "eval-v1",
+        "content": "DELTA策略：HR角色只能查看公开福利说明，不包含销售内部返点细节。"
+      }
+    ],
+    "eval_tags": ["rag", "role_filter", "forbidden_doc"],
+    "expected_answer": {
+      "kind": "knowledge_answer",
+      "requires_rag": true,
+      "expected_doc_ids": ["doc-hr-delta-eval"],
+      "forbidden_doc_ids": ["doc-sales-secret-eval"],
+      "must_not_include": ["内部返点策略只允许销售角色查看"]
+    },
     "expected_path": {
       "turn_type": "knowledge_query",
       "llm_call_count_max": 1,

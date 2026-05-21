@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import re
 import urllib.error
 import urllib.request
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any, TypedDict
@@ -19,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Qdrant vector names (aligned with future ingest in task 20)
 _DENSE_VECTOR_NAME = "dense"
+_LEXICAL_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]+")
+_BM25_MIN_SCROLL_LIMIT = 50
+_BM25_SCROLL_MULTIPLIER = 8
 
 RerankFn = Callable[[str, list[str]], list[float]]
 
@@ -122,14 +128,67 @@ def _payload_text(payload: dict[str, Any]) -> str:
     return ""
 
 
-def _hit_to_candidate(hit: Any, *, channel: str) -> dict[str, Any] | None:
+def _lexical_terms(text: str) -> list[str]:
+    """Low-dependency tokenizer for English words and Chinese character n-grams."""
+    normalized = text.strip().lower()
+    if not normalized:
+        return []
+
+    terms: list[str] = []
+    for match in _LEXICAL_TOKEN_RE.finditer(normalized):
+        token = match.group(0)
+        if not token:
+            continue
+        if all("\u4e00" <= ch <= "\u9fff" for ch in token):
+            chars = list(token)
+            terms.extend(chars)
+            terms.extend("".join(chars[i : i + 2]) for i in range(len(chars) - 1))
+            terms.extend("".join(chars[i : i + 3]) for i in range(len(chars) - 2))
+            if len(token) <= 12:
+                terms.append(token)
+            continue
+        terms.append(token)
+    return terms
+
+
+def _compact_text(text: str) -> str:
+    return re.sub(r"\s+", "", text.strip().lower())
+
+
+def _hit_to_candidate(hit: Any, *, channel: str, role_id: str | None = None) -> dict[str, Any] | None:
     payload = hit.payload if isinstance(hit.payload, dict) else {}
+    if role_id is not None and str(payload.get("role_id") or "").strip() != role_id:
+        return None
     doc_id = str(payload.get("doc_id") or "").strip()
     chunk_id = str(payload.get("chunk_id") or hit.id or "").strip()
     text = _payload_text(payload)
     if not doc_id or not chunk_id or not text:
         return None
     score = float(hit.score) if hit.score is not None else 0.0
+    return {
+        "doc_id": doc_id,
+        "chunk_id": chunk_id,
+        "text": text,
+        "score": score,
+        "channel": channel,
+    }
+
+
+def _point_to_candidate(
+    point: Any,
+    *,
+    channel: str,
+    score: float = 0.0,
+    role_id: str | None = None,
+) -> dict[str, Any] | None:
+    payload = point.payload if isinstance(point.payload, dict) else {}
+    if role_id is not None and str(payload.get("role_id") or "").strip() != role_id:
+        return None
+    doc_id = str(payload.get("doc_id") or "").strip()
+    chunk_id = str(payload.get("chunk_id") or point.id or "").strip()
+    text = _payload_text(payload)
+    if not doc_id or not chunk_id or not text:
+        return None
     return {
         "doc_id": doc_id,
         "chunk_id": chunk_id,
@@ -232,7 +291,7 @@ def _dense_search(
 
     candidates: list[dict[str, Any]] = []
     for hit in hits:
-        item = _hit_to_candidate(hit, channel="dense")
+        item = _hit_to_candidate(hit, channel="dense", role_id=role_id)
         if item:
             candidates.append(item)
     return candidates
@@ -249,15 +308,19 @@ def _sparse_search(
     """
     Sparse / keyword channel.
 
-    Uses Qdrant sparse vectors when configured; otherwise full-text match on payload.
-    Query sparse embedding is provided by ingest (task 20); until then text match applies.
+    Uses a lightweight local BM25 fallback over role-scoped Qdrant payloads. If a
+    Qdrant full-text index is available, its matches are merged into the same channel.
     """
     if _collection_has_sparse(client, collection):
         logger.debug(
-            "collection %s has sparse vectors; text match used until ingest wires query sparse",
+            "collection %s has sparse vectors; BM25 fallback used until sparse query vectors are wired",
             collection,
         )
-    return _text_search(client, collection=collection, role_id=role_id, query=query, limit=limit)
+    text_hits = _text_search(client, collection=collection, role_id=role_id, query=query, limit=limit)
+    bm25_hits = _bm25_search(client, collection=collection, role_id=role_id, query=query, limit=limit)
+    if text_hits and bm25_hits:
+        return _merge_candidates(text_hits, bm25_hits)[:limit]
+    return bm25_hits or text_hits
 
 
 def _text_search(
@@ -295,22 +358,83 @@ def _text_search(
 
     candidates: list[dict[str, Any]] = []
     for point in records:
-        payload = point.payload if isinstance(point.payload, dict) else {}
-        doc_id = str(payload.get("doc_id") or "").strip()
-        chunk_id = str(payload.get("chunk_id") or point.id or "").strip()
-        text = _payload_text(payload)
-        if not doc_id or not chunk_id or not text:
-            continue
-        candidates.append(
-            {
-                "doc_id": doc_id,
-                "chunk_id": chunk_id,
-                "text": text,
-                "score": 0.5,
-                "channel": "text",
-            }
-        )
+        item = _point_to_candidate(point, channel="text", score=0.5, role_id=role_id)
+        if item:
+            candidates.append(item)
     return candidates
+
+
+def _bm25_search(
+    client: QdrantClient,
+    *,
+    collection: str,
+    role_id: str,
+    query: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """BM25 fallback over role-scoped payload text, used when no sparse service is configured."""
+    query_terms = _lexical_terms(query)
+    if not query_terms:
+        return []
+
+    scroll_limit = max(_BM25_MIN_SCROLL_LIMIT, limit * _BM25_SCROLL_MULTIPLIER)
+    try:
+        records, _ = client.scroll(
+            collection_name=collection,
+            scroll_filter=_role_filter(role_id),
+            limit=scroll_limit,
+            with_payload=True,
+        )
+    except Exception:
+        logger.debug("BM25 role-scoped scroll failed", exc_info=True)
+        return []
+
+    candidates: list[dict[str, Any]] = []
+    term_counts: list[Counter[str]] = []
+    lengths: list[int] = []
+    df: Counter[str] = Counter()
+    for point in records:
+        item = _point_to_candidate(point, channel="bm25", role_id=role_id)
+        if not item:
+            continue
+        counts = Counter(_lexical_terms(str(item["text"])))
+        if not counts:
+            continue
+        candidates.append(item)
+        term_counts.append(counts)
+        length = sum(counts.values())
+        lengths.append(length)
+        df.update(counts.keys())
+
+    if not candidates:
+        return []
+
+    query_counts = Counter(query_terms)
+    total_docs = len(candidates)
+    avg_len = max(1.0, sum(lengths) / total_docs)
+    compact_query = _compact_text(query)
+    k1 = 1.5
+    b = 0.75
+
+    scored: list[dict[str, Any]] = []
+    for item, counts, doc_len in zip(candidates, term_counts, lengths, strict=True):
+        score = 0.0
+        for term, query_count in query_counts.items():
+            term_freq = counts.get(term, 0)
+            if term_freq <= 0:
+                continue
+            doc_freq = max(1, df.get(term, 0))
+            idf = math.log(1.0 + (total_docs - doc_freq + 0.5) / (doc_freq + 0.5))
+            denom = term_freq + k1 * (1.0 - b + b * (doc_len / avg_len))
+            score += query_count * idf * ((term_freq * (k1 + 1.0)) / denom)
+        if compact_query and compact_query in _compact_text(str(item["text"])):
+            score += 2.0
+        if score <= 0.0:
+            continue
+        scored.append({**item, "score": score})
+
+    scored.sort(key=lambda x: float(x["score"]), reverse=True)
+    return scored[:limit]
 
 
 def default_rerank(query: str, documents: list[str], *, settings: Settings | None = None) -> list[float]:
@@ -463,16 +587,16 @@ def retrieve(
     try:
         dense_vector = _embed_query(q, cfg)
     except Exception:
-        logger.debug("query embedding failed", exc_info=True)
-        return []
-
-    dense_hits = _dense_search(
-        client,
-        collection=collection,
-        role_id=rid,
-        query_vector=dense_vector,
-        limit=prefetch_limit,
-    )
+        logger.debug("query embedding failed; continuing with BM25 fallback", exc_info=True)
+        dense_hits = []
+    else:
+        dense_hits = _dense_search(
+            client,
+            collection=collection,
+            role_id=rid,
+            query_vector=dense_vector,
+            limit=prefetch_limit,
+        )
     sparse_hits = _sparse_search(
         client,
         collection=collection,

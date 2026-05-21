@@ -51,3 +51,25 @@ def test_client_action_seed_contains_tools_context() -> None:
     tools = action_row["context"]["tools"]
     assert isinstance(tools, list) and tools
     assert tools[0]["name"] == "jumpPage"
+
+
+def test_rag_seed_rows_have_fixture_and_retrieval_expectations() -> None:
+    rows = _load_seed()
+    rag_rows = [
+        row
+        for row in rows
+        if row["expected_answer"].get("requires_rag")
+    ]
+    assert len(rag_rows) >= 2
+    assert any("role_filter" in row.get("eval_tags", []) for row in rag_rows)
+    for row in rag_rows:
+        assert isinstance(row.get("kb_fixture"), list) and row["kb_fixture"]
+        answer = row["expected_answer"]
+        assert isinstance(answer.get("expected_doc_ids"), list) and answer["expected_doc_ids"]
+        assert isinstance(answer.get("forbidden_doc_ids"), list)
+        for fixture in row["kb_fixture"]:
+            assert fixture["role_id"]
+            assert fixture["doc_id"]
+            assert fixture["doc_name"]
+            assert fixture["version"]
+            assert fixture["content"]

@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 41 |
-| 已完成 | 39 |
+| 已完成 | 40 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 40 RAG 质量提升：sparse/BM25 与评测闭环。
+**当前建议下一步**：运行全量回归或进入后续自定义优化任务。
 
 
 ---
@@ -64,7 +64,7 @@
 | 37 | [Chat 真流式 SSE](./prompts/37-chat-true-streaming-sse.md) | ✅ | 2026-05-21 | 无工具文本回合通过模型 callback 真流式输出；`client_actions` 仍结构化 |
 | 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ✅ | 2026-05-21 | optimistic streaming 增量检查；支持 `retract` / `replace` SSE 事件 |
 | 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ✅ | 2026-05-21 | 本地 seed 覆盖核心 turn type；提供 LangSmith Dataset 同步脚本与 smoke test |
-| 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ⬜ | — | sparse/BM25 + RAG eval + `role_id` 防越权评测 |
+| 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ✅ | 2026-05-21 | 本地 BM25 fallback + RAG eval seed + `role_id` 防越权评测 |
 
 ---
 
@@ -126,3 +126,4 @@
 | 2026-05-21 | 完成任务 37：Agent SSE 对无工具文本回合接入模型 streaming callback，Back 保持 SSE 透传，`client_actions` 继续走结构化 JSON |
 | 2026-05-21 | 完成任务 38：流式输出增加增量出站检查与 `segment_id`，违规时发送 `retract` / `replace`；Front demo 支持撤回和替换已展示片段 |
 | 2026-05-21 | 完成任务 39：新增 `agent/evals/seed.json` 与 `sync_langsmith_dataset.py`；将 `answer_score` / `path_score` 预期拆开，并补 seed smoke test |
+| 2026-05-21 | 完成任务 40：RAG 检索增加本地 BM25 fallback，dense 失败仍可词法召回；补 RAG seed、检索评测脚本与 role_id 防越权测试 |

@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-29 已完成，另含 13.5 修复任务；30-40 为运行时优化待执行任务 |
+| 核心任务 | 01-40 已完成，另含 13.5 修复任务；后续进入回归验证与自定义优化 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
@@ -271,7 +271,9 @@ sequenceDiagram
 
 1. 路由：优先消费 `turn_type`；知识查询直接检索，事实更新、寒暄与纯客户端工具意图跳过整段 RAG；未确定场景再回落到规则或小模型分类。
 2. 顺序：`rewrite -> rag_router -> retrieve`；检索使用 `rewritten_query`，跳过 rewrite 时等于用户原文。
-3. 检索：Qdrant 按 `role_id` 过滤，dense + 文本/sparse fallback 合并，再 rerank。
+3. 检索：Qdrant 按 `role_id` 过滤，dense + BM25 sparse fallback 合并，再 rerank；候选进入 rerank 前还会做 payload 级 `role_id` 校验，防止越权候选泄漏。
+   - BM25 fallback 不引入额外搜索服务：从 Qdrant 滚动读取当前 `role_id` 的候选 payload，本地做轻量分词、BM25 打分，再和 dense 命中做 RRF 合并。
+   - 如果 embedding 查询临时失败，检索仍会继续走 BM25 fallback，而不是整段 RAG 返回空。
 4. 主链路只查一次；RagSubAgent 只在主检索为空或最高分低于阈值时二查，不做第三次。
 5. Ingest：`doc_id` + `version`；先写新版本，再按 `doc_name` 删除旧版本；默认 chunk 约 768 token、overlap 0.12。
 6. 注入 system 的知识片段必须带 `[doc:.../chunk:...]` 标识，回答相关知识时引用来源。
@@ -396,7 +398,7 @@ cd agent
 ## Evals
 
 - 本地 seed 放在 [seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/seed.json)，用于版本管理和 smoke test。
-- 当前 seed 至少覆盖 `fact_update`、`chitchat`、`knowledge_query`、`ambiguous`、`client_action`。
+- 当前 seed 至少覆盖 `fact_update`、`chitchat`、`knowledge_query`、`ambiguous`、`client_action`；RAG 样例可带 `kb_fixture`、`expected_doc_ids`、`forbidden_doc_ids`，用于本地检索命中与 role 过滤评测。
 - `expected_answer` 和 `expected_path` 分开维护：
   - `answer_score` 关注答案类别、关键要点、是否应走知识回答或工具动作。
   - `path_score` 关注 `turn_type`、`llm_call_count_max`、`rag_called`、`supervisor_called`、`fast_path` 这类路径契约。
@@ -406,6 +408,13 @@ cd agent
 ```bash
 cd agent
 uv run pytest tests/test_evals_seed.py -v
+```
+
+本地 RAG 检索评测：
+
+```bash
+cd agent
+uv run python scripts/run_rag_eval.py --seed evals/seed.json --json
 ```
 
 同步 LangSmith Dataset：
@@ -462,4 +471,4 @@ npm run start
 - RAG：同 thread 检索缓存、更细的 RagSubAgent 触发策略、可选 rewrite/router 合并 LLM。
 - Admin：文档管理、工具管理、ingest 状态和失败回滚。
 - 工具：服务端工具链路、超时/重试/幂等、参数和返回护栏、可选第二轮回 Agent。
-- 可观测：评测数据集、rewrite/RAG/护栏指标、rerank cost 占总 cost 饼图。
+- 可观测：评测报表、rewrite/RAG/护栏指标、rerank cost 占总 cost 饼图。
