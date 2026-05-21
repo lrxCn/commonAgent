@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 41 |
-| 已完成 | 38 |
+| 已完成 | 39 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 39 LangSmith Dataset 评测集与本地 seed；39 完成后再执行 40。
+**当前建议下一步**：执行任务 40 RAG 质量提升：sparse/BM25 与评测闭环。
 
 
 ---
@@ -63,7 +63,7 @@
 | 36 | [上下文预算控制](./prompts/36-context-budget-controls.md) | ✅ | 2026-05-21 | 为 mem0、summary、RAG、tools、messages 设置明确预算并补 trace metadata |
 | 37 | [Chat 真流式 SSE](./prompts/37-chat-true-streaming-sse.md) | ✅ | 2026-05-21 | 无工具文本回合通过模型 callback 真流式输出；`client_actions` 仍结构化 |
 | 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ✅ | 2026-05-21 | optimistic streaming 增量检查；支持 `retract` / `replace` SSE 事件 |
-| 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ⬜ | — | `answer_score` + `path_score`；本地 seed 同步 Dataset |
+| 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ✅ | 2026-05-21 | 本地 seed 覆盖核心 turn type；提供 LangSmith Dataset 同步脚本与 smoke test |
 | 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ⬜ | — | sparse/BM25 + RAG eval + `role_id` 防越权评测 |
 
 ---
@@ -125,3 +125,4 @@
 | 2026-05-21 | 完成任务 36：新增上下文预算配置；限制 memory_profile、mem0、summary、RAG、tools schema 与 model messages，并输出 `budget_truncated` 等 metadata |
 | 2026-05-21 | 完成任务 37：Agent SSE 对无工具文本回合接入模型 streaming callback，Back 保持 SSE 透传，`client_actions` 继续走结构化 JSON |
 | 2026-05-21 | 完成任务 38：流式输出增加增量出站检查与 `segment_id`，违规时发送 `retract` / `replace`；Front demo 支持撤回和替换已展示片段 |
+| 2026-05-21 | 完成任务 39：新增 `agent/evals/seed.json` 与 `sync_langsmith_dataset.py`；将 `answer_score` / `path_score` 预期拆开，并补 seed smoke test |

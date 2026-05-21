@@ -393,6 +393,33 @@ cd agent
 ./scripts/fetch_trace.sh --latest
 ```
 
+## Evals
+
+- 本地 seed 放在 [seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/seed.json)，用于版本管理和 smoke test。
+- 当前 seed 至少覆盖 `fact_update`、`chitchat`、`knowledge_query`、`ambiguous`、`client_action`。
+- `expected_answer` 和 `expected_path` 分开维护：
+  - `answer_score` 关注答案类别、关键要点、是否应走知识回答或工具动作。
+  - `path_score` 关注 `turn_type`、`llm_call_count_max`、`rag_called`、`supervisor_called`、`fast_path` 这类路径契约。
+
+本地校验：
+
+```bash
+cd agent
+uv run pytest tests/test_evals_seed.py -v
+```
+
+同步 LangSmith Dataset：
+
+```bash
+cd agent
+uv run python scripts/sync_langsmith_dataset.py \
+  --dataset-name common-agent-seed \
+  --seed evals/seed.json \
+  --dry-run
+```
+
+去掉 `--dry-run` 后会按 seed 的 `id` 作为幂等键创建或更新 Dataset examples。
+
 ## 测试
 
 Agent:

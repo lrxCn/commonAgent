@@ -1,0 +1,79 @@
+[
+  {
+    "id": "fact-city-001",
+    "input": "我生活在哈尔滨",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_answer": {"kind": "template_confirm"},
+    "expected_path": {
+      "turn_type": "fact_update",
+      "fast_path": true,
+      "llm_call_count_max": 0,
+      "rag_called": false,
+      "supervisor_called": false
+    }
+  },
+  {
+    "id": "chitchat-hello-001",
+    "input": "你好",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_answer": {"kind": "chitchat_reply"},
+    "expected_path": {
+      "turn_type": "chitchat",
+      "fast_path": true,
+      "llm_call_count_max": 1,
+      "rag_called": false,
+      "supervisor_called": false
+    }
+  },
+  {
+    "id": "knowledge-reimbursement-001",
+    "input": "报销制度是什么？",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_answer": {"kind": "knowledge_answer", "requires_rag": true},
+    "expected_path": {
+      "turn_type": "knowledge_query",
+      "llm_call_count_max": 1,
+      "rag_called": true,
+      "supervisor_called": true
+    }
+  },
+  {
+    "id": "ambiguous-followup-001",
+    "input": "继续",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_answer": {"kind": "general_answer"},
+    "expected_path": {
+      "turn_type": "ambiguous",
+      "llm_call_count_max": 3,
+      "rag_called": true,
+      "supervisor_called": true
+    }
+  },
+  {
+    "id": "client-action-jumppage-001",
+    "input": "跳转到页面 A",
+    "context": {
+      "user_id": "u1",
+      "role_id": "role-sales",
+      "tools": [
+        {
+          "name": "jumpPage",
+          "description": "Navigate to an in-app page.",
+          "parameters": {
+            "type": "object",
+            "properties": {"page": {"type": "string"}},
+            "required": ["page"]
+          },
+          "requires_approval": false
+        }
+      ]
+    },
+    "expected_answer": {"kind": "client_action", "tool": "jumpPage"},
+    "expected_path": {
+      "turn_type": "client_action",
+      "llm_call_count_max": 0,
+      "rag_called": false,
+      "supervisor_called": false
+    }
+  }
+]
