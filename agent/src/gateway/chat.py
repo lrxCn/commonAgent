@@ -15,12 +15,14 @@ from langgraph.graph.state import CompiledStateGraph
 from gateway.schemas import ChatRequest, ChatResponse, ClientAction
 from graph.context import graph_context_from_request
 from graph.supervisor import reset_stream_token_sink, set_stream_token_sink
+from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound_stream_window
 
 _graph_override: CompiledStateGraph | None = None
 
 # Characters per SSE token event (full reply is produced after graph invoke).
 _SSE_CHUNK_SIZE = 32
 _SSE_STOP = object()
+_SEGMENT_PREFIX = "seg"
 
 
 @dataclass(frozen=True)
@@ -66,14 +68,24 @@ def iter_token_chunks(text: str, *, chunk_size: int = _SSE_CHUNK_SIZE) -> Iterat
 
 def iter_sse_text_events(text: str) -> Iterator[str]:
     """Yield SSE frames: one or more ``token`` events, then ``done``."""
-    for chunk in iter_token_chunks(text):
-        yield format_sse_event({"type": "token", "content": chunk})
+    for index, chunk in enumerate(iter_token_chunks(text), start=1):
+        yield format_sse_event(
+            {
+                "type": "token",
+                "content": chunk,
+                "segment_id": f"{_SEGMENT_PREFIX}-{index}",
+            }
+        )
     yield format_sse_event({"type": "done"})
 
 
 def _should_live_stream(body: ChatRequest) -> bool:
     """Only natural-language text replies stream live; tool turns stay structured."""
     return not bool(body.context.tools)
+
+
+def _next_segment_id(index: int) -> str:
+    return f"{_SEGMENT_PREFIX}-{index}"
 
 
 def _latest_ai_text(messages: list[BaseMessage]) -> str:
@@ -174,6 +186,9 @@ def iter_chat_sse_events(
     thread.start()
 
     streamed_text = ""
+    emitted_segment_ids: list[str] = []
+    blocked_stream = False
+    segment_index = 1
     final_outcome: ChatTurnOutcome | None = None
     pending_error: BaseException | None = None
     while True:
@@ -182,7 +197,36 @@ def iter_chat_sse_events(
             break
         if isinstance(item, str):
             streamed_text += item
-            yield format_sse_event({"type": "token", "content": item})
+            if blocked_stream:
+                continue
+            segment_id = _next_segment_id(segment_index)
+            segment_index += 1
+            emitted_segment_ids.append(segment_id)
+            yield format_sse_event(
+                {
+                    "type": "token",
+                    "content": item,
+                    "segment_id": segment_id,
+                }
+            )
+            decision = check_outbound_stream_window(streamed_text)
+            if not decision.allowed:
+                blocked_stream = True
+                for emitted_id in emitted_segment_ids:
+                    yield format_sse_event(
+                        {
+                            "type": "retract",
+                            "segment_id": emitted_id,
+                            "reason": decision.reason_code or "outbound_guard",
+                        }
+                    )
+                yield format_sse_event(
+                    {
+                        "type": "replace",
+                        "segment_id": segment_id,
+                        "content": decision.replacement or OUTBOUND_SAFE_REPLY,
+                    }
+                )
             continue
         if isinstance(item, ChatTurnOutcome):
             final_outcome = item
@@ -217,6 +261,22 @@ def iter_chat_sse_events(
     if final_text and not streamed_text:
         yield from iter_sse_text_events(final_text)
         return
+    if not blocked_stream and emitted_segment_ids and final_text and final_text != streamed_text:
+        for segment_id in emitted_segment_ids:
+            yield format_sse_event(
+                {
+                    "type": "retract",
+                    "segment_id": segment_id,
+                    "reason": "outbound_guard",
+                }
+            )
+        yield format_sse_event(
+            {
+                "type": "replace",
+                "segment_id": emitted_segment_ids[0],
+                "content": final_text,
+            }
+        )
     yield format_sse_event({"type": "done"})
 
 

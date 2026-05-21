@@ -259,7 +259,7 @@ sequenceDiagram
 - path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`fast_path`、`post_turn_scheduled`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata。
 - rewrite/router 消费统一 `turn_type`：`fact_update`、`chitchat`、`client_action` 跳过 rewrite/router 小模型；`knowledge_query` 跳过 router 小模型并直接进入 RAG；rewrite 默认不调用 LLM，仅 `ambiguous` 或旧规则判断为历史依赖时调用。
 - executor router 在 Supervisor 前选择执行器：`template_executor` 处理固定确认，`small_chat_executor` 处理寒暄，`rag_answer_executor` 处理已有高质量 RAG chunks 的简单知识问答，`action_executor` 处理简单客户端动作，`deepagents_executor` 只保留给复杂规划、多步工具、长文档或不确定工作流；trace metadata 记录 `executor` 与 `executor_reason`。
-- 无外部工具的文本模型回复通过 LangChain streaming callback 直接转成 SSE `token` 事件；模板/护栏等非模型回复仍以兼容的 token 事件发送完整文本。带 `tools[]` 的回合禁用 live token streaming，避免 `client_actions` JSON 被拆成自然语言 token。
+- 无外部工具的文本模型回复通过 LangChain streaming callback 直接转成 SSE `token` 事件；Gateway 对已流式展示的片段做增量出站检查，必要时发送 `retract` / `replace`。模板/护栏等非模型回复仍以兼容的 token 事件发送完整文本。带 `tools[]` 的回合禁用 live token streaming，避免 `client_actions` JSON 被拆成自然语言 token。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。
 - rag_router 对个人/公司事实陈述直接跳过 RAG；hybrid LLM 仅处理规则不确定的查询，timeout 默认 5 秒且失败保守走 RAG。
@@ -334,7 +334,11 @@ Content-Type: application/json
 
 响应：
 
-- 文本回答：`text/event-stream`，事件为 `{"type":"token","content":"..."}`，结束为 `{"type":"done"}`；无外部工具的主模型文本会边生成边转发 token。
+- 文本回答：`text/event-stream`；无外部工具的主模型文本会边生成边转发 token。支持事件：
+  - `{"type":"token","content":"...","segment_id":"seg-1"}`：追加显示片段。
+  - `{"type":"retract","segment_id":"seg-1","reason":"outbound_guard"}`：撤回已展示片段。
+  - `{"type":"replace","segment_id":"seg-1","content":"安全替换文本"}`：替换片段内容。
+  - `{"type":"done"}`：结束。
 - 客户端动作：`application/json`，body 为 `{ "text": null, "client_actions": [...] }`。
 
 ```http

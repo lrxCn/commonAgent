@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 41 |
-| 已完成 | 37 |
+| 已完成 | 38 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行任务 38 流式护栏与撤回事件；38 完成后再逐步执行 39-40。
+**当前建议下一步**：执行任务 39 LangSmith Dataset 评测集与本地 seed；39 完成后再执行 40。
 
 
 ---
@@ -62,7 +62,7 @@
 | 35 | [memory_profile 类别化记忆视图](./prompts/35-memory-profile-schema.md) | ✅ | 2026-05-21 | 运行时归一化 name/birth_year/city/job/company.address/answer_style；过滤已归类自由文本 |
 | 36 | [上下文预算控制](./prompts/36-context-budget-controls.md) | ✅ | 2026-05-21 | 为 mem0、summary、RAG、tools、messages 设置明确预算并补 trace metadata |
 | 37 | [Chat 真流式 SSE](./prompts/37-chat-true-streaming-sse.md) | ✅ | 2026-05-21 | 无工具文本回合通过模型 callback 真流式输出；`client_actions` 仍结构化 |
-| 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ⬜ | — | optimistic streaming；增加 retract/replace SSE 事件 |
+| 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ✅ | 2026-05-21 | optimistic streaming 增量检查；支持 `retract` / `replace` SSE 事件 |
 | 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ⬜ | — | `answer_score` + `path_score`；本地 seed 同步 Dataset |
 | 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ⬜ | — | sparse/BM25 + RAG eval + `role_id` 防越权评测 |
 
@@ -124,3 +124,4 @@
 | 2026-05-21 | 文档规则：固化 Agent 环境契约三者同步要求（`config.py` / `.env.example` / `.env`），并以 `test_env_files_match_settings_contract` 自动校验 |
 | 2026-05-21 | 完成任务 36：新增上下文预算配置；限制 memory_profile、mem0、summary、RAG、tools schema 与 model messages，并输出 `budget_truncated` 等 metadata |
 | 2026-05-21 | 完成任务 37：Agent SSE 对无工具文本回合接入模型 streaming callback，Back 保持 SSE 透传，`client_actions` 继续走结构化 JSON |
+| 2026-05-21 | 完成任务 38：流式输出增加增量出站检查与 `segment_id`，违规时发送 `retract` / `replace`；Front demo 支持撤回和替换已展示片段 |

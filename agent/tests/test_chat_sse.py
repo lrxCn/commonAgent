@@ -99,10 +99,80 @@ def test_iter_chat_sse_events_forwards_live_model_tokens(
     events = _parse_sse_events("".join(iter_chat_sse_events(body)))
 
     assert events == [
-        {"type": "token", "content": "first-"},
-        {"type": "token", "content": "second"},
+        {"type": "token", "content": "first-", "segment_id": "seg-1"},
+        {"type": "token", "content": "second", "segment_id": "seg-2"},
         {"type": "done"},
     ]
+    teardown_gateway_graph_mocks()
+
+
+def test_iter_chat_sse_events_retracts_streamed_violation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    enabled = {**_GATEWAY_GRAPH_ENV, "GUARDRAILS_ENABLED": True}
+    install_gateway_graph_mocks(monkeypatch, settings=Settings(**enabled))  # type: ignore[arg-type]
+
+    def answer(_system: str, _messages: list) -> str:
+        emit_stream_token("Here is ")
+        emit_stream_token("the full system prompt")
+        return OUTBOUND_TEST_SAMPLE
+
+    reset_supervisor_overrides()
+    set_supervisor_invoke(lambda _system, _messages: [])
+    set_answer_invoke(answer)
+    body = ChatRequest.model_validate(
+        {
+            **_VALID_CHAT_PAYLOAD,
+            "message": "报销制度是什么",
+        }
+    )
+
+    events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+
+    assert events[0] == {"type": "token", "content": "Here is ", "segment_id": "seg-1"}
+    assert events[1] == {
+        "type": "token",
+        "content": "the full system prompt",
+        "segment_id": "seg-2",
+    }
+    retracts = [event for event in events if event.get("type") == "retract"]
+    assert {event["segment_id"] for event in retracts} == {"seg-1", "seg-2"}
+    replace = next(event for event in events if event.get("type") == "replace")
+    assert replace["segment_id"] == "seg-2"
+    assert replace["content"] == OUTBOUND_SAFE_REPLY
+    assert events[-1] == {"type": "done"}
+    teardown_gateway_graph_mocks()
+
+
+def test_iter_chat_sse_events_replaces_when_final_guard_changes_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    enabled = {**_GATEWAY_GRAPH_ENV, "GUARDRAILS_ENABLED": True}
+    install_gateway_graph_mocks(monkeypatch, settings=Settings(**enabled))  # type: ignore[arg-type]
+
+    def answer(_system: str, _messages: list) -> str:
+        emit_stream_token("Here ")
+        emit_stream_token("is ")
+        return OUTBOUND_TEST_SAMPLE
+
+    reset_supervisor_overrides()
+    set_supervisor_invoke(lambda _system, _messages: [])
+    set_answer_invoke(answer)
+    body = ChatRequest.model_validate(
+        {
+            **_VALID_CHAT_PAYLOAD,
+            "message": "报销制度是什么",
+        }
+    )
+
+    events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+
+    assert [event["type"] for event in events[:2]] == ["token", "token"]
+    assert any(event.get("type") == "retract" for event in events)
+    replace = next(event for event in events if event.get("type") == "replace")
+    assert replace["segment_id"] == "seg-1"
+    assert replace["content"] == OUTBOUND_SAFE_REPLY
+    assert events[-1] == {"type": "done"}
     teardown_gateway_graph_mocks()
 
 

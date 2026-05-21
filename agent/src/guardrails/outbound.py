@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from guardrails.types import GuardResult
@@ -37,6 +38,15 @@ OUTBOUND_TEST_SAMPLE = (
 OptionalHook = Callable[[str], GuardResult | None]
 
 _optional_hook: OptionalHook | None = None
+
+
+@dataclass(frozen=True)
+class StreamingOutboundDecision:
+    """Incremental outbound moderation result for a streamed text window."""
+
+    allowed: bool
+    reason_code: str | None = None
+    replacement: str | None = None
 
 
 def register_outbound_hook(hook: OptionalHook | None) -> None:
@@ -118,3 +128,19 @@ def check_outbound(text: str, *, settings: Settings | None = None) -> GuardResul
         return blocked
 
     return GuardResult.pass_through()
+
+
+def check_outbound_stream_window(
+    text: str,
+    *,
+    settings: Settings | None = None,
+) -> StreamingOutboundDecision:
+    """Check a streamed sentence/window and return retract/replace guidance."""
+    result = check_outbound(text, settings=settings)
+    if result.allowed:
+        return StreamingOutboundDecision(allowed=True)
+    return StreamingOutboundDecision(
+        allowed=False,
+        reason_code=result.reason_code or "outbound_guard",
+        replacement=result.message or OUTBOUND_SAFE_REPLY,
+    )

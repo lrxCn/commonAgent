@@ -113,6 +113,7 @@ function handleJsonChatPayload(payload) {
  */
 async function consumeSseResponse(response) {
   const assistantBody = appendAssistantStreaming();
+  const segments = new Map();
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -139,7 +140,37 @@ async function consumeSseResponse(response) {
           continue;
         }
         if (event.type === "token" && typeof event.content === "string") {
-          assistantBody.textContent += event.content;
+          const span = document.createElement("span");
+          span.textContent = event.content;
+          if (typeof event.segment_id === "string") {
+            span.dataset.segmentId = event.segment_id;
+            segments.set(event.segment_id, span);
+          }
+          assistantBody.append(span);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (event.type === "retract" && typeof event.segment_id === "string") {
+          const segment = segments.get(event.segment_id);
+          if (segment) {
+            segment.remove();
+            segments.delete(event.segment_id);
+          }
+        }
+        if (
+          event.type === "replace" &&
+          typeof event.segment_id === "string" &&
+          typeof event.content === "string"
+        ) {
+          const existing = segments.get(event.segment_id);
+          if (existing) {
+            existing.textContent = event.content;
+          } else {
+            const span = document.createElement("span");
+            span.textContent = event.content;
+            span.dataset.segmentId = event.segment_id;
+            segments.set(event.segment_id, span);
+            assistantBody.append(span);
+          }
           logEl.scrollTop = logEl.scrollHeight;
         }
         if (event.type === "done") {

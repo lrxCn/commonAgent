@@ -13,6 +13,7 @@ from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
 from guardrails.outbound import (
     OUTBOUND_SAFE_REPLY,
     OUTBOUND_TEST_SAMPLE,
+    check_outbound_stream_window,
     check_outbound,
     register_outbound_hook,
 )
@@ -67,6 +68,15 @@ def test_check_outbound_blocks_test_sample(settings_enabled: Settings) -> None:
     assert result.allowed is False
     assert result.reason_code == "policy_violation"
     assert result.message == OUTBOUND_SAFE_REPLY
+
+
+def test_check_outbound_stream_window_returns_replacement(
+    settings_enabled: Settings,
+) -> None:
+    decision = check_outbound_stream_window(OUTBOUND_TEST_SAMPLE, settings=settings_enabled)
+    assert decision.allowed is False
+    assert decision.reason_code == "policy_violation"
+    assert decision.replacement == OUTBOUND_SAFE_REPLY
 
 
 def test_check_outbound_skipped_when_disabled() -> None:
