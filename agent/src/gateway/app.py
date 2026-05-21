@@ -7,7 +7,12 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
-from gateway.chat import build_chat_response, invoke_chat_turn, iter_sse_text_events
+from gateway.chat import (
+    build_chat_response,
+    invoke_chat_turn,
+    iter_chat_sse_events,
+    iter_sse_text_events,
+)
 from gateway.history import list_thread_messages
 from gateway.ingest import ingest_kb
 from gateway.schemas import ChatRequest, ChatResponse
@@ -48,6 +53,12 @@ def create_app() -> FastAPI:
                     "error": guard.reason_code or "policy_violation",
                     "message": guard.message,
                 },
+            )
+
+        if not body.context.tools:
+            return StreamingResponse(
+                iter_chat_sse_events(body),
+                media_type="text/event-stream",
             )
 
         outcome = invoke_chat_turn(body)

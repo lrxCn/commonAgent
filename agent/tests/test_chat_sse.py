@@ -7,8 +7,16 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from gateway.app import create_app
+from gateway.chat import iter_chat_sse_events
 from guardrails.inbound import INJECTION_TEST_SAMPLE
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, OUTBOUND_TEST_SAMPLE
+from gateway.schemas import ChatRequest
+from graph.supervisor import (
+    emit_stream_token,
+    reset_supervisor_overrides,
+    set_answer_invoke,
+    set_supervisor_invoke,
+)
 from settings.config import Settings
 from tests.support.gateway_graph import (
     _GATEWAY_GRAPH_ENV,
@@ -66,6 +74,70 @@ def test_chat_returns_sse_with_token_and_done(client: TestClient) -> None:
 
     combined = "".join(event["content"] for event in token_events)
     assert combined == "你好。"
+
+
+def test_iter_chat_sse_events_forwards_live_model_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_gateway_graph_mocks(monkeypatch)
+
+    def answer(_system: str, _messages: list) -> str:
+        emit_stream_token("first-")
+        emit_stream_token("second")
+        return "first-second"
+
+    reset_supervisor_overrides()
+    set_supervisor_invoke(lambda _system, _messages: [])
+    set_answer_invoke(answer)
+    body = ChatRequest.model_validate(
+        {
+            **_VALID_CHAT_PAYLOAD,
+            "message": "报销制度是什么",
+        }
+    )
+
+    events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+
+    assert events == [
+        {"type": "token", "content": "first-"},
+        {"type": "token", "content": "second"},
+        {"type": "done"},
+    ]
+    teardown_gateway_graph_mocks()
+
+
+def test_iter_chat_sse_events_keeps_client_actions_structured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    json_reply = json.dumps(
+        {"client_actions": [{"tool": "jumpPage", "args": {"page": "pageA"}}]}
+    )
+    install_gateway_graph_mocks(monkeypatch, supervisor_reply=json_reply)
+    body = ChatRequest.model_validate(
+        {
+            "thread_id": "thread-ca-sse-direct",
+            "message": "跳转到页面 A",
+            "context": {
+                "user_id": "user-1",
+                "role_id": "role-sales",
+                "tools": [_JUMP_TOOL],
+            },
+        }
+    )
+
+    events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+
+    assert events[0]["type"] == "client_actions"
+    assert events[0]["client_actions"] == [
+        {
+            "tool": "jumpPage",
+            "args": {"page": "pageA"},
+            "requires_approval": False,
+        }
+    ]
+    assert events[-1] == {"type": "done"}
+    assert not any(event.get("type") == "token" for event in events)
+    teardown_gateway_graph_mocks()
 
 
 def test_chat_client_actions_returns_json(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

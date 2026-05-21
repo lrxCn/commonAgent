@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import threading
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -12,11 +14,13 @@ from langgraph.graph.state import CompiledStateGraph
 
 from gateway.schemas import ChatRequest, ChatResponse, ClientAction
 from graph.context import graph_context_from_request
+from graph.supervisor import reset_stream_token_sink, set_stream_token_sink
 
 _graph_override: CompiledStateGraph | None = None
 
 # Characters per SSE token event (full reply is produced after graph invoke).
 _SSE_CHUNK_SIZE = 32
+_SSE_STOP = object()
 
 
 @dataclass(frozen=True)
@@ -65,6 +69,11 @@ def iter_sse_text_events(text: str) -> Iterator[str]:
     for chunk in iter_token_chunks(text):
         yield format_sse_event({"type": "token", "content": chunk})
     yield format_sse_event({"type": "done"})
+
+
+def _should_live_stream(body: ChatRequest) -> bool:
+    """Only natural-language text replies stream live; tool turns stay structured."""
+    return not bool(body.context.tools)
 
 
 def _latest_ai_text(messages: list[BaseMessage]) -> str:
@@ -119,6 +128,96 @@ def invoke_chat_turn(
         config=config,
     )
     return extract_turn_outcome(result)
+
+
+def iter_chat_sse_events(
+    body: ChatRequest,
+    *,
+    graph: CompiledStateGraph | None = None,
+) -> Iterator[str]:
+    """Run one chat turn and yield SSE frames.
+
+    For plain text turns, final model tokens are forwarded through a LangChain callback
+    while the graph is running. If a turn has client tools, live token streaming is
+    disabled so client_actions JSON is never split into natural-language token events.
+    """
+    if not _should_live_stream(body):
+        outcome = invoke_chat_turn(body, graph=graph)
+        if outcome.kind == "client_actions":
+            yield format_sse_event(
+                {
+                    "type": "client_actions",
+                    "client_actions": [a.model_dump() for a in outcome.client_actions or []],
+                }
+            )
+            yield format_sse_event({"type": "done"})
+            return
+        yield from iter_sse_text_events(outcome.text or "")
+        return
+
+    token_queue: queue.Queue[str | ChatTurnOutcome | BaseException | object] = queue.Queue()
+
+    def push_token(token: str) -> None:
+        token_queue.put(token)
+
+    def run_graph() -> None:
+        sink_token = set_stream_token_sink(push_token)
+        try:
+            token_queue.put(invoke_chat_turn(body, graph=graph))
+        except BaseException as exc:
+            token_queue.put(exc)
+        finally:
+            reset_stream_token_sink(sink_token)
+            token_queue.put(_SSE_STOP)
+
+    thread = threading.Thread(target=run_graph, name="chat-sse-graph", daemon=True)
+    thread.start()
+
+    streamed_text = ""
+    final_outcome: ChatTurnOutcome | None = None
+    pending_error: BaseException | None = None
+    while True:
+        item = token_queue.get()
+        if item is _SSE_STOP:
+            break
+        if isinstance(item, str):
+            streamed_text += item
+            yield format_sse_event({"type": "token", "content": item})
+            continue
+        if isinstance(item, ChatTurnOutcome):
+            final_outcome = item
+            continue
+        if isinstance(item, BaseException):
+            pending_error = item
+
+    thread.join()
+    if pending_error is not None:
+        yield format_sse_event(
+            {
+                "type": "error",
+                "message": str(pending_error) or type(pending_error).__name__,
+            }
+        )
+        return
+
+    if final_outcome is None:
+        yield format_sse_event({"type": "done"})
+        return
+    if final_outcome.kind == "client_actions":
+        yield format_sse_event(
+            {
+                "type": "client_actions",
+                "client_actions": [a.model_dump() for a in final_outcome.client_actions or []],
+            }
+        )
+        yield format_sse_event({"type": "done"})
+        return
+
+    final_text = final_outcome.text or ""
+    if final_text and not streamed_text:
+        yield from iter_sse_text_events(final_text)
+        return
+    yield format_sse_event({"type": "done"})
 
 
 def build_chat_response(outcome: ChatTurnOutcome) -> ChatResponse:

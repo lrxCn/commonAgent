@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Sequence
+from contextvars import ContextVar, Token
 from typing import Any
 
 from deepagents import create_deep_agent
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -19,6 +21,10 @@ from settings.config import Settings, get_settings
 _supervisor_agent_override: CompiledStateGraph | None = None
 _supervisor_invoke_override: Callable[[str, list[BaseMessage]], list[BaseMessage]] | None = None
 _answer_invoke_override: Callable[[str, list[BaseMessage]], str] | None = None
+_stream_token_sink: ContextVar[Callable[[str], None] | None] = ContextVar(
+    "stream_token_sink",
+    default=None,
+)
 
 DEFAULT_SUPERVISOR_INSTRUCTIONS = """You are a helpful enterprise assistant.
 
@@ -56,6 +62,37 @@ def reset_supervisor_overrides() -> None:
     set_supervisor_agent(None)
     set_supervisor_invoke(None)
     set_answer_invoke(None)
+
+
+def set_stream_token_sink(
+    sink: Callable[[str], None] | None,
+) -> Token[Callable[[str], None] | None]:
+    """Install a per-call token sink for true SSE streaming."""
+    return _stream_token_sink.set(sink)
+
+
+def reset_stream_token_sink(token: Token[Callable[[str], None] | None]) -> None:
+    """Restore the previous per-call token sink."""
+    _stream_token_sink.reset(token)
+
+
+def emit_stream_token(token: str) -> None:
+    """Emit a token to the active streaming sink, if one is installed."""
+    sink = _stream_token_sink.get()
+    if sink is not None and token:
+        sink(token)
+
+
+class _SupervisorStreamingCallback(BaseCallbackHandler):
+    """Bridge LangChain streaming callbacks to the active SSE token sink."""
+
+    def __init__(self, sink: Callable[[str], None]) -> None:
+        super().__init__()
+        self._sink = sink
+
+    def on_llm_new_token(self, token: str, **_: Any) -> None:
+        if token:
+            self._sink(token)
 
 
 def format_external_tools_for_prompt(tools: Sequence[ToolSpec | dict[str, Any]]) -> str:
@@ -130,12 +167,17 @@ def build_supervisor_instructions(
 def _create_chat_model(settings: Settings) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
-        model=settings.OPENAI_MODEL_NAME,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0.2,
-    )
+    kwargs: dict[str, Any] = {
+        "model": settings.OPENAI_MODEL_NAME,
+        "api_key": settings.OPENAI_API_KEY,
+        "base_url": settings.OPENAI_BASE_URL,
+        "temperature": 0.2,
+    }
+    sink = _stream_token_sink.get()
+    if sink is not None:
+        kwargs["streaming"] = True
+        kwargs["callbacks"] = [_SupervisorStreamingCallback(sink)]
+    return ChatOpenAI(**kwargs)
 
 
 def build_supervisor_agent(
