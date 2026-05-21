@@ -318,8 +318,8 @@ def test_chat_outbound_blocked_streams_safe_message(
 def test_format_sse_event_roundtrip() -> None:
     from gateway.chat import format_sse_event
 
-    frame = format_sse_event({"type": "token", "content": "hi"})
-    assert frame == 'data: {"type": "token", "content": "hi"}\n\n'
+    frame = format_sse_event({"type": "token", "content": "hi", "segment_id": "seg-1"})
+    assert frame == 'data: {"type": "token", "content": "hi", "segment_id": "seg-1"}\n\n'
 
 
 def test_iter_chat_sse_events_reports_error_event(

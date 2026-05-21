@@ -12,6 +12,7 @@ from typing import Any, Literal
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
+from contracts.sse import validate_sse_event
 from gateway.schemas import ChatRequest, ChatResponse, ClientAction
 from graph.context import graph_context_from_request
 from graph.supervisor import reset_stream_token_sink, set_stream_token_sink
@@ -54,6 +55,7 @@ def get_chat_graph() -> CompiledStateGraph:
 
 def format_sse_event(payload: dict[str, Any]) -> str:
     """Serialize one Server-Sent Events ``data:`` frame."""
+    validate_sse_event(payload)
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 

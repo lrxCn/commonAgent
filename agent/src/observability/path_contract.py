@@ -4,17 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any, Literal
+from typing import Any
 
-PathComponent = Literal["rewrite", "rag_router", "rag", "supervisor"]
+from contracts.path import COMPONENTS, LLM_COMPONENTS, PathComponent, PathMetrics
 
-LLM_COMPONENTS = frozenset({"rewrite", "rag_router", "supervisor"})
-COMPONENTS: tuple[PathComponent, ...] = (
-    "rewrite",
-    "rag_router",
-    "rag",
-    "supervisor",
-)
+
+def _to_legacy(metrics: PathMetrics) -> dict[str, Any]:
+    return metrics.to_legacy_dict()
 
 
 def new_path_metrics(
@@ -24,20 +20,13 @@ def new_path_metrics(
     fast_path: bool = False,
 ) -> dict[str, Any]:
     """Create the baseline metrics shape carried through a single invoke."""
-    metrics: dict[str, Any] = {
-        "turn_type": turn_type,
-        "turn_type_reason": turn_type_reason,
-        "fast_path": fast_path,
-        "llm_call_count": 0,
-        "fallback_count": 0,
-        "post_turn_scheduled": False,
-        "post_turn_schedule_error": "",
-        "path_contract": "unknown",
-        "path_contract_reason": "not_finalized",
-    }
-    for component in COMPONENTS:
-        metrics[component] = {"should_call": False, "called": False}
-    return metrics
+    return _to_legacy(
+        PathMetrics(
+            turn_type=turn_type,
+            turn_type_reason=turn_type_reason,
+            fast_path=fast_path,
+        )
+    )
 
 
 def ensure_path_metrics(metrics: Mapping[str, Any] | None) -> dict[str, Any]:

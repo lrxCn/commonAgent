@@ -10,11 +10,11 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass
 from typing import Any, TypedDict
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
+from contracts.rag import RagChunk
 from observability.tracing import attach_run_metadata, rerank_traceable, retrieve_traceable
 from settings.config import Settings, get_settings
 
@@ -31,16 +31,6 @@ RerankFn = Callable[[str, list[str]], list[float]]
 _qdrant_client_override: QdrantClient | None = None
 _reranker_override: RerankFn | None = None
 _embed_query_override: Callable[[str], list[float]] | None = None
-
-
-@dataclass(frozen=True)
-class RagChunk:
-    """Single retrieved knowledge chunk with citation identifiers."""
-
-    doc_id: str
-    chunk_id: str
-    text: str
-    score: float
 
 
 class RagRetrievalNodeState(TypedDict, total=False):
@@ -633,7 +623,7 @@ def format_rag_chunks_for_system(chunks: Sequence[RagChunk]) -> str:
 
 def rag_chunk_to_dict(chunk: RagChunk) -> dict[str, Any]:
     """Serialize for LangGraph state / JSON."""
-    return asdict(chunk)
+    return dict(chunk.to_dict())
 
 
 def rag_retrieval_node(state: RagRetrievalNodeState) -> dict[str, list[RagChunk]]:

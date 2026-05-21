@@ -3,31 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Sequence
 
+from contracts.execution import ExecutorDecision, ExecutorType
 from gateway.schemas import ClientAction, ToolSpec
 from rag.retriever import RagChunk
 from rag.router import is_pure_client_tool_intent
-
-
-class ExecutorType(str, Enum):
-    """Runtime executor names recorded in trace metadata."""
-
-    TEMPLATE = "template_executor"
-    SMALL_CHAT = "small_chat_executor"
-    RAG_ANSWER = "rag_answer_executor"
-    ACTION = "action_executor"
-    DEEPAGENTS = "deepagents_executor"
-
-
-@dataclass(frozen=True)
-class ExecutorDecision:
-    """Chosen executor and stable reason code."""
-
-    executor: ExecutorType
-    reason: str
 
 
 _COMPLEX_TASK_RE = re.compile(

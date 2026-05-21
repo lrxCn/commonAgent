@@ -78,6 +78,7 @@ commonAgent/
 ├── back/                  # 后端占位：demo auth context + 转发 Agent
 ├── agent/                 # LangGraph / deepagents 主服务
 │   ├── src/
+│   │   ├── contracts/     # 跨模块运行契约：routing、execution、path、context、RAG、SSE、events
 │   │   ├── gateway/       # HTTP: chat、history、kb ingest
 │   │   ├── graph/         # Supervisor 主图、state、context_schema、节点
 │   │   ├── memory/        # checkpoint、K/M/summary、mem0
@@ -197,6 +198,8 @@ graph.invoke(
 ```
 
 mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除，rewrite 和 system prompt 组装各自在消费处调用 `format_mem0_for_system()`。
+
+跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义上下文预算，`rag` 定义检索结果，`sse` 定义 SSE 事件，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
 
 ## 记忆分层
 

@@ -3,32 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from enum import Enum
 from typing import Sequence
 
+from contracts.routing import TurnType, TurnTypeDecision
 from gateway.schemas import ToolSpec
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from rag.router import is_pure_client_tool_intent
-
-
-class TurnType(str, Enum):
-    """Coarse turn category used by later runtime routing tasks."""
-
-    FACT_UPDATE = "fact_update"
-    CHITCHAT = "chitchat"
-    KNOWLEDGE_QUERY = "knowledge_query"
-    CLIENT_ACTION = "client_action"
-    AMBIGUOUS = "ambiguous"
-    GENERAL_CHAT = "general_chat"
-
-
-@dataclass(frozen=True)
-class TurnTypeDecision:
-    """Turn type plus a stable reason code for tracing and tests."""
-
-    turn_type: TurnType
-    reason: str
 
 
 _ANAPHORA_RE = re.compile(

@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 49 |
-| 已完成 | 41 |
+| 已完成 | 42 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：继续大重构 Phase 1：执行 [42 - 契约层与类型化运行对象](./prompts/42-refactor-contracts-layer.md)。
+**当前建议下一步**：继续大重构 Phase 2：执行 [43 - ContextBundle 单一上下文来源](./prompts/43-refactor-context-bundle.md)。
 
 
 ---
@@ -66,7 +66,7 @@
 | 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ✅ | 2026-05-21 | 本地 seed 覆盖核心 turn type；提供 LangSmith Dataset 同步脚本与 smoke test |
 | 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ✅ | 2026-05-21 | 本地 BM25 fallback + RAG eval seed + `role_id` 防越权评测 |
 | 41 | [大重构 Phase 0：行为冻结与验证入口](./prompts/41-refactor-behavior-freeze.md) | ✅ | 2026-05-21 | 修正 Makefile 测试入口；补 state lifecycle、path characterization、SSE contract、validation entrypoint 护栏 |
-| 42 | [大重构 Phase 1：契约层与类型化运行对象](./prompts/42-refactor-contracts-layer.md) | ⬜ | — | 新增 `contracts/`，集中 `TurnType`、`ExecutorType`、`PathMetrics`、SSE 等契约 |
+| 42 | [大重构 Phase 1：契约层与类型化运行对象](./prompts/42-refactor-contracts-layer.md) | ✅ | 2026-05-21 | 新增 `contracts/`，集中 routing、execution、path、context、RAG、SSE、events 契约并保留旧导入兼容 |
 | 43 | [大重构 Phase 2：ContextBundle 单一上下文来源](./prompts/43-refactor-context-bundle.md) | ⬜ | — | 模型 system/messages/budget 由 `ContextBundle` 一次性产出 |
 | 44 | [大重构 Phase 3：Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md) | ⬜ | — | 拆分 `graph/nodes.py`，保留 facade 兼容与图拓扑不变 |
 | 45 | [大重构 Phase 4：RAG 模块边界与可替换检索服务](./prompts/45-refactor-rag-module-boundaries.md) | ⬜ | — | 拆出 RAG service、Qdrant store、BM25、rerank、formatting |
@@ -139,3 +139,4 @@
 | 2026-05-21 | 文档：基于大重构 PRD 新增任务 41-48，将行为冻结、契约层、ContextBundle、Graph nodes 拆分、RAG 模块化、LLM Gateway、observability 事件化和代码地图拆成可执行任务卡 |
 | 2026-05-21 | 文档治理：在根 `AGENTS.md` 与 README 固化文档层级和更新机制；PRD 不覆盖 README 当前契约，`docs/maps/` 等重构后生成；其它 AI 若要改进此秩序需先说明原因并取得用户同意 |
 | 2026-05-21 | 完成任务 41：`make test` 改跑当前 `tests/` 非 integration 集；新增 state lifecycle、典型 path、SSE event contract 与验证入口测试，冻结重构前行为 |
+| 2026-05-21 | 完成任务 42：新增 `contracts/` 契约层与 typed models；`graph`/`rag`/`memory` 保持兼容导出，SSE formatter 增加契约校验 |
