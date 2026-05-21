@@ -23,10 +23,17 @@ from graph.client_actions import (
     parse_client_actions_from_llm,
 )
 from graph.chitchat_executor import chitchat_reply
+from graph.executors import (
+    ExecutorType,
+    build_simple_client_action,
+    choose_executor,
+    executor_trace_metadata,
+)
 from graph.supervisor import (
     DEFAULT_SUPERVISOR_INSTRUCTIONS,
     build_supervisor_instructions,
     extract_latest_ai_text,
+    invoke_answer_executor,
     invoke_supervisor,
 )
 from graph.turn_type import classify_turn_type
@@ -62,6 +69,8 @@ _EPHEMERAL_CARRY_KEYS = (
     "rag_skipped",
     "rag_chunks",
     "system_prompt",
+    "executor",
+    "executor_reason",
     "inbound_blocked",
     "inbound_block_message",
     "supervisor_draft",
@@ -204,11 +213,19 @@ def route_after_load_memory(
 def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
     """Append a deterministic confirmation without rewrite/RAG/Supervisor."""
     path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
+    attach_run_metadata(
+        {
+            "executor": "template_executor",
+            "executor_reason": "turn_type_fact_update",
+        }
+    )
     return _merge_carry(
         state,
         {
             "messages": [AIMessage(content=FACT_UPDATE_CONFIRMATION)],
             "supervisor_draft": FACT_UPDATE_CONFIRMATION,
+            "executor": "template_executor",
+            "executor_reason": "turn_type_fact_update",
             "client_actions": None,
             "client_actions_error": None,
             "outbound_blocked": False,
@@ -233,6 +250,8 @@ def chitchat_reply_node(state: AgentState) -> dict[str, object]:
         {
             "messages": [AIMessage(content=outcome["reply"])],
             "supervisor_draft": outcome["reply"],
+            "executor": outcome["executor"],
+            "executor_reason": "turn_type_chitchat",
             "client_actions": None,
             "client_actions_error": None,
             "outbound_blocked": False,
@@ -385,7 +404,7 @@ def supervisor_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
 ) -> dict[str, object]:
-    """Run deepagents Supervisor on assembled context; append AI reply to checkpoint messages."""
+    """Route to a lightweight executor or deepagents, then prepare the assistant output."""
     ctx = request_context_from_runtime(runtime)
     system_prompt = _text(state.get("system_prompt"))
     instructions = build_supervisor_instructions(
@@ -402,14 +421,66 @@ def supervisor_node(
     )
 
     full_system = system_prompt or instructions
-    result_messages = invoke_supervisor(full_system, model_messages)
-    reply = extract_latest_ai_text(result_messages)
+    decision = choose_executor(
+        turn_type=_text(state.get("turn_type")),
+        user_message=_extract_user_message(state),
+        rewritten_query=state.get("rewritten_query"),
+        rag_skipped=bool(state.get("rag_skipped", False)),
+        rag_chunks=state.get("rag_chunks") or [],
+        tools=ctx.tools,
+    )
+    attach_run_metadata(
+        executor_trace_metadata(
+            decision,
+            rag_chunks=state.get("rag_chunks") or [],
+            tools=ctx.tools,
+        )
+    )
+
+    calls_model = decision.executor in {
+        ExecutorType.RAG_ANSWER,
+        ExecutorType.DEEPAGENTS,
+    }
     path_metrics = update_path_component(
         state.get("path_metrics"),
         "supervisor",
-        should_call=True,
-        called=True,
+        should_call=calls_model,
+        called=calls_model,
     )
+    base_updates: dict[str, object] = {
+        "path_metrics": path_metrics,
+        "executor": decision.executor.value,
+        "executor_reason": decision.reason,
+    }
+
+    if decision.executor is ExecutorType.ACTION:
+        action = build_simple_client_action(_extract_user_message(state), ctx.tools)
+        if action is not None:
+            return _merge_carry(
+                state,
+                {
+                    **base_updates,
+                    "client_actions": [action],
+                    "client_actions_error": None,
+                    "supervisor_draft": "",
+                },
+            )
+
+    if decision.executor is ExecutorType.RAG_ANSWER:
+        reply = invoke_answer_executor(
+            full_system,
+            model_messages,
+            executor=decision.executor.value,
+            executor_reason=decision.reason,
+        )
+    else:
+        result_messages = invoke_supervisor(
+            full_system,
+            model_messages,
+            executor=decision.executor.value,
+            executor_reason=decision.reason,
+        )
+        reply = extract_latest_ai_text(result_messages)
 
     if ctx.tools:
         outcome = parse_client_actions_from_llm(reply, ctx.tools)
@@ -417,7 +488,7 @@ def supervisor_node(
             return _merge_carry(
                 state,
                 {
-                    "path_metrics": path_metrics,
+                    **base_updates,
                     "client_actions": list(outcome.actions),
                     "client_actions_error": None,
                     "supervisor_draft": "",
@@ -434,7 +505,7 @@ def supervisor_node(
             return _merge_carry(
                 state,
                 {
-                    "path_metrics": path_metrics,
+                    **base_updates,
                     "client_actions": None,
                     "client_actions_error": {
                         "code": code,
@@ -449,7 +520,7 @@ def supervisor_node(
     return _merge_carry(
         state,
         {
-            "path_metrics": path_metrics,
+            **base_updates,
             "supervisor_draft": reply,
             "client_actions": None,
             "client_actions_error": None,

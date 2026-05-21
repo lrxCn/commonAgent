@@ -11,7 +11,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.context import graph_context_from_request
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -37,6 +37,7 @@ def _graph_env(monkeypatch: pytest.MonkeyPatch) -> None:
             AIMessage(content=f"reply:{messages[-1].content}"),
         ]
     )
+    set_answer_invoke(lambda _system, messages: f"reply:{messages[-1].content}")
     yield
     reset_supervisor_overrides()
     reset_settings()

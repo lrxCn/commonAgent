@@ -8,7 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from gateway.chat import reset_chat_graph, set_chat_graph
 from graph.build import compile_graph
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from settings.config import Settings, reset_settings, set_settings_override
 
 _GATEWAY_GRAPH_ENV: dict[str, object] = {
@@ -49,6 +49,7 @@ def install_gateway_graph_mocks(
         return [AIMessage(content=content)]
 
     set_supervisor_invoke(_fake_supervisor)
+    set_answer_invoke(lambda system, messages: str(_fake_supervisor(system, messages)[0].content))
     set_chat_graph(compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False))
 
 

@@ -110,7 +110,7 @@ def test_graph_replaces_violating_supervisor_output(settings_enabled: Settings) 
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     result = graph.invoke(
-        {"messages": [HumanMessage(content="你好")]},
+        {"messages": [HumanMessage(content="请分析报销制度并制定一个落地计划")]},
         context=graph_context_from_request(
             RequestContext(user_id="u1", role_id="role-sales", tools=[])
         ),
@@ -134,7 +134,7 @@ def test_graph_passes_clean_supervisor_output(settings_enabled: Settings) -> Non
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     result = graph.invoke(
-        {"messages": [HumanMessage(content="你好")]},
+        {"messages": [HumanMessage(content="请分析报销制度并制定一个落地计划")]},
         context=graph_context_from_request(
             RequestContext(user_id="u1", role_id="role-sales", tools=[])
         ),

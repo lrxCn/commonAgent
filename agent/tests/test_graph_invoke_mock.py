@@ -11,7 +11,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.context import graph_context_from_request
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from memory.history import set_history_checkpointer
 import rag.retriever as retriever_mod
 from rag.retriever import RagChunk, reset_retriever_overrides
@@ -58,6 +58,7 @@ def _clean_graph_mocks() -> None:
         return [AIMessage(content=f"mock-reply:{last_human}")]
 
     set_supervisor_invoke(_fake_supervisor)
+    set_answer_invoke(lambda system, messages: str(_fake_supervisor(system, messages)[0].content))
     yield
     set_rewrite_llm(None)
     set_router_classifier(None)

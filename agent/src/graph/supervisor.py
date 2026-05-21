@@ -8,7 +8,7 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
 
 from gateway.schemas import ToolSpec
@@ -18,6 +18,7 @@ from settings.config import Settings, get_settings
 
 _supervisor_agent_override: CompiledStateGraph | None = None
 _supervisor_invoke_override: Callable[[str, list[BaseMessage]], list[BaseMessage]] | None = None
+_answer_invoke_override: Callable[[str, list[BaseMessage]], str] | None = None
 
 DEFAULT_SUPERVISOR_INSTRUCTIONS = """You are a helpful enterprise assistant.
 
@@ -43,9 +44,18 @@ def set_supervisor_invoke(
     _supervisor_invoke_override = fn
 
 
+def set_answer_invoke(
+    fn: Callable[[str, list[BaseMessage]], str] | None,
+) -> None:
+    """Replace lightweight answer invocation (tests). Pass None to clear."""
+    global _answer_invoke_override
+    _answer_invoke_override = fn
+
+
 def reset_supervisor_overrides() -> None:
     set_supervisor_agent(None)
     set_supervisor_invoke(None)
+    set_answer_invoke(None)
 
 
 def format_external_tools_for_prompt(tools: Sequence[ToolSpec | dict[str, Any]]) -> str:
@@ -115,8 +125,15 @@ def _get_supervisor_agent(system_prompt: str) -> CompiledStateGraph:
 
 
 @supervisor_traceable()
-def invoke_supervisor(system_prompt: str, messages: list[BaseMessage]) -> list[BaseMessage]:
+def invoke_supervisor(
+    system_prompt: str,
+    messages: list[BaseMessage],
+    *,
+    executor: str = "deepagents_executor",
+    executor_reason: str = "",
+) -> list[BaseMessage]:
     """Run the supervisor and return the resulting message list."""
+    del executor, executor_reason  # tracing metadata only
     if _supervisor_invoke_override is not None:
         return _supervisor_invoke_override(system_prompt, messages)
 
@@ -126,6 +143,25 @@ def invoke_supervisor(system_prompt: str, messages: list[BaseMessage]) -> list[B
     if not out:
         return [AIMessage(content="")]
     return list(out)
+
+
+@supervisor_traceable()
+def invoke_answer_executor(
+    system_prompt: str,
+    messages: list[BaseMessage],
+    *,
+    executor: str = "rag_answer_executor",
+    executor_reason: str = "",
+) -> str:
+    """Run a plain ChatOpenAI answer path without deepagents middleware."""
+    del executor, executor_reason  # tracing metadata only
+    if _answer_invoke_override is not None:
+        return _answer_invoke_override(system_prompt, messages).strip()
+
+    settings = get_settings()
+    llm = _create_chat_model(settings)
+    response = llm.invoke([SystemMessage(content=system_prompt), *messages])
+    return str(response.content).strip()
 
 
 def extract_latest_ai_text(messages: Sequence[BaseMessage]) -> str:

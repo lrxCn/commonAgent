@@ -61,11 +61,11 @@ def test_chat_returns_sse_with_token_and_done(client: TestClient) -> None:
     events = _parse_sse_events(response.text)
     token_events = [event for event in events if event.get("type") == "token"]
     assert len(token_events) >= 1
-    assert any("mock-reply" in event.get("content", "") for event in token_events)
+    assert any("你好。" in event.get("content", "") for event in token_events)
     assert events[-1] == {"type": "done"}
 
     combined = "".join(event["content"] for event in token_events)
-    assert combined == "mock-reply:你好"
+    assert combined == "你好。"
 
 
 def test_chat_client_actions_returns_json(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -131,7 +131,8 @@ def test_chat_outbound_blocked_streams_safe_message(
     )
     guarded = TestClient(create_app())
 
-    response = guarded.post("/internal/chat", json=_VALID_CHAT_PAYLOAD)
+    payload = {**_VALID_CHAT_PAYLOAD, "message": "请分析报销制度并制定一个落地计划"}
+    response = guarded.post("/internal/chat", json=payload)
     assert response.status_code == 200
     events = _parse_sse_events(response.text)
     combined = "".join(event["content"] for event in events if event.get("type") == "token")

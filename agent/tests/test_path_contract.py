@@ -10,7 +10,7 @@ from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.chitchat_executor import set_chitchat_llm
 from graph.context import graph_context_from_request
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from memory.history import set_history_checkpointer
 import rag.retriever as retriever_mod
 from rag.retriever import RagChunk, reset_retriever_overrides
@@ -48,6 +48,7 @@ def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     set_supervisor_invoke(
         lambda _system, _messages: [AIMessage(content="mock supervisor reply")]
     )
+    set_answer_invoke(lambda _system, _messages: "mock supervisor reply")
     yield
     set_rewrite_llm(None)
     set_chitchat_llm(None)

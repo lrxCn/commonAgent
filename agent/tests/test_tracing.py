@@ -11,6 +11,7 @@ from graph.build import compile_graph
 from observability.tracing import (
     _chitchat_process_inputs,
     _rewrite_process_inputs,
+    _supervisor_process_inputs,
     attach_run_metadata,
     configure_tracing_from_settings,
     is_tracing_enabled,
@@ -138,6 +139,20 @@ def test_chitchat_process_inputs_uses_small_chat_executor_when_enabled() -> None
     assert meta["executor"] == "small_chat_executor"
     assert meta["chitchat.use_llm"] is True
     assert meta["chitchat.model_name"] == "Pro/moonshotai/Kimi-K2.6"
+
+
+def test_supervisor_process_inputs_records_executor_metadata() -> None:
+    meta = _supervisor_process_inputs(
+        {
+            "system_prompt": "system",
+            "messages": [],
+            "executor": "rag_answer_executor",
+            "executor_reason": "rag_chunks_available_score_0.92",
+        }
+    )
+
+    assert meta["executor"] == "rag_answer_executor"
+    assert meta["executor_reason"] == "rag_chunks_available_score_0.92"
 
 
 def test_traceable_imports_on_core_modules() -> None:

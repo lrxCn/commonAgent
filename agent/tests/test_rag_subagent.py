@@ -20,7 +20,7 @@ from graph.rag_subagent import (
     second_pass_top_k,
     should_delegate_rag_subagent,
 )
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from rag.retriever import RagChunk, reset_retriever_overrides
 from rag.rewrite import set_rewrite_llm
 from rag.router import set_router_classifier
@@ -152,6 +152,7 @@ def test_graph_triggers_second_retrieve_on_empty_primary(
     set_supervisor_invoke(
         lambda _system, messages: [AIMessage(content="ok")]
     )
+    set_answer_invoke(lambda _system, messages: "ok")
 
     call_count = 0
 
@@ -189,6 +190,7 @@ def test_graph_skips_second_retrieve_on_high_quality_primary(
     set_supervisor_invoke(
         lambda _system, messages: [AIMessage(content="ok")]
     )
+    set_answer_invoke(lambda _system, messages: "ok")
 
     retrieve_mock = MagicMock(
         return_value=[_chunk(doc_id="doc-1", chunk_id="c-1", text="good", score=0.9)]

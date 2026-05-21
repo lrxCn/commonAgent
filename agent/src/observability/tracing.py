@@ -265,9 +265,13 @@ def _rerank_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
 def _supervisor_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     messages = inputs.get("messages") or []
     system_prompt = str(inputs.get("system_prompt") or "")
+    executor = str(inputs.get("executor") or "deepagents_executor")
+    executor_reason = str(inputs.get("executor_reason") or "")
     secrets = _collect_secret_values()
     return {
         "span": "supervisor",
+        "executor": executor,
+        "executor_reason": executor_reason,
         "system_prompt_len": len(system_prompt),
         "message_count": len(messages),
         "system_prompt_preview": truncate_for_trace(
