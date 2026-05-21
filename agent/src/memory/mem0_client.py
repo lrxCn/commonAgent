@@ -8,6 +8,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from openai import OpenAI
+
 from settings.config import Settings, get_settings
 
 _CUSTOM_INSTRUCTIONS_PATH = (
@@ -61,7 +63,6 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
                 "openai_base_url": settings.OPENAI_BASE_URL,
                 "temperature": 0.1,
                 "max_tokens": settings.MEM0_LLM_MAX_TOKENS,
-                "timeout": settings.MEM0_LLM_TIMEOUT_SECONDS,
             },
         },
         "embedder": {
@@ -80,6 +81,15 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
     return config
 
 
+def _apply_mem0_openai_timeout(memory: Any, settings: Settings) -> None:
+    """Apply HTTP timeout to the mem0 OpenAI client used by infer=True writes."""
+    memory.llm.client = OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL,
+        timeout=settings.MEM0_LLM_TIMEOUT_SECONDS,
+    )
+
+
 def _require_user_id(user_id: str | None) -> str:
     if user_id is None or not str(user_id).strip():
         raise Mem0UserIdError("user_id is required to fetch mem0 memories")
@@ -94,7 +104,9 @@ def get_local_memory() -> Any:
     if _memory_instance is None:
         from mem0 import Memory
 
-        _memory_instance = Memory.from_config(build_mem0_config(get_settings()))
+        settings = get_settings()
+        _memory_instance = Memory.from_config(build_mem0_config(settings))
+        _apply_mem0_openai_timeout(_memory_instance, settings)
     return _memory_instance
 
 

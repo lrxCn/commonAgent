@@ -208,7 +208,7 @@ class Settings(BaseSettings):
     )
     MEM0_LLM_TIMEOUT_SECONDS: float = Field(
         default=10,
-        description="Timeout in seconds for mem0 infer extraction calls.",
+        description="HTTP timeout in seconds applied to the OpenAI client used by mem0 infer writes.",
     )
 
     # --- Postgres ---

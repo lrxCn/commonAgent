@@ -8,6 +8,7 @@ import pytest
 
 from memory.mem0_client import (
     Mem0UserIdError,
+    _apply_mem0_openai_timeout,
     afetch_user_memories,
     fetch_user_memories,
     format_mem0_for_system,
@@ -41,6 +42,17 @@ def _settings(**extra: object) -> Settings:
             **extra,
         }
     )  # type: ignore[arg-type]
+
+
+def test_apply_mem0_openai_timeout_replaces_llm_client() -> None:
+    settings = _settings(MEM0_LLM_TIMEOUT_SECONDS=4.5)
+    memory = MagicMock()
+    memory.llm.client = object()
+
+    _apply_mem0_openai_timeout(memory, settings)
+
+    assert memory.llm.client.timeout == 4.5
+    assert str(memory.llm.client.base_url) == f"{settings.OPENAI_BASE_URL}/"
 
 
 def test_parse_memories_from_get_all_results() -> None:

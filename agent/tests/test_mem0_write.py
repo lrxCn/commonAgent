@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from openai import APITimeoutError
+
 from memory.mem0_client import build_mem0_config
 from memory.mem0_write import (
     extract_and_store,
@@ -134,7 +136,27 @@ def test_build_mem0_config_uses_dedicated_small_model() -> None:
     assert llm["model"] == "Qwen/Qwen2.5-7B-Instruct"
     assert llm["model"] != "Pro/moonshotai/Kimi-K2.6"
     assert llm["max_tokens"] == 96
-    assert llm["timeout"] == 4.5
+    assert "timeout" not in llm
+
+
+def test_extract_and_store_returns_failed_reason_on_timeout() -> None:
+    set_settings_override(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_MOCK": False,
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            }
+        )
+    )  # type: ignore[arg-type]
+    request = MagicMock()
+    set_mem0_add_fn(MagicMock(side_effect=APITimeoutError(request=request)))
+
+    stored = extract_and_store("user-1", [HumanMessage(content="hello")])
+
+    assert stored.status == "failed"
+    assert stored.reason == "APITimeoutError"
+    assert stored.stored_count == 0
 
 
 def test_extract_and_store_returns_failed_reason_on_add_error() -> None:

@@ -183,7 +183,7 @@ mem0 约束：
 - 禁止 mem0 托管云、`MemoryClient`、`MEM0_API_KEY`、`api.mem0.ai`。
 - `MEM0_MOCK=true` 时跳过 mem0/Qdrant 读取，返回空列表。
 - post_turn 将本轮 user/assistant 原文传给 `Memory.add(..., infer=True)`；抽取、已有记忆检索、hash 去重由 mem0 管线负责。
-- mem0 infer 写入使用专用小模型配置：`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS`；不要回退到 `OPENAI_MODEL_NAME`，避免后台成本和队列压力跟主模型绑定。
+- mem0 infer 写入使用专用小模型配置：`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS`；不要回退到 `OPENAI_MODEL_NAME`，避免后台成本和队列压力跟主模型绑定。当前 mem0 `OpenAIConfig` 不支持 `timeout` 字段，Agent 会在 `Memory.from_config()` 后接管 mem0 内部 OpenAI client 并设置 HTTP timeout。
 - system 注入前会从 mem0 自由文本归一化第一版 `memory_profile`：`profile.name`、`profile.birth_year`、`profile.city`、`profile.job`、`company.address`、`preference.answer_style`。同类事实保留最新/最明确值；已归类事实不再重复进入自由文本区，未归类事实仍按原 mem0 列表注入。
 - 抽取规则在 [agent/src/memory/prompts/mem0_custom_instructions.txt](agent/src/memory/prompts/mem0_custom_instructions.txt)。
 - mem0 可能在 `~/.mem0/history.db` 或 `MEM0_DIR` 存辅助 SQLite；向量仍在 Qdrant。
