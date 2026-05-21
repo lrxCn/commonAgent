@@ -60,6 +60,14 @@ class Settings(BaseSettings):
         default=None,
         description="Chat model for query rewrite; defaults to OPENAI_MODEL_NAME when unset.",
     )
+    REWRITE_MAX_TOKENS: int = Field(
+        default=64,
+        description="Maximum completion tokens for query rewrite calls.",
+    )
+    REWRITE_TIMEOUT_SECONDS: float = Field(
+        default=15,
+        description="Timeout in seconds for query rewrite calls.",
+    )
     REWRITE_SKIP_ENABLED: bool = Field(
         default=True,
         description="When true, skip rewrite LLM for chitchat/standalone/self-contained turns.",
@@ -81,6 +89,14 @@ class Settings(BaseSettings):
     RAG_ROUTER_MODEL_NAME: str | None = Field(
         default=None,
         description="Chat model for hybrid RAG router; defaults to OPENAI_MODEL_NAME when unset.",
+    )
+    RAG_ROUTER_MAX_TOKENS: int = Field(
+        default=32,
+        description="Maximum completion tokens for hybrid RAG router classification.",
+    )
+    RAG_ROUTER_TIMEOUT_SECONDS: float = Field(
+        default=5,
+        description="Timeout in seconds for hybrid RAG router classification.",
     )
 
     # --- Embedding ---

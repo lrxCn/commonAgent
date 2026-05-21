@@ -12,8 +12,8 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from memory.mem0_client import format_mem0_for_system
-from observability.tracing import rewrite_traceable
-from rag.intent import has_knowledge_intent, is_chitchat
+from observability.tracing import attach_run_metadata, rewrite_traceable
+from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import Settings, get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "rewrite.txt"
@@ -24,6 +24,8 @@ _ANAPHORA_RE = re.compile(
     r"(?:它|这个|那个|上述|刚才|继续|还有吗|后者|前者|这般|那样|如此|同上|前述)",
     re.IGNORECASE,
 )
+
+_NUMBER_RE = re.compile(r"\d+(?:[./:-]\d+)*")
 
 
 class RewriteNodeState(TypedDict, total=False):
@@ -84,6 +86,17 @@ def _has_anaphora(message: str) -> bool:
     return _ANAPHORA_RE.search(message.strip()) is not None
 
 
+def _numbers(text: str) -> list[str]:
+    return _NUMBER_RE.findall(text)
+
+
+def _rewrite_preserves_numbers(original: str, rewritten: str) -> bool:
+    original_numbers = _numbers(original)
+    if not original_numbers:
+        return True
+    return original_numbers == _numbers(rewritten)
+
+
 def should_rewrite(
     user_message: str,
     *,
@@ -102,6 +115,9 @@ def should_rewrite(
 
     if is_chitchat(text):
         return False, "chitchat"
+
+    if not _has_anaphora(text) and is_user_fact_statement(text):
+        return False, "personal_fact_statement"
 
     settings = get_settings()
     min_len = settings.REWRITE_MIN_SELF_CONTAINED_LEN
@@ -127,13 +143,36 @@ def should_rewrite(
 def _create_chat_model(settings: Settings, model_name: str | None) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    name = (model_name or settings.REWRITE_MODEL_NAME or settings.OPENAI_MODEL_NAME).strip()
+    name = _resolve_model_name(settings, model_name)
     return ChatOpenAI(
         model=name,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
         temperature=0,
+        max_completion_tokens=settings.REWRITE_MAX_TOKENS,
+        timeout=settings.REWRITE_TIMEOUT_SECONDS,
+        max_retries=0,
     )
+
+
+def _resolve_model_name(settings: Settings, model_name: str | None) -> str:
+    return (model_name or settings.REWRITE_MODEL_NAME or settings.OPENAI_MODEL_NAME).strip()
+
+
+def _call_metadata(model_name: str | None, prompt: str) -> dict[str, object]:
+    try:
+        settings = get_settings()
+    except Exception:
+        return {
+            "rewrite.model_name": model_name or "override",
+            "rewrite.prompt_len": len(prompt),
+        }
+    return {
+        "rewrite.model_name": _resolve_model_name(settings, model_name),
+        "rewrite.prompt_len": len(prompt),
+        "rewrite.max_tokens": settings.REWRITE_MAX_TOKENS,
+        "rewrite.timeout_seconds": settings.REWRITE_TIMEOUT_SECONDS,
+    }
 
 
 def _invoke_llm(prompt: str, *, model_name: str | None = None) -> str:
@@ -159,7 +198,14 @@ def rewrite_passthrough(
     mem0_memories: Sequence[str] | None = None,
 ) -> str:
     """Record a skipped rewrite span (no LLM) and return trimmed user text."""
-    del rewrite_skip_reason, rewrite_skipped, recent_messages, mem0_memories
+    del recent_messages, mem0_memories
+    attach_run_metadata(
+        {
+            "rewrite_skipped": rewrite_skipped,
+            "rewrite_skip_reason": rewrite_skip_reason,
+            "rewrite.fallback": False,
+        }
+    )
     return user_message.strip()
 
 
@@ -180,7 +226,6 @@ def rewrite_query(
     Does not read RAG results. On empty input or LLM failure, returns the
     trimmed original message.
     """
-    del rewrite_skipped, rewrite_skip_reason
     del mem0_facts_count  # consumed by tracing metadata via process_inputs.
     original = user_message.strip()
     if not original:
@@ -188,14 +233,42 @@ def rewrite_query(
 
     recent = list(recent_messages or [])
     prompt = build_rewrite_prompt(original, mem0_text, recent)
+    attach_run_metadata(
+        {
+            **_call_metadata(model_name, prompt),
+            "rewrite_skipped": rewrite_skipped,
+            "rewrite_skip_reason": rewrite_skip_reason,
+        }
+    )
 
     try:
         rewritten = _invoke_llm(prompt, model_name=model_name)
-    except Exception:
+    except Exception as exc:
+        attach_run_metadata(
+            {
+                "rewrite.fallback": True,
+                "rewrite.fallback_reason": type(exc).__name__,
+            }
+        )
         return original
 
     if not rewritten:
+        attach_run_metadata(
+            {
+                "rewrite.fallback": True,
+                "rewrite.fallback_reason": "empty_output",
+            }
+        )
         return original
+    if not _rewrite_preserves_numbers(original, rewritten):
+        attach_run_metadata(
+            {
+                "rewrite.fallback": True,
+                "rewrite.fallback_reason": "number_changed",
+            }
+        )
+        return original
+    attach_run_metadata({"rewrite.fallback": False})
     return rewritten
 
 

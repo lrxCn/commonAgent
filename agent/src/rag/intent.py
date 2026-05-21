@@ -19,6 +19,16 @@ _KNOWLEDGE_RE = re.compile(
     re.IGNORECASE,
 )
 
+_QUESTION_RE = re.compile(r"(?:吗|嘛|么|呢|？|\?)\s*$")
+
+_USER_FACT_RE = re.compile(
+    r"^(?:我公司|我的公司|我们公司|公司|单位|我们|我的|我|本人|用户|咱|俺)?"
+    r"(?:的)?"
+    r"(?:出生|生日|年龄|姓名|名字|职业|工作|职位|岗位|公司|单位|城市|地址|所在地|生活|"
+    r"手机号|电话|邮箱|微信|偏好|喜欢|常用|不喜欢|讨厌|是|叫|在|位于|住在|来自|出生于|生于|从事)",
+    re.IGNORECASE,
+)
+
 
 def _text(value: str | None) -> str:
     return (value or "").strip()
@@ -50,3 +60,15 @@ def has_knowledge_intent(message: str, rewritten_query: str | None = None) -> bo
     if not combined:
         return False
     return _KNOWLEDGE_RE.search(combined) is not None
+
+
+def is_user_fact_statement(message: str, rewritten_query: str | None = None) -> bool:
+    """Detect first-party facts that should update memory, not query KB."""
+    for text in (_text(message), _text(rewritten_query)):
+        if not text:
+            continue
+        if _QUESTION_RE.search(text) or has_knowledge_intent(text):
+            continue
+        if _USER_FACT_RE.search(text):
+            return True
+    return False

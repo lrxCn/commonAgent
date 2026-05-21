@@ -43,6 +43,10 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.CONTEXT_PREFIX_TURNS == 4
     assert settings.CONTEXT_RECENT_TURNS == 20
     assert settings.CONTEXT_ORIGINAL_HUMAN_METADATA_KEY == "original_human_content"
+    assert settings.REWRITE_MAX_TOKENS == 64
+    assert settings.REWRITE_TIMEOUT_SECONDS == 15
+    assert settings.RAG_ROUTER_MAX_TOKENS == 32
+    assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 5
 
 
 def test_qdrant_url_uses_host_and_port(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,3 +138,17 @@ def test_qdrant_mock_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_qdrant_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch, QDRANT_MOCK="false")
     assert settings.QDRANT_MOCK is False
+
+
+def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(
+        monkeypatch,
+        REWRITE_MAX_TOKENS="48",
+        REWRITE_TIMEOUT_SECONDS="7.5",
+        RAG_ROUTER_MAX_TOKENS="16",
+        RAG_ROUTER_TIMEOUT_SECONDS="3.25",
+    )
+    assert settings.REWRITE_MAX_TOKENS == 48
+    assert settings.REWRITE_TIMEOUT_SECONDS == 7.5
+    assert settings.RAG_ROUTER_MAX_TOKENS == 16
+    assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 3.25

@@ -157,11 +157,33 @@ def _rewrite_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     recent = inputs.get("recent_messages") or []
     rewrite_skipped = bool(inputs.get("rewrite_skipped", False))
     rewrite_skip_reason = str(inputs.get("rewrite_skip_reason") or "")
+    prompt_len = 0
+    model_name = str(inputs.get("model_name") or "")
+    max_tokens = None
+    timeout_seconds = None
+    if not rewrite_skipped:
+        try:
+            from rag.rewrite import build_rewrite_prompt
+            from settings.config import get_settings
+
+            settings = get_settings()
+            model_name = model_name or (
+                settings.REWRITE_MODEL_NAME or settings.OPENAI_MODEL_NAME
+            )
+            max_tokens = settings.REWRITE_MAX_TOKENS
+            timeout_seconds = settings.REWRITE_TIMEOUT_SECONDS
+            prompt_len = len(build_rewrite_prompt(user_message, mem0_text, recent))
+        except Exception:
+            prompt_len = 0
     secrets = _collect_secret_values()
     return {
         "span": "rewrite",
         "user_message": truncate_for_trace(redact_secrets(user_message, secrets)),
         "user_message_len": len(user_message),
+        "rewrite.model_name": model_name,
+        "rewrite.prompt_len": prompt_len,
+        "rewrite.max_tokens": max_tokens,
+        "rewrite.timeout_seconds": timeout_seconds,
         "mem0_text_len": len(mem0_text) if not rewrite_skipped else 0,
         "mem0_facts_count": mem0_facts_count if not rewrite_skipped else 0,
         "recent_message_count": len(recent),
@@ -175,12 +197,35 @@ def _rag_router_process_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     rewritten = inputs.get("rewritten_query")
     tools = inputs.get("tools_context")
     mode = inputs.get("mode")
+    prompt_len = 0
+    model_name = str(inputs.get("model_name") or "")
+    max_tokens = None
+    timeout_seconds = None
+    try:
+        from rag.router import build_router_classifier_prompt
+        from settings.config import get_settings
+
+        settings = get_settings()
+        model_name = model_name or (
+            settings.RAG_ROUTER_MODEL_NAME or settings.OPENAI_MODEL_NAME
+        )
+        max_tokens = settings.RAG_ROUTER_MAX_TOKENS
+        timeout_seconds = settings.RAG_ROUTER_TIMEOUT_SECONDS
+        prompt_len = len(build_router_classifier_prompt(message, rewritten, tools))
+        mode = mode or settings.RAG_ROUTER_MODE
+    except Exception:
+        pass
     return {
         "span": "rag_router",
         "message_len": len(message),
         "rewritten_query_len": len(str(rewritten)) if rewritten is not None else 0,
         "tools_count": len(tools) if tools is not None else 0,
         "mode": mode,
+        "rag_router.model_name": model_name,
+        "rag_router.prompt_len": prompt_len,
+        "rag_router.mode": mode,
+        "rag_router.max_tokens": max_tokens,
+        "rag_router.timeout_seconds": timeout_seconds,
     }
 
 

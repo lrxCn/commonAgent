@@ -90,6 +90,12 @@ def test_rewrite_query_returns_original_on_llm_error() -> None:
     assert rewrite_query("原问题", recent_messages=[]) == "原问题"
 
 
+def test_rewrite_query_returns_original_when_number_changes() -> None:
+    set_rewrite_llm(lambda _prompt: "我出生于111年")
+
+    assert rewrite_query("我出生于1997年", recent_messages=[]) == "我出生于1997年"
+
+
 def test_rewrite_node_writes_rewritten_query() -> None:
     set_rewrite_llm(
         lambda _prompt: "如何办理公司报销流程？",
@@ -192,6 +198,42 @@ def test_should_rewrite_self_contained_with_mem0() -> None:
     assert reason == "self_contained"
 
 
+def test_should_rewrite_personal_fact_statement_with_context() -> None:
+    need, reason = should_rewrite(
+        "我出生于1997年",
+        recent_messages=[
+            HumanMessage(content="我叫刘日兴"),
+            AIMessage(content="记住了。"),
+        ],
+        mem0_memories=["用户是前端程序员", "用户叫刘日兴"],
+    )
+    assert need is False
+    assert reason == "personal_fact_statement"
+
+
+def test_should_rewrite_company_address_statement_with_context() -> None:
+    need, reason = should_rewrite(
+        "我公司在天翔街188号",
+        recent_messages=[
+            HumanMessage(content="我叫刘日兴"),
+            AIMessage(content="记住了。"),
+        ],
+        mem0_memories=["用户是前端程序员"],
+    )
+    assert need is False
+    assert reason == "personal_fact_statement"
+
+
+def test_should_rewrite_living_city_statement_with_context() -> None:
+    need, reason = should_rewrite(
+        "我生活在哈尔滨",
+        recent_messages=[],
+        mem0_memories=["用户是一名前端程序员"],
+    )
+    assert need is False
+    assert reason == "personal_fact_statement"
+
+
 def test_rewrite_node_skips_llm_for_chitchat() -> None:
     calls: list[str] = []
 
@@ -224,6 +266,25 @@ def test_rewrite_node_skips_llm_for_standalone_faq() -> None:
     assert calls == []
 
 
+def test_rewrite_node_skips_llm_for_personal_fact_statement() -> None:
+    calls: list[str] = []
+    set_rewrite_llm(lambda _prompt: calls.append("llm") or "我出生于111年")
+
+    out = rewrite_node(
+        {
+            "user_message": "我出生于1997年",
+            "mem0_memories": ["用户是前端程序员", "用户叫刘日兴"],
+            "recent_messages": [
+                HumanMessage(content="我叫刘日兴"),
+                AIMessage(content="记住了。"),
+            ],
+        }
+    )
+
+    assert out["rewritten_query"] == "我出生于1997年"
+    assert calls == []
+
+
 def test_rewrite_node_invokes_llm_when_skip_disabled() -> None:
     set_settings_override(_settings(REWRITE_SKIP_ENABLED=False))
     calls: list[str] = []
@@ -239,12 +300,21 @@ def test_rewrite_node_invokes_llm_when_skip_disabled() -> None:
 def test_rewrite_uses_rewrite_model_name_from_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_settings_override(_settings(REWRITE_MODEL_NAME="rewrite-model-v1"))
-    captured: dict[str, str] = {}
+    set_settings_override(
+        _settings(
+            REWRITE_MODEL_NAME="rewrite-model-v1",
+            REWRITE_MAX_TOKENS=42,
+            REWRITE_TIMEOUT_SECONDS=3.5,
+        )
+    )
+    captured: dict[str, object] = {}
 
     class FakeChatOpenAI:
         def __init__(self, **kwargs: object) -> None:
             captured["model"] = str(kwargs.get("model", ""))
+            captured["max_completion_tokens"] = kwargs.get("max_completion_tokens")
+            captured["timeout"] = kwargs.get("timeout")
+            captured["max_retries"] = kwargs.get("max_retries")
 
         def invoke(self, _messages: list[HumanMessage]) -> AIMessage:
             return AIMessage(content="清晰的问题")
@@ -255,3 +325,6 @@ def test_rewrite_uses_rewrite_model_name_from_settings(
 
     assert result == "清晰的问题"
     assert captured["model"] == "rewrite-model-v1"
+    assert captured["max_completion_tokens"] == 42
+    assert captured["timeout"] == 3.5
+    assert captured["max_retries"] == 0

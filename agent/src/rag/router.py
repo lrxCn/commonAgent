@@ -14,8 +14,8 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from gateway.schemas import ToolSpec
-from observability.tracing import rag_router_traceable
-from rag.intent import has_knowledge_intent, is_chitchat
+from observability.tracing import attach_run_metadata, rag_router_traceable
+from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import Settings, get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "router_classify.txt"
@@ -127,6 +127,8 @@ def classify_with_rules(
     """Apply deterministic routing rules."""
     if is_chitchat(message, rewritten_query):
         return RuleDecision.SKIP
+    if is_user_fact_statement(message, rewritten_query):
+        return RuleDecision.SKIP
     if has_knowledge_intent(message, rewritten_query):
         return RuleDecision.RETRIEVE
     if is_pure_client_tool_intent(message, tools_context, rewritten_query=rewritten_query):
@@ -174,17 +176,46 @@ def parse_need_rag_json(raw: str) -> bool | None:
 def _create_classifier_model(settings: Settings, model_name: str | None) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    name = (
-        model_name
-        or settings.RAG_ROUTER_MODEL_NAME
-        or settings.OPENAI_MODEL_NAME
-    ).strip()
+    name = _resolve_model_name(settings, model_name)
     return ChatOpenAI(
         model=name,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
         temperature=0,
+        max_completion_tokens=settings.RAG_ROUTER_MAX_TOKENS,
+        timeout=settings.RAG_ROUTER_TIMEOUT_SECONDS,
+        max_retries=0,
     )
+
+
+def _resolve_model_name(settings: Settings, model_name: str | None) -> str:
+    return (
+        model_name
+        or settings.RAG_ROUTER_MODEL_NAME
+        or settings.OPENAI_MODEL_NAME
+    ).strip()
+
+
+def _call_metadata(
+    model_name: str | None,
+    prompt: str,
+    mode: Literal["rules", "hybrid"] | None,
+) -> dict[str, object]:
+    try:
+        settings = get_settings()
+    except Exception:
+        return {
+            "rag_router.model_name": model_name or "override",
+            "rag_router.prompt_len": len(prompt),
+            "rag_router.mode": mode,
+        }
+    return {
+        "rag_router.model_name": _resolve_model_name(settings, model_name),
+        "rag_router.prompt_len": len(prompt),
+        "rag_router.mode": mode or settings.RAG_ROUTER_MODE,
+        "rag_router.max_tokens": settings.RAG_ROUTER_MAX_TOKENS,
+        "rag_router.timeout_seconds": settings.RAG_ROUTER_TIMEOUT_SECONDS,
+    }
 
 
 def _invoke_classifier(prompt: str, *, model_name: str | None = None) -> str:
@@ -206,16 +237,30 @@ def classify_with_llm(
     tools_context: Sequence[ToolSpec | dict[str, Any]] | None = None,
     *,
     model_name: str | None = None,
+    mode: Literal["rules", "hybrid"] | None = None,
 ) -> bool:
     """Hybrid fallback: small LLM emits JSON ``need_rag``."""
     prompt = build_router_classifier_prompt(message, rewritten_query, tools_context)
+    attach_run_metadata(_call_metadata(model_name, prompt, mode))
     try:
         raw = _invoke_classifier(prompt, model_name=model_name)
         parsed = parse_need_rag_json(raw)
         if parsed is not None:
+            attach_run_metadata({"rag_router.fallback": False})
             return parsed
-    except Exception:
-        pass
+        attach_run_metadata(
+            {
+                "rag_router.fallback": True,
+                "rag_router.fallback_reason": "parse_failed",
+            }
+        )
+    except Exception as exc:
+        attach_run_metadata(
+            {
+                "rag_router.fallback": True,
+                "rag_router.fallback_reason": type(exc).__name__,
+            }
+        )
     # Conservative default when classifier fails
     return True
 
@@ -238,12 +283,39 @@ def should_retrieve(
 
     decision = classify_with_rules(message, rewritten_query, tools_context)
     if decision is RuleDecision.SKIP:
+        attach_run_metadata(
+            {
+                "rag_router.mode": router_mode,
+                "rag_router.rule_decision": decision.value,
+                "rag_router.fallback": False,
+            }
+        )
         return False
     if decision is RuleDecision.RETRIEVE:
+        attach_run_metadata(
+            {
+                "rag_router.mode": router_mode,
+                "rag_router.rule_decision": decision.value,
+                "rag_router.fallback": False,
+            }
+        )
         return True
     if router_mode == "rules":
+        attach_run_metadata(
+            {
+                "rag_router.mode": router_mode,
+                "rag_router.rule_decision": decision.value,
+                "rag_router.fallback": False,
+            }
+        )
         return True
-    return classify_with_llm(message, rewritten_query, tools_context)
+    attach_run_metadata(
+        {
+            "rag_router.mode": router_mode,
+            "rag_router.rule_decision": decision.value,
+        }
+    )
+    return classify_with_llm(message, rewritten_query, tools_context, mode=router_mode)
 
 
 def rag_router_node(state: RagRouterNodeState) -> dict[str, bool]:

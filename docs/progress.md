@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 27 |
-| 已完成 | 27 |
+| 总任务数 | 28 |
+| 已完成 | 28 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：第一期 01–26（含 13.5）已完成；后续按产品排期扩展（如 rewrite/rag_router 合并 LLM、更激进跳过规则等）。
+**当前建议下一步**：第一期任务与 27 号延迟优化已完成；下一步按真实联调 trace 继续观察 rewrite/router P95。
 
 
 ---
@@ -51,6 +51,7 @@
 | 24 | [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md) | ✅ | 2026-05-20 | `infer=True`+`custom_instructions`；`mem0_write.py` 原文 turn；根 README 迁移说明；`test_mem0_write` 4 用例 |
 | 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ✅ | 2026-05-20 | 移除 state `mem0_text`；rewrite 内格式化；`test_graph_load_memory` + tracing metadata |
 | 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ✅ | 2026-05-20 | `should_rewrite`+`rag/intent.py`；`rewrite_passthrough` tracing；`test_rewrite.py` 17 用例 |
+| 27 | [Rewrite / RAG Router 小模型与超时保护](./prompts/27-rewrite-router-small-model.md) | ✅ | 2026-05-21 | `Qwen/Qwen2.5-7B-Instruct`；rewrite/router max token + timeout；个人/公司事实 passthrough + router skip RAG |
 
 ---
 
@@ -94,3 +95,7 @@
 | 2026-05-20 | 文档：删除旧架构文档与 Agent 局部 README，根目录 README 作为唯一项目入口 |
 | 2026-05-20 | 文档：新增根 `AGENTS.md` 作为跨工具 AI 规则源，`.cursor/skills` 改为 Cursor 适配层 |
 | 2026-05-20 | 完成任务 26：`should_rewrite` 条件跳过 rewrite LLM；`REWRITE_SKIP_ENABLED`；LangSmith `rewrite_skipped` metadata |
+| 2026-05-20 | 文档：新增任务 **27** [Rewrite / RAG Router 小模型与超时保护](./prompts/27-rewrite-router-small-model.md)，准备将小任务从 Kimi-K2.6 切到低延迟模型 |
+| 2026-05-21 | 完成任务 27：rewrite/router 小模型配置、`max_completion_tokens`、timeout、fallback metadata 与 `.env.example`/本机 `.env` 同步 |
+| 2026-05-21 | 修复任务 27 真实 trace 回归：rewrite 对「我出生于1997年」类个人事实陈述跳过 LLM；LLM 篡改数字时回退原文 |
+| 2026-05-21 | 修复任务 27 router timeout 回归：`rag_router` 对「我公司在天翔街188号」类公司事实陈述直接 skip RAG；router timeout 默认 5 秒且小任务 LLM 禁用自动重试 |

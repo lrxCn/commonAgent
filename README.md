@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-26 已完成，另含 13.5 修复任务 |
+| 核心任务 | 01-27 已完成，另含 13.5 修复任务 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
@@ -128,8 +128,8 @@ Agent 变量以 [agent/.env.example](agent/.env.example) 为准：
 |------|----------|------|
 | LangSmith | `LANGSMITH_API_KEY`、`LANGCHAIN_TRACING_V2`、`LANGCHAIN_PROJECT`、`LANGCHAIN_ENDPOINT` | Trace |
 | LLM | `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME` | SiliconFlow / OpenAI 兼容对话模型 |
-| Rewrite | `REWRITE_MODEL_NAME`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE` | Query rewrite 与条件跳过 |
-| Router | `RAG_ROUTER_MODE`、`RAG_ROUTER_MODEL_NAME` | RAG 规则/混合路由 |
+| Rewrite | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE` | Query rewrite、小任务输出/超时保护与条件跳过 |
+| Router | `RAG_ROUTER_MODE`、`RAG_ROUTER_MODEL_NAME`、`RAG_ROUTER_MAX_TOKENS`、`RAG_ROUTER_TIMEOUT_SECONDS` | RAG 规则/混合路由与分类小模型保护 |
 | Embedding | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS` | Qdrant 向量维度，默认 1024 |
 | Rerank | `RERANK_MODEL`、`RERANK_TOP_K` | rerank 模型与候选上限 |
 | Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`、`QDRANT_COLLECTION_MEM0`、`QDRANT_MOCK` | KB 与 mem0 分 collection |
@@ -227,6 +227,9 @@ sequenceDiagram
 
 - mem0、checkpoint history、rolling summary 并行读取。
 - rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
+- rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
+- rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。
+- rag_router 对个人/公司事实陈述直接跳过 RAG；hybrid LLM 仅处理规则不确定的查询，timeout 默认 5 秒且失败保守走 RAG。
 - RAG 可由 router 跳过。
 - summary/mem0 写入在 post_turn 异步执行。
 
@@ -340,8 +343,8 @@ LANGCHAIN_PROJECT=common-agent
 
 可观察节点与 metadata：
 
-- `rewrite`: `rewrite_skipped`、`rewrite_skip_reason`、mem0 facts 信息。
-- `rag_router`: 是否需要检索。
+- `rewrite`: `rewrite_skipped`、`rewrite_skip_reason`、`rewrite.model_name`、`rewrite.prompt_len`、`rewrite.fallback`、`rewrite.fallback_reason`、mem0 facts 信息。
+- `rag_router`: 是否需要检索、`rag_router.model_name`、`rag_router.prompt_len`、`rag_router.mode`、`rag_router.fallback`。
 - `retrieve` / `rerank`: role、query 长度、命中数、mock、second_pass。
 - `supervisor`、`guardrails_inbound`、`guardrails_outbound`。
 

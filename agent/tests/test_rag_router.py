@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from langchain_core.messages import AIMessage
 
 from gateway.schemas import ToolSpec
 from rag.router import (
@@ -59,6 +60,8 @@ def _settings(**extra: object) -> Settings:
         ("打开 pageA", "跳转到 pageA 页面", _JUMP_TOOLS, False),
         ("报销制度是什么", "公司的报销制度有哪些规定", None, True),
         ("打开 pageA 并说明报销制度", None, _JUMP_TOOLS, True),
+        ("我公司在天翔街188号", "我公司在天翔街188号", None, False),
+        ("我生活在哈尔滨", "我生活在哈尔滨", None, False),
     ],
 )
 def test_should_retrieve_rules_mode_table(
@@ -74,7 +77,37 @@ def test_classify_with_rules_decisions() -> None:
     assert classify_with_rules("你好") is RuleDecision.SKIP
     assert classify_with_rules("报销制度是什么") is RuleDecision.RETRIEVE
     assert classify_with_rules("打开 pageA", tools_context=_JUMP_TOOLS) is RuleDecision.SKIP
+    assert classify_with_rules("我公司在天翔街188号") is RuleDecision.SKIP
+    assert classify_with_rules("我生活在哈尔滨") is RuleDecision.SKIP
     assert classify_with_rules("帮我看看") is RuleDecision.UNCERTAIN
+
+
+def test_hybrid_skips_llm_for_user_fact_statement() -> None:
+    calls: list[str] = []
+    set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": true}')
+
+    result = should_retrieve(
+        "我公司在天翔街188号",
+        rewritten_query="我公司在天翔街188号",
+        mode="hybrid",
+    )
+
+    assert result is False
+    assert calls == []
+
+
+def test_hybrid_skips_llm_for_living_city_statement() -> None:
+    calls: list[str] = []
+    set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": true}')
+
+    result = should_retrieve(
+        "我生活在哈尔滨",
+        rewritten_query="我生活在哈尔滨",
+        mode="hybrid",
+    )
+
+    assert result is False
+    assert calls == []
 
 
 def test_parse_need_rag_json() -> None:
@@ -124,6 +157,14 @@ def test_rag_router_node_sets_rag_skipped() -> None:
     )
     assert out2 == {"rag_skipped": False}
 
+    out3 = rag_router_node(
+        {
+            "message": "我公司在天翔街188号",
+            "rewritten_query": "我公司在天翔街188号",
+        }
+    )
+    assert out3 == {"rag_skipped": True}
+
 
 def test_build_router_classifier_prompt_lists_tools() -> None:
     prompt = build_router_classifier_prompt(
@@ -148,3 +189,45 @@ def test_settings_rag_router_mode_validation() -> None:
 def test_settings_default_hybrid_mode() -> None:
     settings = _settings()
     assert settings.RAG_ROUTER_MODE == "hybrid"
+
+
+def test_router_uses_model_limits_from_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_settings_override(
+        _settings(
+            RAG_ROUTER_MODEL_NAME="router-model-v1",
+            RAG_ROUTER_MAX_TOKENS=12,
+            RAG_ROUTER_TIMEOUT_SECONDS=2.5,
+        )
+    )
+    captured: dict[str, object] = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            captured["model"] = kwargs.get("model")
+            captured["max_completion_tokens"] = kwargs.get("max_completion_tokens")
+            captured["timeout"] = kwargs.get("timeout")
+            captured["max_retries"] = kwargs.get("max_retries")
+
+        def invoke(self, _messages: list[object]) -> AIMessage:
+            return AIMessage(content='{"need_rag": false}')
+
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
+
+    result = classify_with_llm("帮我看看", rewritten_query="帮我看看")
+
+    assert result is False
+    assert captured["model"] == "router-model-v1"
+    assert captured["max_completion_tokens"] == 12
+    assert captured["timeout"] == 2.5
+    assert captured["max_retries"] == 0
+
+
+def test_classify_with_llm_returns_true_on_exception() -> None:
+    def boom(_prompt: str) -> str:
+        raise RuntimeError("router down")
+
+    set_router_classifier(boom)
+
+    assert classify_with_llm("帮我看看", rewritten_query="帮我看看") is True
