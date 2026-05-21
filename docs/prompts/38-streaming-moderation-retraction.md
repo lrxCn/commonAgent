@@ -1,5 +1,11 @@
 # 38 - 流式护栏与撤回事件
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：要在 optimistic streaming 下补撤回/替换语义，既要保留体验，也要守住出站护栏。
+
 ## 依赖
 
 37
@@ -57,4 +63,3 @@ uv run pytest tests/test_chat_sse.py tests/test_guardrails_outbound.py -v
 ## 进度更新
 
 `docs/progress.md` **38** → 实现完成后改为 `✅`。
-

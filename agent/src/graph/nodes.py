@@ -28,11 +28,13 @@ from graph.supervisor import (
     extract_latest_ai_text,
     invoke_supervisor,
 )
+from graph.turn_type import classify_turn_type
 from guardrails.inbound import check_inbound
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.assembly import build_context
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
+from observability.tracing import attach_run_metadata
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from rag.retriever import RagChunk
 from rag.rewrite import rewrite_node
@@ -45,6 +47,8 @@ from settings.config import get_settings
 _EPHEMERAL_CARRY_KEYS = (
     "mem0_memories",
     "rolling_summary",
+    "turn_type",
+    "turn_type_reason",
     "rewritten_query",
     "rag_skipped",
     "rag_chunks",
@@ -92,6 +96,10 @@ def _thread_id(config: RunnableConfig | None) -> str:
 
 def _extract_user_message(state: AgentState) -> str:
     messages = state.get("messages") or []
+    return _extract_user_message_from_messages(messages)
+
+
+def _extract_user_message_from_messages(messages: list[BaseMessage]) -> str:
     for message in reversed(messages):
         if isinstance(message, HumanMessage):
             return _text(message.content)
@@ -151,6 +159,19 @@ def load_memory_node(
         if len(incoming) == 1 and isinstance(incoming[0], HumanMessage):
             updates["messages"] = [*checkpoint_messages, incoming[0]]
 
+    classify_messages = cast(list[BaseMessage], updates.get("messages") or incoming)
+    decision = classify_turn_type(
+        _extract_user_message_from_messages(classify_messages),
+        tools_context=ctx.tools,
+    )
+    updates["turn_type"] = decision.turn_type.value
+    updates["turn_type_reason"] = decision.reason
+    attach_run_metadata(
+        {
+            "turn_type": decision.turn_type.value,
+            "turn_type_reason": decision.reason,
+        }
+    )
     return _merge_carry(state, updates)
 
 

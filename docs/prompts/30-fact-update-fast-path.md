@@ -1,5 +1,11 @@
 # 30 - fact_update 快速路径
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：会改变图路径并跳过 rewrite/RAG/Supervisor，需要保证模板回复、mem0 写入失败和 trace 都可验收。
+
 ## 依赖
 
 28, 29
@@ -58,4 +64,3 @@ uv run pytest tests/test_fact_update_fast_path.py tests/test_graph_invoke_mock.p
 ## 进度更新
 
 `docs/progress.md` **30** → 实现完成后改为 `✅`。
-

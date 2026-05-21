@@ -1,5 +1,11 @@
 # 28 - Turn Type 路由层
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：medium
+- 原因：新增图内分类与 metadata，风险中等，重点是保持现有执行路径不变。
+
 ## 依赖
 
 27
@@ -65,4 +71,3 @@ uv run pytest tests/test_turn_type.py tests/test_graph_invoke_mock.py -v
 ## 进度更新
 
 `docs/progress.md` **28** → 实现完成后改为 `✅`。
-

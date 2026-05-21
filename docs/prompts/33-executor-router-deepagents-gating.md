@@ -1,5 +1,11 @@
 # 33 - Executor Router 与 deepagents 分层启用
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：涉及 deepagents 保留与分层启用，是主图执行路径中风险最高的任务之一；若实现连续失败，再升到 xhigh。
+
 ## 依赖
 
 28, 29, 30, 31, 32
@@ -60,4 +66,3 @@ uv run pytest tests/test_executor_router.py tests/test_graph_invoke_mock.py test
 ## 进度更新
 
 `docs/progress.md` **33** → 实现完成后改为 `✅`。
-

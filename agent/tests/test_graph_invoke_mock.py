@@ -100,6 +100,20 @@ def test_invoke_appends_ai_message() -> None:
     assert "context" not in result
 
 
+def test_invoke_writes_turn_type_state() -> None:
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="我生活在哈尔滨")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-turn-type-1"}},
+    )
+
+    assert result.get("turn_type") == "fact_update"
+    assert result.get("turn_type_reason") == "fact_statement_rule"
+    assert result.get("rewritten_query") == "我生活在哈尔滨"
+    assert result.get("rag_skipped") is True
+
+
 def test_rag_skipped_does_not_call_retriever() -> None:
     retrieve_mock = MagicMock(return_value=[])
     import rag.retriever as retriever_mod

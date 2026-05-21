@@ -1,5 +1,11 @@
 # 39 - LangSmith Dataset 评测集与本地 seed
 
+## 建议执行模型
+
+- 模型：GPT-5.4
+- Reasoning：medium
+- 原因：主要是评测数据结构、脚本和文档，不直接改主链路。
+
 ## 依赖
 
 21, 29
@@ -63,4 +69,3 @@ uv run pytest tests/test_evals_seed.py -v
 ## 进度更新
 
 `docs/progress.md` **39** → 实现完成后改为 `✅`。
-

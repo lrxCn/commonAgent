@@ -1,5 +1,11 @@
 # 31 - chitchat 轻量执行器
 
+## 建议执行模型
+
+- 模型：GPT-5.4
+- Reasoning：medium
+- 原因：范围集中在模板/小模型回复与轻量路径，复杂度低于 fact_update 和 executor router。
+
 ## 依赖
 
 28, 29
@@ -50,4 +56,3 @@ uv run pytest tests/test_chitchat_executor.py tests/test_settings.py tests/test_
 ## 进度更新
 
 `docs/progress.md` **31** → 实现完成后改为 `✅`。
-

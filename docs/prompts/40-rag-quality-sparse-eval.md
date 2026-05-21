@@ -1,5 +1,11 @@
 # 40 - RAG 质量提升：sparse/BM25 与评测闭环
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：会改检索质量路径并接评测闭环，需要同时关注召回、排序、权限过滤和回归指标。
+
 ## 依赖
 
 20, 39
@@ -49,4 +55,3 @@ uv run pytest tests/test_rag_retrieval.py tests/test_kb_ingest.py tests/test_eva
 ## 进度更新
 
 `docs/progress.md` **40** → 实现完成后改为 `✅`。
-

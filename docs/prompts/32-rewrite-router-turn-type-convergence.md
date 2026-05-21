@@ -1,5 +1,11 @@
 # 32 - rewrite/router 按 turn_type 收敛
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：会收敛 rewrite/router 的触发条件，容易出现“答案对但路径错”的回归。
+
 ## 依赖
 
 28, 29, 30, 31
@@ -51,4 +57,3 @@ uv run pytest tests/test_rewrite.py tests/test_rag_router.py tests/test_path_con
 ## 进度更新
 
 `docs/progress.md` **32** → 实现完成后改为 `✅`。
-

@@ -1,5 +1,11 @@
 # 36 - 上下文预算控制
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：会影响 mem0、summary、RAG、tools、messages 的上下文组装，属于共享行为改动。
+
 ## 依赖
 
 29, 35
@@ -61,4 +67,3 @@ uv run pytest tests/test_context_assembly.py tests/test_supervisor.py tests/test
 ## 进度更新
 
 `docs/progress.md` **36** → 实现完成后改为 `✅`。
-

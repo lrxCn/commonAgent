@@ -1,5 +1,11 @@
 # 29 - Path Contract 路径契约与可观测性
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：medium
+- 原因：跨节点补观测字段和断言，不应大改业务路径，但需要看懂图执行流。
+
 ## 依赖
 
 28
@@ -66,4 +72,3 @@ uv run pytest tests/test_path_contract.py tests/test_tracing.py -v
 ## 进度更新
 
 `docs/progress.md` **29** → 实现完成后改为 `✅`。
-

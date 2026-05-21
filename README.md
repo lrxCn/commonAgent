@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-27 已完成，另含 13.5 修复任务；28-40 为运行时优化待执行任务 |
+| 核心任务 | 01-28 已完成，另含 13.5 修复任务；29-40 为运行时优化待执行任务 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
@@ -18,7 +18,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 1. 先读本 README，确认全局契约和当前目标态。
 2. 再读 [docs/progress.md](docs/progress.md)，确认依赖、完成状态和最近变更。
-3. 若执行任务卡，只做当前 [docs/prompts/](docs/prompts/) 中指定的一张卡；依赖未完成时先停下说明。
+3. 若执行任务卡，只做当前 [docs/prompts/](docs/prompts/) 中指定的一张卡；执行前必须检查任务卡的 `## 建议执行模型`，模型/reasoning 不匹配时先提醒用户切换，除非用户明确要求直接执行。
 4. 若修改任务卡导致架构、API、记忆、RAG、`client_actions` 或目录契约变化，必须同步修改本 README。
 5. 修改 `.env` 契约时同步 `agent/.env.example` 或 `back/.env.example`，真实密钥不要入库。
 6. 不要把 `user_id` / `role_id` / `tools[]` 写进 checkpoint state 当权限依据；每轮必须从 request context 读取。
@@ -149,7 +149,7 @@ Back 变量见 [back/.env.example](back/.env.example)：`AGENT_URL`、`BACK_HOST
 
 | 机制 | 内容 | 持久化 | 来源 |
 |------|------|--------|------|
-| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`rewritten_query`、`rag_chunks`、`system_prompt` 等单轮字段用 `EphemeralValue` | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
+| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`turn_type`、`turn_type_reason`、`rewritten_query`、`rag_chunks`、`system_prompt` 等单轮字段用 `EphemeralValue` | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
 | `context_schema` / `GraphContextSchema` | `user_id`、`role_id`、`tools[]`，与 `gateway.schemas.RequestContext` 同构 | 不进入 checkpoint 作为权限依据 | 每轮 `graph.invoke(..., context=...)` |
 | `configurable.thread_id` | 会话键 | checkpointer 主键 | 每轮 `config={"configurable": {"thread_id": ...}}` |
 
@@ -207,6 +207,7 @@ sequenceDiagram
     G->>G: mem0 get_all(user_id)
     G->>G: checkpoint history + rolling summary
   end
+  G->>G: turn_type classify (metadata only)
   G->>G: rewrite (rules skip or LLM)
   G->>G: rag_router
   alt need RAG
@@ -229,6 +230,7 @@ sequenceDiagram
 性能原则：
 
 - mem0、checkpoint history、rolling summary 并行读取。
+- turn_type 在 `load_memory` 后确定，当前只写入 `AgentState` 单轮字段和 LangSmith metadata，不改变 rewrite、RAG、Supervisor 执行路径。
 - rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。

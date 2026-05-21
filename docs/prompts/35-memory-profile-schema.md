@@ -1,5 +1,11 @@
 # 35 - memory_profile 类别化记忆视图
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：会引入结构化记忆语义，必须处理好 mem0 自由文本、profile 字段和权限/用户边界。
+
 ## 依赖
 
 34
@@ -59,4 +65,3 @@ uv run pytest tests/test_memory_profile.py tests/test_context_assembly.py -v
 ## 进度更新
 
 `docs/progress.md` **35** → 实现完成后改为 `✅`。
-

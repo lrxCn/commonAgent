@@ -1,5 +1,11 @@
 # 34 - mem0 小模型配置与写入可观测性
 
+## 建议执行模型
+
+- 模型：GPT-5.4
+- Reasoning：medium
+- 原因：主要是配置、trace 和失败观测，风险来自 mem0 写入链路，不需要最高推理档。
+
 ## 依赖
 
 17, 24, 28, 29
@@ -50,4 +56,3 @@ uv run pytest tests/test_settings.py tests/test_mem0_read.py tests/test_mem0_wri
 ## 进度更新
 
 `docs/progress.md` **34** → 实现完成后改为 `✅`。
-

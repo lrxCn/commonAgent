@@ -38,10 +38,14 @@ When executing one task under `docs/prompts/`:
 
 1. Identify exactly one task card.
 2. Read `README.md`, `docs/progress.md`, then the task card.
-3. Check dependencies in `docs/progress.md`; stop if required dependencies are not complete.
-4. Implement only the task scope. Do not take adjacent tasks.
-5. Run the task card's test plan.
-6. Only after tests pass, update `docs/progress.md` if the task status changes.
+3. Check the task card's `## 建议执行模型` section before implementation.
+   - If the current model or reasoning effort differs from the recommendation, stop and tell the user the recommended model/reasoning. Do not implement yet.
+   - If the runtime cannot expose the current model or reasoning effort, treat it as unknown and ask the user to confirm or switch before implementation.
+   - If the user explicitly says to ignore the recommendation or execute directly with the current model, continue.
+4. Check dependencies in `docs/progress.md`; stop if required dependencies are not complete.
+5. Implement only the task scope. Do not take adjacent tasks.
+6. Run the task card's test plan.
+7. Only after tests pass, update `docs/progress.md` if the task status changes.
 
 ## Contract Change Workflow
 

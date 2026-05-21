@@ -24,6 +24,8 @@ class AgentState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     mem0_memories: Annotated[list[str], EphemeralValue]
     rolling_summary: Annotated[str | None, EphemeralValue]
+    turn_type: Annotated[str, EphemeralValue]
+    turn_type_reason: Annotated[str, EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]
     rag_chunks: Annotated[list[RagChunk], EphemeralValue]

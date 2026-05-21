@@ -1,5 +1,11 @@
 # 37 - Chat 真流式 SSE
 
+## 建议执行模型
+
+- 模型：GPT-5.5
+- Reasoning：high
+- 原因：涉及 Gateway、图调用和 SSE 时序，容易出现首 token、done、client_actions 顺序问题。
+
 ## 依赖
 
 18, 33
@@ -63,4 +69,3 @@ uv run pytest tests/test_back_forward.py -v
 ## 进度更新
 
 `docs/progress.md` **37** → 实现完成后改为 `✅`。
-
