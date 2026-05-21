@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-27 已完成，另含 13.5 修复任务 |
+| 核心任务 | 01-27 已完成，另含 13.5 修复任务；28-40 为运行时优化待执行任务 |
 | Agent | FastAPI Gateway + LangGraph 主图 + Postgres Checkpointer + mem0 + RAG |
 | Back | 占位 FastAPI，模拟鉴权、注入 context、转发 Agent |
 | Front | 占位单页，sessionStorage `thread_id`，SSE 展示，client_actions demo |
@@ -60,7 +60,10 @@ commonAgent/
 │   ├── .env.example
 │   └── pyproject.toml
 ├── docs/
-│   ├── prd1.md
+│   ├── prd/
+│   │   ├── common-agent-architecture.md
+│   │   ├── agent-runtime-optimization.md
+│   │   └── agent-architecture-learning-notes.md
 │   ├── origin.md
 │   ├── progress.md
 │   └── prompts/           # 可执行任务卡

@@ -2,18 +2,18 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[prd1.md](./prd1.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md)
 
 ## 总览
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 28 |
+| 总任务数 | 41 |
 | 已完成 | 28 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：第一期任务与 27 号延迟优化已完成；下一步按真实联调 trace 继续观察 rewrite/router P95。
+**当前建议下一步**：执行任务 28 Turn Type 路由层，作为运行时优化任务链入口；28 完成后再逐步执行 29-40。
 
 
 ---
@@ -52,6 +52,19 @@
 | 25 | [State 精简：移除 mem0_text](./prompts/25-state-mem0-text-cleanup.md) | ✅ | 2026-05-20 | 移除 state `mem0_text`；rewrite 内格式化；`test_graph_load_memory` + tracing metadata |
 | 26 | [Rewrite 条件跳过（降延迟）](./prompts/26-rewrite-conditional-skip.md) | ✅ | 2026-05-20 | `should_rewrite`+`rag/intent.py`；`rewrite_passthrough` tracing；`test_rewrite.py` 17 用例 |
 | 27 | [Rewrite / RAG Router 小模型与超时保护](./prompts/27-rewrite-router-small-model.md) | ✅ | 2026-05-21 | `Qwen/Qwen2.5-7B-Instruct`；rewrite/router max token + timeout；个人/公司事实 passthrough + router skip RAG |
+| 28 | [Turn Type 路由层](./prompts/28-turn-type-routing.md) | ⬜ | — | 统一 `turn_type` 分类；先只写 state/metadata，不改执行路径 |
+| 29 | [Path Contract 路径契约与可观测性](./prompts/29-path-contract-observability.md) | ⬜ | — | 记录 should/called、LLM 调用次数与 path contract 结果 |
+| 30 | [fact_update 快速路径](./prompts/30-fact-update-fast-path.md) | ⬜ | — | 模板确认 + 异步 mem0；跳过 rewrite/RAG/Supervisor |
+| 31 | [chitchat 轻量执行器](./prompts/31-chitchat-lightweight-executor.md) | ⬜ | — | 模板/小模型回复；跳过 RAG 与主模型 |
+| 32 | [rewrite/router 按 turn_type 收敛](./prompts/32-rewrite-router-turn-type-convergence.md) | ⬜ | — | 消费 `turn_type`，减少小模型调用 |
+| 33 | [Executor Router 与 deepagents 分层启用](./prompts/33-executor-router-deepagents-gating.md) | ⬜ | — | deepagents 仅复杂任务启用；简单路径走轻量 executor |
+| 34 | [mem0 小模型配置与写入可观测性](./prompts/34-mem0-small-model-observability.md) | ⬜ | — | mem0 infer 使用专用小模型；写入失败可追踪 |
+| 35 | [memory_profile 类别化记忆视图](./prompts/35-memory-profile-schema.md) | ⬜ | — | 高稳定事实 schema 化；保留 mem0 自由文本 |
+| 36 | [上下文预算控制](./prompts/36-context-budget-controls.md) | ⬜ | — | 为 mem0、summary、RAG、tools、messages 设置明确预算 |
+| 37 | [Chat 真流式 SSE](./prompts/37-chat-true-streaming-sse.md) | ⬜ | — | 首 token 真流式；`client_actions` 仍结构化输出 |
+| 38 | [流式护栏与撤回事件](./prompts/38-streaming-moderation-retraction.md) | ⬜ | — | optimistic streaming；增加 retract/replace SSE 事件 |
+| 39 | [LangSmith Dataset 评测集与本地 seed](./prompts/39-langsmith-dataset-evals.md) | ⬜ | — | `answer_score` + `path_score`；本地 seed 同步 Dataset |
+| 40 | [RAG 质量提升：sparse/BM25 与评测闭环](./prompts/40-rag-quality-sparse-eval.md) | ⬜ | — | sparse/BM25 + RAG eval + `role_id` 防越权评测 |
 
 ---
 
@@ -87,7 +100,7 @@
 | 2026-05-19 | 完成任务 21：`observability/tracing.py`；rewrite/router/retrieve/rerank/supervisor/guardrails span；README LangSmith 查看说明 |
 | 2026-05-19 | 完成任务 22：`back/` 占位网关；demo context + 转发 `/internal/chat`；respx mock 测试 6 用例 |
 | 2026-05-19 | 完成任务 23：`front/` 占位页；手动测试说明；Back 增加 Front CORS；**第一期完成** |
-| 2026-05-20 | 文档：新增任务 **24** [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md)；同步根 README、prd1 记忆写入说明（目标态） |
+| 2026-05-20 | 文档：新增任务 **24** [mem0 All-in（infer=True）](./prompts/24-allin-mem0.md)；同步根 README、架构 PRD 记忆写入说明（目标态） |
 | 2026-05-20 | 完成任务 24：mem0 `infer=True` 写入；移除应用层 `mem0_extract` 热路径 |
 | 2026-05-20 | 文档：新增任务 **25** [State 精简 mem0_text](./prompts/25-state-mem0-text-cleanup.md)；根 README 同步目标态（仅 `mem0_memories`） |
 | 2026-05-20 | 完成任务 25：AgentState 仅 `mem0_memories`；rewrite 节点内 `format_mem0_for_system` |
@@ -99,3 +112,4 @@
 | 2026-05-21 | 完成任务 27：rewrite/router 小模型配置、`max_completion_tokens`、timeout、fallback metadata 与 `.env.example`/本机 `.env` 同步 |
 | 2026-05-21 | 修复任务 27 真实 trace 回归：rewrite 对「我出生于1997年」类个人事实陈述跳过 LLM；LLM 篡改数字时回退原文 |
 | 2026-05-21 | 修复任务 27 router timeout 回归：`rag_router` 对「我公司在天翔街188号」类公司事实陈述直接 skip RAG；router timeout 默认 5 秒且小任务 LLM 禁用自动重试 |
+| 2026-05-21 | 文档：基于运行时优化 PRD 新增任务 28-40，将 turn_type、路径契约、快速路径、deepagents 分层、流式与评测拆成小任务卡 |
