@@ -45,7 +45,15 @@ def test_turn_messages_to_mem0_payload_roles() -> None:
 
 
 def test_extract_and_store_calls_add_with_raw_turn_and_infer_true() -> None:
-    set_settings_override(Settings(**{**_REQUIRED_ENV, "MEM0_MOCK": False}))  # type: ignore[arg-type]
+    set_settings_override(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_MOCK": False,
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            }
+        )
+    )  # type: ignore[arg-type]
 
     add_mock = MagicMock(
         return_value={"results": [{"memory": "用户名叫刘日兴", "event": "ADD"}]}
@@ -58,7 +66,9 @@ def test_extract_and_store_calls_add_with_raw_turn_and_infer_true() -> None:
     ]
     stored = extract_and_store("user-99", turn)
 
-    assert stored == ["用户名叫刘日兴"]
+    assert stored.status == "stored"
+    assert list(stored.stored_memories) == ["用户名叫刘日兴"]
+    assert stored.stored_count == 1
     add_mock.assert_called_once()
     payload, kwargs = add_mock.call_args
     assert kwargs["user_id"] == "user-99"
@@ -72,7 +82,15 @@ def test_extract_and_store_calls_add_with_raw_turn_and_infer_true() -> None:
 
 
 def test_extract_and_store_skips_when_mem0_mock() -> None:
-    set_settings_override(Settings(**{**_REQUIRED_ENV, "MEM0_MOCK": True}))  # type: ignore[arg-type]
+    set_settings_override(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_MOCK": True,
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            }
+        )
+    )  # type: ignore[arg-type]
     add_mock = MagicMock()
     set_mem0_add_fn(add_mock)
 
@@ -81,12 +99,58 @@ def test_extract_and_store_skips_when_mem0_mock() -> None:
         [HumanMessage(content="hello")],
     )
 
-    assert stored == []
+    assert stored.status == "skipped_mock"
     add_mock.assert_not_called()
 
 
 def test_build_mem0_config_includes_custom_instructions() -> None:
-    config = build_mem0_config(Settings(**_REQUIRED_ENV))  # type: ignore[arg-type]
+    config = build_mem0_config(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            }
+        )
+    )  # type: ignore[arg-type]
     instructions = config.get("custom_instructions", "")
     assert "stable preferences" in instructions.lower()
     assert "user messages" in instructions.lower()
+
+
+def test_build_mem0_config_uses_dedicated_small_model() -> None:
+    config = build_mem0_config(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "OPENAI_MODEL_NAME": "Pro/moonshotai/Kimi-K2.6",
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+                "MEM0_LLM_MAX_TOKENS": 96,
+                "MEM0_LLM_TIMEOUT_SECONDS": 4.5,
+            }
+        )
+    )  # type: ignore[arg-type]
+
+    llm = config["llm"]["config"]
+    assert llm["model"] == "Qwen/Qwen2.5-7B-Instruct"
+    assert llm["model"] != "Pro/moonshotai/Kimi-K2.6"
+    assert llm["max_tokens"] == 96
+    assert llm["timeout"] == 4.5
+
+
+def test_extract_and_store_returns_failed_reason_on_add_error() -> None:
+    set_settings_override(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_MOCK": False,
+                "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            }
+        )
+    )  # type: ignore[arg-type]
+    set_mem0_add_fn(MagicMock(side_effect=RuntimeError("mem0 down")))
+
+    stored = extract_and_store("user-1", [HumanMessage(content="hello")])
+
+    assert stored.status == "failed"
+    assert stored.reason == "RuntimeError"
+    assert stored.stored_count == 0

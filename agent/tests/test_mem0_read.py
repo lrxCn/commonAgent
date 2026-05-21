@@ -34,7 +34,13 @@ def _clean_mem0_and_settings() -> None:
 
 
 def _settings(**extra: object) -> Settings:
-    return Settings(**{**_REQUIRED_ENV, **extra})  # type: ignore[arg-type]
+    return Settings(
+        **{
+            **_REQUIRED_ENV,
+            "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            **extra,
+        }
+    )  # type: ignore[arg-type]
 
 
 def test_parse_memories_from_get_all_results() -> None:

@@ -138,7 +138,7 @@ Agent 变量以 [agent/.env.example](agent/.env.example) 为准：
 | Embedding | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS` | Qdrant 向量维度，默认 1024 |
 | Rerank | `RERANK_MODEL`、`RERANK_TOP_K` | rerank 模型与候选上限 |
 | Qdrant | `QDRANT_HOST`、`QDRANT_PORT`、`QDRANT_COLLECTION_KB`、`QDRANT_COLLECTION_MEM0`、`QDRANT_MOCK` | KB 与 mem0 分 collection |
-| mem0 | `MEM0_MOCK`、`MEM0_READ_LIMIT` | 本地 OSS mem0 |
+| mem0 | `MEM0_MOCK`、`MEM0_READ_LIMIT`、`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS` | 本地 OSS mem0 与 infer 写入小模型配置 |
 | Postgres | `DATABASE_URL` | LangGraph Checkpointer |
 | Gateway | `AGENT_HOST`、`AGENT_PORT` | Agent HTTP 入口 |
 | Guardrails | `GUARDRAILS_ENABLED` | 入站/出站文本护栏 |
@@ -182,6 +182,7 @@ mem0 约束：
 - 禁止 mem0 托管云、`MemoryClient`、`MEM0_API_KEY`、`api.mem0.ai`。
 - `MEM0_MOCK=true` 时跳过 mem0/Qdrant 读取，返回空列表。
 - post_turn 将本轮 user/assistant 原文传给 `Memory.add(..., infer=True)`；抽取、已有记忆检索、hash 去重由 mem0 管线负责。
+- mem0 infer 写入使用专用小模型配置：`MEM0_LLM_MODEL_NAME`、`MEM0_LLM_MAX_TOKENS`、`MEM0_LLM_TIMEOUT_SECONDS`；不要回退到 `OPENAI_MODEL_NAME`，避免后台成本和队列压力跟主模型绑定。
 - 抽取规则在 [agent/src/memory/prompts/mem0_custom_instructions.txt](agent/src/memory/prompts/mem0_custom_instructions.txt)。
 - mem0 可能在 `~/.mem0/history.db` 或 `MEM0_DIR` 存辅助 SQLite；向量仍在 Qdrant。
 
@@ -252,6 +253,7 @@ sequenceDiagram
 - rag_router 对个人/公司事实陈述直接跳过 RAG；hybrid LLM 仅处理规则不确定的查询，timeout 默认 5 秒且失败保守走 RAG。
 - RAG 可由 router 跳过。
 - summary/mem0 写入在 post_turn 异步执行。
+- mem0 写入失败会输出结构化日志和 trace metadata（`mem0_write.status`、`mem0_write.reason`、`mem0_write.stored_count`），但不会阻塞当前 chat 响应。
 
 ## RAG
 

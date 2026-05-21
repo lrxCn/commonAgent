@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -14,11 +15,23 @@ from memory.mem0_client import (
     parse_memories_from_get_all,
     _require_user_id,
 )
+from observability.tracing import attach_run_metadata
 from settings.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 _memory_add_override: Callable[..., Any] | None = None
+
+
+@dataclass(frozen=True)
+class Mem0WriteResult:
+    status: str
+    stored_memories: tuple[str, ...] = ()
+    reason: str = ""
+
+    @property
+    def stored_count(self) -> int:
+        return len(self.stored_memories)
 
 
 def set_mem0_add_fn(fn: Callable[..., Any] | None) -> None:
@@ -52,17 +65,21 @@ def extract_and_store(
     turn_messages: Sequence[BaseMessage],
     *,
     model_name: str | None = None,
-) -> list[str]:
-    """Store one turn via mem0 ``Memory.add(..., infer=True)``; returns new memory texts."""
+) -> Mem0WriteResult:
+    """Store one turn via mem0 ``Memory.add(..., infer=True)`` with structured status."""
     del model_name  # mem0 uses MemoryConfig LLM; kept for call-site compatibility
     uid = _require_user_id(user_id)
     settings = get_settings()
     if settings.MEM0_MOCK:
-        return []
+        result = Mem0WriteResult(status="skipped_mock")
+        attach_run_metadata({"mem0_write.status": result.status, "mem0_write.reason": ""})
+        return result
 
     payload = turn_messages_to_mem0_payload(turn_messages)
     if not payload:
-        return []
+        result = Mem0WriteResult(status="skipped_empty_payload")
+        attach_run_metadata({"mem0_write.status": result.status, "mem0_write.reason": ""})
+        return result
 
     try:
         if _memory_add_override is not None:
@@ -72,14 +89,35 @@ def extract_and_store(
             raw = memory.add(payload, user_id=uid, infer=True)
     except Mem0UserIdError:
         raise
-    except Exception:
-        logger.exception("mem0_write.store_failed", extra={"user_id": uid})
-        return []
+    except Exception as exc:
+        result = Mem0WriteResult(status="failed", reason=type(exc).__name__)
+        logger.exception(
+            "mem0_write.store_failed",
+            extra={"user_id": uid, "reason": result.reason},
+        )
+        attach_run_metadata(
+            {
+                "mem0_write.status": result.status,
+                "mem0_write.reason": result.reason,
+                "mem0_write.stored_count": 0,
+            }
+        )
+        return result
 
     stored = parse_memories_from_get_all(raw)
+    result = Mem0WriteResult(status="stored", stored_memories=tuple(stored))
     if stored:
         logger.info(
             "mem0_write.stored",
             extra={"user_id": uid, "count": len(stored)},
         )
-    return stored
+    else:
+        result = Mem0WriteResult(status="stored_empty")
+    attach_run_metadata(
+        {
+            "mem0_write.status": result.status,
+            "mem0_write.reason": result.reason,
+            "mem0_write.stored_count": result.stored_count,
+        }
+    )
+    return result

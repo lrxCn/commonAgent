@@ -198,6 +198,18 @@ class Settings(BaseSettings):
         default=50,
         description="Maximum number of mem0 facts to fetch per user via get_all top_k.",
     )
+    MEM0_LLM_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Dedicated small model for mem0 infer writes; required to avoid falling back to OPENAI_MODEL_NAME.",
+    )
+    MEM0_LLM_MAX_TOKENS: int = Field(
+        default=128,
+        description="Maximum completion tokens for mem0 infer extraction calls.",
+    )
+    MEM0_LLM_TIMEOUT_SECONDS: float = Field(
+        default=10,
+        description="Timeout in seconds for mem0 infer extraction calls.",
+    )
 
     # --- Postgres ---
     DATABASE_URL: str = Field(
@@ -256,6 +268,7 @@ class Settings(BaseSettings):
         "REWRITE_MODEL_NAME",
         "CHITCHAT_MODEL_NAME",
         "RAG_ROUTER_MODEL_NAME",
+        "MEM0_LLM_MODEL_NAME",
         "RAG_SUBAGENT_TOP_K",
         mode="before",
     )

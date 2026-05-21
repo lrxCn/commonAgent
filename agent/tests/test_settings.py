@@ -152,6 +152,9 @@ def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.MEM0_MOCK is False
     assert settings.QDRANT_COLLECTION_MEM0 == "common_agent_mem0"
     assert settings.MEM0_READ_LIMIT == 50
+    assert settings.MEM0_LLM_MODEL_NAME is None
+    assert settings.MEM0_LLM_MAX_TOKENS == 128
+    assert settings.MEM0_LLM_TIMEOUT_SECONDS == 10
 
 
 def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -179,6 +182,9 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
         CHITCHAT_TIMEOUT_SECONDS="2.5",
         RAG_ROUTER_MAX_TOKENS="16",
         RAG_ROUTER_TIMEOUT_SECONDS="3.25",
+        MEM0_LLM_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
+        MEM0_LLM_MAX_TOKENS="96",
+        MEM0_LLM_TIMEOUT_SECONDS="4.5",
     )
     assert settings.REWRITE_MAX_TOKENS == 48
     assert settings.REWRITE_TIMEOUT_SECONDS == 7.5
@@ -187,3 +193,6 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.CHITCHAT_TIMEOUT_SECONDS == 2.5
     assert settings.RAG_ROUTER_MAX_TOKENS == 16
     assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 3.25
+    assert settings.MEM0_LLM_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
+    assert settings.MEM0_LLM_MAX_TOKENS == 96
+    assert settings.MEM0_LLM_TIMEOUT_SECONDS == 4.5

@@ -41,6 +41,8 @@ def _load_custom_instructions() -> str:
 
 def build_mem0_config(settings: Settings) -> dict[str, Any]:
     """Build mem0 OSS config: Qdrant vector store + OpenAI-compatible LLM/embedder."""
+    if not (settings.MEM0_LLM_MODEL_NAME or "").strip():
+        raise ValueError("MEM0_LLM_MODEL_NAME must be configured for mem0 infer writes")
     config: dict[str, Any] = {
         "vector_store": {
             "provider": "qdrant",
@@ -54,10 +56,12 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
         "llm": {
             "provider": "openai",
             "config": {
-                "model": settings.OPENAI_MODEL_NAME,
+                "model": settings.MEM0_LLM_MODEL_NAME.strip(),
                 "api_key": settings.OPENAI_API_KEY,
                 "openai_base_url": settings.OPENAI_BASE_URL,
                 "temperature": 0.1,
+                "max_tokens": settings.MEM0_LLM_MAX_TOKENS,
+                "timeout": settings.MEM0_LLM_TIMEOUT_SECONDS,
             },
         },
         "embedder": {

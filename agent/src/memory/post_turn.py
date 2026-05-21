@@ -54,11 +54,32 @@ def _run_post_turn_jobs(
         )
 
     try:
-        extract_and_store(user_id, turn_messages)
+        write_result = extract_and_store(user_id, turn_messages)
     except Exception:
         logger.exception(
             "post_turn.mem0_write_failed",
             extra={"thread_id": thread_id, "user_id": user_id},
+        )
+        return
+
+    if write_result.status == "failed":
+        logger.error(
+            "post_turn.mem0_write_failed",
+            extra={
+                "thread_id": thread_id,
+                "user_id": user_id,
+                "reason": write_result.reason,
+            },
+        )
+    else:
+        logger.info(
+            "post_turn.mem0_write_completed",
+            extra={
+                "thread_id": thread_id,
+                "user_id": user_id,
+                "status": write_result.status,
+                "stored_count": write_result.stored_count,
+            },
         )
 
 
