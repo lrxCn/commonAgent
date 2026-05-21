@@ -36,6 +36,8 @@ from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import (
     finalize_path_metrics,
+    mark_fast_path,
+    mark_post_turn_schedule,
     new_path_metrics,
     update_path_component,
 )
@@ -66,6 +68,8 @@ _EPHEMERAL_CARRY_KEYS = (
     "client_actions",
     "client_actions_error",
 )
+
+FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/事实参考。"
 
 
 def _ephemeral_carry(state: AgentState) -> dict[str, object]:
@@ -183,6 +187,29 @@ def load_memory_node(
         }
     )
     return _merge_carry(state, updates)
+
+
+def route_after_load_memory(state: AgentState) -> Literal["fact_update_confirm", "rewrite"]:
+    """Route fact updates to the template fast path after turn classification."""
+    if state.get("turn_type") == "fact_update":
+        return "fact_update_confirm"
+    return "rewrite"
+
+
+def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
+    """Append a deterministic confirmation without rewrite/RAG/Supervisor."""
+    path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
+    return _merge_carry(
+        state,
+        {
+            "messages": [AIMessage(content=FACT_UPDATE_CONFIRMATION)],
+            "supervisor_draft": FACT_UPDATE_CONFIRMATION,
+            "client_actions": None,
+            "client_actions_error": None,
+            "outbound_blocked": False,
+            "path_metrics": path_metrics,
+        },
+    )
 
 
 def rewrite_graph_node(state: AgentState) -> dict[str, object]:
@@ -425,20 +452,33 @@ def post_turn_jobs_node(
         return _merge_carry(state, {})
 
     finalized_metrics = finalize_path_metrics(state.get("path_metrics"))
-    attach_run_metadata(build_path_contract_trace_metadata(finalized_metrics))
 
     ctx = request_context_from_runtime(runtime)
     thread_id = _thread_id(config)
     turn_messages = extract_current_turn_messages(state.get("messages") or [])
     if not turn_messages:
-        return _merge_carry(state, {"path_metrics": finalized_metrics})
+        metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
+        attach_run_metadata(build_path_contract_trace_metadata(metrics))
+        return _merge_carry(state, {"path_metrics": metrics})
 
-    schedule_post_turn_jobs(
-        thread_id=thread_id,
-        user_id=ctx.user_id,
-        turn_messages=turn_messages,
-    )
-    return _merge_carry(state, {"path_metrics": finalized_metrics})
+    try:
+        schedule_post_turn_jobs(
+            thread_id=thread_id,
+            user_id=ctx.user_id,
+            turn_messages=turn_messages,
+        )
+    except Exception as exc:
+        metrics = mark_post_turn_schedule(
+            finalized_metrics,
+            scheduled=False,
+            error=type(exc).__name__,
+        )
+        attach_run_metadata(build_path_contract_trace_metadata(metrics))
+        return _merge_carry(state, {"path_metrics": metrics})
+
+    metrics = mark_post_turn_schedule(finalized_metrics, scheduled=True)
+    attach_run_metadata(build_path_contract_trace_metadata(metrics))
+    return _merge_carry(state, {"path_metrics": metrics})
 
 
 def outbound_guard_node(state: AgentState) -> dict[str, object]:

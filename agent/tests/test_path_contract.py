@@ -76,12 +76,13 @@ def test_fact_update_path_contract_skips_small_llms_and_rag() -> None:
 
     metrics = result["path_metrics"]
     assert metrics["turn_type"] == "fact_update"
+    assert metrics["fast_path"] is True
     assert metrics["path_contract"] == "pass"
-    assert metrics["llm_call_count"] == 1
+    assert metrics["llm_call_count"] == 0
     assert metrics["rewrite"] == {"should_call": False, "called": False}
     assert metrics["rag_router"] == {"should_call": False, "called": False}
     assert metrics["rag"] == {"should_call": False, "called": False}
-    assert metrics["supervisor"] == {"should_call": True, "called": True}
+    assert metrics["supervisor"] == {"should_call": False, "called": False}
 
 
 def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:

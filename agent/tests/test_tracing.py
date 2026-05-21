@@ -42,6 +42,7 @@ def test_is_tracing_enabled_respects_env(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_configure_tracing_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LANGCHAIN_TRACING_V2", raising=False)
+    monkeypatch.delenv("LANGCHAIN_API_KEY", raising=False)
     settings = Settings(
         **_REQUIRED_ENV,  # type: ignore[arg-type]
         LANGCHAIN_TRACING_V2=False,

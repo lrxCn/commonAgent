@@ -30,6 +30,8 @@ def new_path_metrics(
         "fast_path": fast_path,
         "llm_call_count": 0,
         "fallback_count": 0,
+        "post_turn_scheduled": False,
+        "post_turn_schedule_error": "",
         "path_contract": "unknown",
         "path_contract_reason": "not_finalized",
     }
@@ -71,6 +73,30 @@ def update_path_component(
     if called is not None:
         component_metrics["called"] = bool(called)
     updated[component] = component_metrics
+    return updated
+
+
+def mark_fast_path(
+    metrics: Mapping[str, Any] | None,
+    *,
+    enabled: bool = True,
+) -> dict[str, Any]:
+    """Mark whether this turn used a graph fast path."""
+    updated = ensure_path_metrics(metrics)
+    updated["fast_path"] = bool(enabled)
+    return updated
+
+
+def mark_post_turn_schedule(
+    metrics: Mapping[str, Any] | None,
+    *,
+    scheduled: bool,
+    error: str = "",
+) -> dict[str, Any]:
+    """Record whether post-turn background work was scheduled."""
+    updated = ensure_path_metrics(metrics)
+    updated["post_turn_scheduled"] = bool(scheduled)
+    updated["post_turn_schedule_error"] = str(error or "")
     return updated
 
 
@@ -119,6 +145,8 @@ def path_metrics_metadata(metrics: Mapping[str, Any] | None) -> dict[str, Any]:
         "llm_call_count": finalized["llm_call_count"],
         "fallback_count": finalized.get("fallback_count", 0),
         "fast_path": finalized.get("fast_path", False),
+        "post_turn_scheduled": finalized.get("post_turn_scheduled", False),
+        "post_turn_schedule_error": finalized.get("post_turn_schedule_error", ""),
     }
     for component in COMPONENTS:
         values = finalized.get(component) or {}

@@ -207,21 +207,25 @@ sequenceDiagram
     G->>G: mem0 get_all(user_id)
     G->>G: checkpoint history + rolling summary
   end
-  G->>G: turn_type classify (metadata only)
-  G->>G: rewrite (rules skip or LLM)
-  G->>G: rag_router
-  alt need RAG
-    G->>G: retrieve(role_id, rewritten_query)
-  end
-  opt primary chunks empty or low score
-    G->>G: RagSubAgent second retrieval
-  end
-  G->>G: context_assembly
-  G->>G: Supervisor
-  alt client_actions
-    G->>G: persist assistant message with actions
-  else text
-    G->>G: outbound_guard
+  G->>G: turn_type classify
+  alt fact_update
+    G->>G: template confirmation
+  else normal path
+    G->>G: rewrite (rules skip or LLM)
+    G->>G: rag_router
+    alt need RAG
+      G->>G: retrieve(role_id, rewritten_query)
+    end
+    opt primary chunks empty or low score
+      G->>G: RagSubAgent second retrieval
+    end
+    G->>G: context_assembly
+    G->>G: Supervisor
+    alt client_actions
+      G->>G: persist assistant message with actions
+    else text
+      G->>G: outbound_guard
+    end
   end
   G-->>Back: SSE text or JSON client_actions
   Note over G: async post_turn: summary + mem0 add(infer=true)
@@ -230,8 +234,9 @@ sequenceDiagram
 性能原则：
 
 - mem0、checkpoint history、rolling summary 并行读取。
-- turn_type 在 `load_memory` 后确定，当前只写入 `AgentState` 单轮字段和 LangSmith metadata，不改变 rewrite、RAG、Supervisor 执行路径。
-- path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata；该契约只做可观测性，不改变业务路径。
+- turn_type 在 `load_memory` 后确定；`fact_update` 直接走模板确认快速路径，其余类型继续正常路径。
+- `fact_update` 快速路径跳过 rewrite、rag_router、RAG、RagSubAgent、context assembly、Supervisor 和 outbound guard；当前 human 与模板 assistant 仍写入 checkpoint，并继续调度 post_turn summary + mem0 写入。模板确认只表示已接收事实，不承诺 mem0 已持久化成功。
+- path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`fast_path`、`post_turn_scheduled`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata。
 - rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。

@@ -9,10 +9,12 @@ from langgraph.graph import END, START, StateGraph
 from graph.nodes import (
     client_actions_emit_node,
     context_assembly_node,
+    fact_update_confirm_node,
     inbound_guard_node,
     load_memory_node,
     outbound_guard_node,
     post_turn_jobs_node,
+    route_after_load_memory,
     rag_retrieval_graph_node,
     rag_router_graph_node,
     rag_subagent_graph_node,
@@ -41,6 +43,7 @@ def compile_graph(
 
     builder.add_node("inbound_guard", inbound_guard_node)
     builder.add_node("load_memory", load_memory_node)
+    builder.add_node("fact_update_confirm", fact_update_confirm_node)
     builder.add_node("rewrite", rewrite_graph_node)
     builder.add_node("rag_router", rag_router_graph_node)
     builder.add_node("rag_retrieval", rag_retrieval_graph_node)
@@ -57,7 +60,12 @@ def compile_graph(
         route_after_inbound,
         {"load_memory": "load_memory", "__end__": END},
     )
-    builder.add_edge("load_memory", "rewrite")
+    builder.add_conditional_edges(
+        "load_memory",
+        route_after_load_memory,
+        {"fact_update_confirm": "fact_update_confirm", "rewrite": "rewrite"},
+    )
+    builder.add_edge("fact_update_confirm", "post_turn_jobs")
     builder.add_edge("rewrite", "rag_router")
     builder.add_edge("rag_router", "rag_retrieval")
     builder.add_conditional_edges(
