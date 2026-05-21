@@ -252,10 +252,12 @@ def rewrite_graph_node(state: AgentState) -> dict[str, object]:
         user_message,
         recent_messages=recent_messages,
         mem0_memories=list(state.get("mem0_memories") or []),
+        turn_type=_text(state.get("turn_type")),
     )
     called = bool(user_message) and (should_call or not use_skip)
     payload: dict[str, object] = {
         "user_message": user_message,
+        "turn_type": state.get("turn_type") or "",
         "mem0_memories": state.get("mem0_memories") or [],
         "messages": messages,
     }
@@ -278,13 +280,20 @@ def rag_router_graph_node(
     message = _extract_user_message(state)
     rewritten = state.get("rewritten_query")
     settings = get_settings()
-    rule_decision = classify_with_rules(message, rewritten, ctx.tools)
+    turn_type = _text(state.get("turn_type"))
+    rule_decision = classify_with_rules(
+        message,
+        rewritten,
+        ctx.tools,
+        turn_type=turn_type,
+    )
     should_call = (
         rule_decision is RuleDecision.UNCERTAIN
         and settings.RAG_ROUTER_MODE == "hybrid"
     )
     payload: dict[str, object] = {
         "user_message": message,
+        "turn_type": turn_type,
         "rewritten_query": rewritten,
         "tools_context": ctx.tools,
     }

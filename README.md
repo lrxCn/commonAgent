@@ -240,7 +240,7 @@ sequenceDiagram
 - `fact_update` 快速路径跳过 rewrite、rag_router、RAG、RagSubAgent、context assembly、Supervisor 和 outbound guard；当前 human 与模板 assistant 仍写入 checkpoint，并继续调度 post_turn summary + mem0 写入。模板确认只表示已接收事实，不承诺 mem0 已持久化成功。
 - `chitchat` 轻量执行器跳过 rewrite、rag_router、RAG、RagSubAgent、context assembly 与 deepagents Supervisor；默认模板回复，开启 `CHITCHAT_USE_LLM=true` 时改用低延迟小模型。
 - path contract 在 `path_metrics` 中记录本轮 `rewrite`、`rag_router`、`rag`、`supervisor` 的 `should_call` / `called`、`fast_path`、`post_turn_scheduled`、`llm_call_count`、`fallback_count`、`path_contract` 与原因，并输出到 LangSmith metadata。
-- rewrite 在节点内先跑 `should_rewrite`，寒暄/自包含问题可跳过 LLM。
+- rewrite/router 消费统一 `turn_type`：`fact_update`、`chitchat`、`client_action` 跳过 rewrite/router 小模型；`knowledge_query` 跳过 router 小模型并直接进入 RAG；rewrite 默认不调用 LLM，仅 `ambiguous` 或旧规则判断为历史依赖时调用。
 - rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。
 - rag_router 对个人/公司事实陈述直接跳过 RAG；hybrid LLM 仅处理规则不确定的查询，timeout 默认 5 秒且失败保守走 RAG。
@@ -249,7 +249,7 @@ sequenceDiagram
 
 ## RAG
 
-1. 路由：规则先判闲聊、纯客户端工具意图等；不确定时小模型分类；不需要则跳过整段 RAG。
+1. 路由：优先消费 `turn_type`；知识查询直接检索，事实更新、寒暄与纯客户端工具意图跳过整段 RAG；未确定场景再回落到规则或小模型分类。
 2. 顺序：`rewrite -> rag_router -> retrieve`；检索使用 `rewritten_query`，跳过 rewrite 时等于用户原文。
 3. 检索：Qdrant 按 `role_id` 过滤，dense + 文本/sparse fallback 合并，再 rerank。
 4. 主链路只查一次；RagSubAgent 只在主检索为空或最高分低于阈值时二查，不做第三次。

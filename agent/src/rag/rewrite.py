@@ -32,6 +32,7 @@ class RewriteNodeState(TypedDict, total=False):
     """Minimal state slice for rewrite_node (full AgentState comes in task 13)."""
 
     user_message: str
+    turn_type: str
     mem0_memories: list[str]
     recent_messages: list[BaseMessage]
     messages: list[BaseMessage]
@@ -102,6 +103,7 @@ def should_rewrite(
     *,
     recent_messages: Sequence[BaseMessage],
     mem0_memories: Sequence[str] | None = None,
+    turn_type: str | None = None,
 ) -> tuple[bool, str]:
     """
     Return ``(need_llm_rewrite, reason_code)``.
@@ -112,6 +114,18 @@ def should_rewrite(
     text = user_message.strip()
     if not text:
         return False, "empty"
+
+    normalized_turn_type = (turn_type or "").strip()
+    if normalized_turn_type in {
+        "fact_update",
+        "chitchat",
+        "client_action",
+        "knowledge_query",
+        "general_chat",
+    }:
+        return False, f"turn_type_{normalized_turn_type}"
+    if normalized_turn_type == "ambiguous":
+        return True, "turn_type_ambiguous"
 
     if is_chitchat(text):
         return False, "chitchat"
@@ -303,6 +317,7 @@ def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
             user_message,
             recent_messages=recent_messages,
             mem0_memories=mem0_memories,
+            turn_type=state.get("turn_type"),
         )
         if not need_llm:
             rewritten = rewrite_passthrough(

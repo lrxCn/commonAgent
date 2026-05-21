@@ -50,6 +50,7 @@ class RagRouterNodeState(TypedDict, total=False):
 
     user_message: str
     message: str
+    turn_type: str
     rewritten_query: str
     tools: list[ToolSpec]
     tools_context: list[ToolSpec]
@@ -123,8 +124,16 @@ def classify_with_rules(
     message: str,
     rewritten_query: str | None = None,
     tools_context: Sequence[ToolSpec | dict[str, Any]] | None = None,
+    *,
+    turn_type: str | None = None,
 ) -> RuleDecision:
     """Apply deterministic routing rules."""
+    normalized_turn_type = (turn_type or "").strip()
+    if normalized_turn_type in {"fact_update", "chitchat", "client_action"}:
+        return RuleDecision.SKIP
+    if normalized_turn_type == "knowledge_query":
+        return RuleDecision.RETRIEVE
+
     if is_chitchat(message, rewritten_query):
         return RuleDecision.SKIP
     if is_user_fact_statement(message, rewritten_query):
@@ -272,6 +281,7 @@ def should_retrieve(
     tools_context: Sequence[ToolSpec | dict[str, Any]] | None = None,
     *,
     mode: Literal["rules", "hybrid"] | None = None,
+    turn_type: str | None = None,
 ) -> bool:
     """
     Whether this turn should run RAG retrieval.
@@ -281,7 +291,12 @@ def should_retrieve(
     settings = get_settings()
     router_mode: Literal["rules", "hybrid"] = mode or settings.RAG_ROUTER_MODE  # type: ignore[assignment]
 
-    decision = classify_with_rules(message, rewritten_query, tools_context)
+    decision = classify_with_rules(
+        message,
+        rewritten_query,
+        tools_context,
+        turn_type=turn_type,
+    )
     if decision is RuleDecision.SKIP:
         attach_run_metadata(
             {
@@ -323,6 +338,7 @@ def rag_router_node(state: RagRouterNodeState) -> dict[str, bool]:
     message = _text(state.get("user_message")) or _text(state.get("message"))
     rewritten = state.get("rewritten_query")
     tools = state.get("tools_context") or state.get("tools")
+    turn_type = state.get("turn_type")
 
-    need_rag = should_retrieve(message, rewritten, tools)
+    need_rag = should_retrieve(message, rewritten, tools, turn_type=turn_type)
     return {"rag_skipped": not need_rag}

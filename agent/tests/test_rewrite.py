@@ -169,6 +169,43 @@ def test_should_rewrite_chitchat() -> None:
     assert reason == "chitchat"
 
 
+@pytest.mark.parametrize(
+    ("turn_type", "reason"),
+    [
+        ("fact_update", "turn_type_fact_update"),
+        ("chitchat", "turn_type_chitchat"),
+        ("client_action", "turn_type_client_action"),
+        ("knowledge_query", "turn_type_knowledge_query"),
+        ("general_chat", "turn_type_general_chat"),
+    ],
+)
+def test_should_rewrite_skips_for_conclusive_turn_types(
+    turn_type: str,
+    reason: str,
+) -> None:
+    need, actual_reason = should_rewrite(
+        "它怎么办",
+        recent_messages=[HumanMessage(content="报销流程是什么？")],
+        mem0_memories=["用户偏好简洁回答"],
+        turn_type=turn_type,
+    )
+
+    assert need is False
+    assert actual_reason == reason
+
+
+def test_should_rewrite_invokes_for_ambiguous_turn_type() -> None:
+    need, reason = should_rewrite(
+        "公司报销流程是什么",
+        recent_messages=[],
+        mem0_memories=[],
+        turn_type="ambiguous",
+    )
+
+    assert need is True
+    assert reason == "turn_type_ambiguous"
+
+
 def test_should_rewrite_standalone_faq() -> None:
     need, reason = should_rewrite(
         "公司报销流程是什么",
@@ -247,6 +284,38 @@ def test_rewrite_node_skips_llm_for_chitchat() -> None:
 
     assert out["rewritten_query"] == "你好"
     assert calls == []
+
+
+def test_rewrite_node_skips_llm_for_knowledge_query_turn_type() -> None:
+    calls: list[str] = []
+    set_rewrite_llm(lambda _prompt: calls.append("llm") or "x")
+
+    out = rewrite_node(
+        {
+            "user_message": "它怎么办",
+            "turn_type": "knowledge_query",
+            "recent_messages": [HumanMessage(content="报销流程是什么？")],
+        }
+    )
+
+    assert out["rewritten_query"] == "它怎么办"
+    assert calls == []
+
+
+def test_rewrite_node_invokes_llm_for_ambiguous_turn_type() -> None:
+    calls: list[str] = []
+    set_rewrite_llm(lambda _prompt: calls.append("llm") or "报销流程怎么办？")
+
+    out = rewrite_node(
+        {
+            "user_message": "公司报销流程是什么",
+            "turn_type": "ambiguous",
+            "recent_messages": [],
+        }
+    )
+
+    assert out["rewritten_query"] == "报销流程怎么办？"
+    assert calls == ["llm"]
 
 
 def test_rewrite_node_skips_llm_for_standalone_faq() -> None:

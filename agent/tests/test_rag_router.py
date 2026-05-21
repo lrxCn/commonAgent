@@ -82,6 +82,65 @@ def test_classify_with_rules_decisions() -> None:
     assert classify_with_rules("帮我看看") is RuleDecision.UNCERTAIN
 
 
+@pytest.mark.parametrize(
+    "turn_type",
+    ["fact_update", "chitchat", "client_action"],
+)
+def test_classify_with_rules_skips_conclusive_skip_turn_types(turn_type: str) -> None:
+    assert (
+        classify_with_rules(
+            "报销制度是什么",
+            rewritten_query="报销制度是什么",
+            tools_context=_JUMP_TOOLS,
+            turn_type=turn_type,
+        )
+        is RuleDecision.SKIP
+    )
+
+
+def test_classify_with_rules_retrieves_for_knowledge_query_turn_type() -> None:
+    assert (
+        classify_with_rules(
+            "你好",
+            rewritten_query="你好",
+            turn_type="knowledge_query",
+        )
+        is RuleDecision.RETRIEVE
+    )
+
+
+def test_hybrid_skips_llm_for_turn_type_skip_decisions() -> None:
+    calls: list[str] = []
+    set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": true}')
+
+    for turn_type in ("fact_update", "chitchat", "client_action"):
+        result = should_retrieve(
+            "报销制度是什么",
+            rewritten_query="报销制度是什么",
+            tools_context=_JUMP_TOOLS,
+            mode="hybrid",
+            turn_type=turn_type,
+        )
+        assert result is False
+
+    assert calls == []
+
+
+def test_hybrid_retrieves_without_llm_for_knowledge_query_turn_type() -> None:
+    calls: list[str] = []
+    set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": false}')
+
+    result = should_retrieve(
+        "你好",
+        rewritten_query="你好",
+        mode="hybrid",
+        turn_type="knowledge_query",
+    )
+
+    assert result is True
+    assert calls == []
+
+
 def test_hybrid_skips_llm_for_user_fact_statement() -> None:
     calls: list[str] = []
     set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": true}')
@@ -164,6 +223,22 @@ def test_rag_router_node_sets_rag_skipped() -> None:
         }
     )
     assert out3 == {"rag_skipped": True}
+
+
+def test_rag_router_node_uses_turn_type_before_legacy_rules() -> None:
+    calls: list[str] = []
+    set_router_classifier(lambda _prompt: calls.append("llm") or '{"need_rag": false}')
+
+    out = rag_router_node(
+        {
+            "message": "你好",
+            "rewritten_query": "你好",
+            "turn_type": "knowledge_query",
+        }
+    )
+
+    assert out == {"rag_skipped": False}
+    assert calls == []
 
 
 def test_build_router_classifier_prompt_lists_tools() -> None:
