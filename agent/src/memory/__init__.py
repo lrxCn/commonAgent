@@ -54,4 +54,6 @@ __all__ = [
     "normalize_memory_profile",
     "save_rolling_summary",
     "schedule_post_turn_jobs",
+    "select_turn_index_ranges",
+    "split_into_turns",
 ]

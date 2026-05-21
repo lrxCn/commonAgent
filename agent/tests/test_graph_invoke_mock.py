@@ -15,11 +15,11 @@ from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_
 from memory.history import set_history_checkpointer
 import rag.retriever as retriever_mod
 from rag.retriever import RagChunk, reset_retriever_overrides
-
-_ORIGINAL_RETRIEVE = retriever_mod.retrieve
 from rag.rewrite import set_rewrite_llm
 from rag.router import set_router_classifier
 from settings.config import Settings, reset_settings, set_settings_override
+
+_ORIGINAL_RETRIEVE = retriever_mod.retrieve
 
 _REQUIRED_ENV = {
     "LANGSMITH_API_KEY": "lsv2_test",

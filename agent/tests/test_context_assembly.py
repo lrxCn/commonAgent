@@ -6,7 +6,6 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from memory.assembly import (
-    ContextAssemblyError,
     build_context,
     build_context_with_budget,
     build_system_prompt,

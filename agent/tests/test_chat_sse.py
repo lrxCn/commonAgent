@@ -54,6 +54,33 @@ def _parse_sse_events(raw: str) -> list[dict]:
     return events
 
 
+def _assert_sse_event_contract(events: list[dict]) -> None:
+    allowed_types = {"token", "done", "client_actions", "retract", "replace", "error"}
+    assert events
+    for event in events:
+        event_type = event.get("type")
+        assert event_type in allowed_types
+        if event_type == "token":
+            assert isinstance(event.get("content"), str)
+            assert event.get("segment_id", "").startswith("seg-")
+        elif event_type == "done":
+            assert event == {"type": "done"}
+        elif event_type == "client_actions":
+            assert isinstance(event.get("client_actions"), list)
+            for action in event["client_actions"]:
+                assert isinstance(action.get("tool"), str)
+                assert isinstance(action.get("args"), dict)
+                assert isinstance(action.get("requires_approval"), bool)
+        elif event_type == "retract":
+            assert event.get("segment_id", "").startswith("seg-")
+            assert isinstance(event.get("reason"), str)
+        elif event_type == "replace":
+            assert event.get("segment_id", "").startswith("seg-")
+            assert isinstance(event.get("content"), str)
+        elif event_type == "error":
+            assert isinstance(event.get("message"), str)
+
+
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     install_gateway_graph_mocks(monkeypatch)
@@ -67,6 +94,7 @@ def test_chat_returns_sse_with_token_and_done(client: TestClient) -> None:
     assert response.headers["content-type"].startswith("text/event-stream")
 
     events = _parse_sse_events(response.text)
+    _assert_sse_event_contract(events)
     token_events = [event for event in events if event.get("type") == "token"]
     assert len(token_events) >= 1
     assert any("你好。" in event.get("content", "") for event in token_events)
@@ -97,6 +125,7 @@ def test_iter_chat_sse_events_forwards_live_model_tokens(
     )
 
     events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+    _assert_sse_event_contract(events)
 
     assert events == [
         {"type": "token", "content": "first-", "segment_id": "seg-1"},
@@ -128,6 +157,7 @@ def test_iter_chat_sse_events_retracts_streamed_violation(
     )
 
     events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+    _assert_sse_event_contract(events)
 
     assert events[0] == {"type": "token", "content": "Here is ", "segment_id": "seg-1"}
     assert events[1] == {
@@ -166,6 +196,7 @@ def test_iter_chat_sse_events_replaces_when_final_guard_changes_text(
     )
 
     events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+    _assert_sse_event_contract(events)
 
     assert [event["type"] for event in events[:2]] == ["token", "token"]
     assert any(event.get("type") == "retract" for event in events)
@@ -196,6 +227,7 @@ def test_iter_chat_sse_events_keeps_client_actions_structured(
     )
 
     events = _parse_sse_events("".join(iter_chat_sse_events(body)))
+    _assert_sse_event_contract(events)
 
     assert events[0]["type"] == "client_actions"
     assert events[0]["client_actions"] == [
@@ -277,6 +309,7 @@ def test_chat_outbound_blocked_streams_safe_message(
     response = guarded.post("/internal/chat", json=payload)
     assert response.status_code == 200
     events = _parse_sse_events(response.text)
+    _assert_sse_event_contract(events)
     combined = "".join(event["content"] for event in events if event.get("type") == "token")
     assert OUTBOUND_SAFE_REPLY in combined
     teardown_gateway_graph_mocks()
@@ -287,3 +320,20 @@ def test_format_sse_event_roundtrip() -> None:
 
     frame = format_sse_event({"type": "token", "content": "hi"})
     assert frame == 'data: {"type": "token", "content": "hi"}\n\n'
+
+
+def test_iter_chat_sse_events_reports_error_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_gateway_graph_mocks(monkeypatch)
+
+    class FailingGraph:
+        def invoke(self, *_args, **_kwargs):  # type: ignore[no-untyped-def]
+            raise RuntimeError("graph failed")
+
+    body = ChatRequest.model_validate(_VALID_CHAT_PAYLOAD)
+    events = _parse_sse_events("".join(iter_chat_sse_events(body, graph=FailingGraph())))
+
+    _assert_sse_event_contract(events)
+    assert events == [{"type": "error", "message": "graph failed"}]
+    teardown_gateway_graph_mocks()

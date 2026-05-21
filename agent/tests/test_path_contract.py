@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 import pytest
 
-from gateway.schemas import RequestContext
+from gateway.schemas import RequestContext, ToolSpec
 from graph.build import compile_graph
 from graph.chitchat_executor import set_chitchat_llm
 from graph.context import graph_context_from_request
@@ -66,11 +66,34 @@ def _context() -> dict[str, object]:
     )
 
 
-def _invoke(message: str, *, thread_id: str) -> dict:
+_JUMP_TOOL = ToolSpec(
+    name="jumpPage",
+    description="Navigate to a page.",
+    parameters={
+        "type": "object",
+        "properties": {"page": {"type": "string"}},
+        "required": ["page"],
+    },
+    requires_approval=False,
+)
+
+
+def _context_with_tools(tools: list[ToolSpec]) -> dict[str, object]:
+    return graph_context_from_request(
+        RequestContext(user_id="user-1", role_id="role-sales", tools=tools)
+    )
+
+
+def _invoke(
+    message: str,
+    *,
+    thread_id: str,
+    tools: list[ToolSpec] | None = None,
+) -> dict:
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
     return graph.invoke(
         {"messages": [HumanMessage(content=message)]},
-        context=_context(),
+        context=_context_with_tools(tools) if tools else _context(),
         config={"configurable": {"thread_id": thread_id}},
     )
 
@@ -115,6 +138,39 @@ def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
     assert metrics["path_contract"] == "pass"
     assert metrics["llm_call_count"] == 1
     assert metrics["rewrite"] == {"should_call": False, "called": False}
+    assert metrics["rag_router"] == {"should_call": False, "called": False}
+    assert metrics["rag"] == {"should_call": True, "called": True}
+    assert metrics["supervisor"] == {"should_call": True, "called": True}
+
+
+def test_client_action_path_contract_uses_action_executor_without_model() -> None:
+    result = _invoke("打开 pageA", thread_id="path-client-action", tools=[_JUMP_TOOL])
+
+    metrics = result["path_metrics"]
+    actions = result.get("client_actions") or []
+    assert result["turn_type"] == "client_action"
+    assert result["executor"] == "action_executor"
+    assert result["executor_reason"] == "simple_client_action"
+    assert actions[0].tool == "jumpPage"
+    assert actions[0].args == {"page": "pageA"}
+    assert metrics["path_contract"] == "pass"
+    assert metrics["llm_call_count"] == 0
+    assert metrics["rewrite"] == {"should_call": False, "called": False}
+    assert metrics["rag_router"] == {"should_call": False, "called": False}
+    assert metrics["rag"] == {"should_call": False, "called": False}
+    assert metrics["supervisor"] == {"should_call": False, "called": False}
+
+
+def test_ambiguous_with_tools_path_contract_uses_deepagents() -> None:
+    result = _invoke("继续", thread_id="path-ambiguous-tools", tools=[_JUMP_TOOL])
+
+    metrics = result["path_metrics"]
+    assert result["turn_type"] == "ambiguous"
+    assert result["executor"] == "deepagents_executor"
+    assert result["executor_reason"] == "ambiguous_with_tools"
+    assert metrics["path_contract"] == "pass"
+    assert metrics["llm_call_count"] == 2
+    assert metrics["rewrite"] == {"should_call": True, "called": True}
     assert metrics["rag_router"] == {"should_call": False, "called": False}
     assert metrics["rag"] == {"should_call": True, "called": True}
     assert metrics["supervisor"] == {"should_call": True, "called": True}

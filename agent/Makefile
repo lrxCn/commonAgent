@@ -20,10 +20,10 @@ serve:
 	uv run langgraph dev
 
 test:
-	uv run python -m pytest tests/unit_tests -q
+	uv run python -m pytest tests -m "not integration" -q
 
 integration-tests:
-	uv run python -m pytest tests/integration_tests -q
+	uv run python -m pytest tests -m integration -q
 
 lint:
 	uv run python -m ruff check src tests

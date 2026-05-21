@@ -466,7 +466,8 @@ Agent:
 ```bash
 cd agent
 uv sync
-uv run pytest -v
+uv run pytest tests -v
+make test
 make lint
 make format
 
