@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 49 |
+| 总任务数 | 57 |
 | 已完成 | 48 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：当前任务队列 01-48 已完成；如继续推进，请先新增下一张任务卡并在本文件登记依赖。
+**当前建议下一步**：执行 **49 - 控制面 Phase 0：Intent 契约与评测种子先行**，按 49→57 顺序推进控制面、意图治理、fallback 与文档收口。
 
 
 ---
@@ -73,6 +73,15 @@
 | 46 | [大重构 Phase 5：统一 LLM Gateway 与模型用途策略](./prompts/46-refactor-llm-gateway.md) | ✅ | 2026-05-22 | 新增 `ModelUseCase` 与 LLM Gateway，收敛 chat/embedding/rerank/model policy |
 | 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ✅ | 2026-05-22 | 用 domain events 解耦业务逻辑与 LangSmith metadata |
 | 48 | [大重构 Phase 7：代码地图与 README 最终对齐](./prompts/48-refactor-docs-maps-readme.md) | ✅ | 2026-05-22 | 新增 `docs/maps/` 6 份代码地图；README 收敛为当前运行入口；复核 AGENTS/README/progress 治理一致 |
+| 49 | [控制面 Phase 0：Intent 契约与评测种子先行](./prompts/49-control-plane-intent-contracts-eval.md) | ⬜ 待开始 | — | 新增 `IntentDecision` 契约与 intent eval seed；不改变运行路径 |
+| 50 | [控制面 Phase 1：Signals 与确定性 Intent Engine](./prompts/50-control-plane-intent-signals-rules.md) | ⬜ 待开始 | — | 抽取 signals、高置信规则与 `classify_intent()`；旧事实规则降级 |
+| 51 | [控制面 Phase 2：LLM Structured Classifier 与冲突校验](./prompts/51-control-plane-structured-classifier.md) | ⬜ 待开始 | — | 新增 intent 小模型结构化分类器、LLM Gateway 用途与 conflict check |
+| 52 | [控制面 Phase 3：Intent Engine 影子运行与观测接入](./prompts/52-control-plane-shadow-observability.md) | ⬜ 待开始 | — | 新 intent 旁路运行并记录 metadata，不改变旧路径 |
+| 53 | [控制面 Phase 4：Policy Gate 接管 fact_update fast path](./prompts/53-control-plane-policy-fast-path.md) | ⬜ 待开始 | — | fast path 改由 policy 准入，第一人称疑问不再写记忆 |
+| 54 | [控制面 Phase 5：memory_query 一等路径与记忆回答执行器](./prompts/54-control-plane-memory-query-executor.md) | ⬜ 待开始 | — | 新增 `memory_query` executor，基于可靠记忆回答“我是谁”等问题 |
+| 55 | [控制面 Phase 6：Agent 级 Fallback Manager 与降级策略](./prompts/55-control-plane-agent-fallback-manager.md) | ⬜ 待开始 | — | 统一 intent/memory/RAG/tool/LLM/schema/output guard fallback 观测 |
+| 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ⬜ 待开始 | — | 新增 feedback 事件、本地 intent eval runner 与 LangSmith dry-run 同步 |
+| 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress 与文档治理 |
 
 ---
 
@@ -146,3 +155,5 @@
 | 2026-05-22 | 完成任务 46：新增 `contracts.llm.ModelUseCase` 与 `infrastructure.llm.LlmGateway`；rewrite/router/chitchat/supervisor/summary/embedding/rerank/mem0 模型策略统一入口 |
 | 2026-05-22 | 完成任务 47：新增 typed observability events、per-context event collector 与 LangSmith metadata mapper；关键路径改为 emit event，保留 `attach_run_metadata()` 兼容 facade |
 | 2026-05-22 | 完成任务 48：新增 `docs/maps/` 六份代码地图；README 改为当前运行入口与验证入口；复核 `AGENTS.md`、README、`docs/progress.md` 的文档治理一致性 |
+| 2026-05-22 | 文档：新增 [Agent 控制面、意图治理与兜底 PRD](./prd/agent-control-plane-intent-fallback.md)，沉淀意图识别、Policy Gate、memory_query、Agent 级 fallback 与 feedback 闭环方案 |
+| 2026-05-22 | 文档：基于控制面 PRD 新增任务 **49-57**，按契约与 eval、signals/rules、structured classifier、shadow observability、Policy Gate、memory_query、Fallback Manager、feedback eval、文档最终对齐拆分执行 |
