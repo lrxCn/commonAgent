@@ -7,12 +7,13 @@ from collections.abc import Mapping, Sequence
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from contracts.context import ContextBudget, ContextBundle, ContextSources
+from contracts.events import ObservabilityEventType
 from memory.mem0_client import format_mem0_for_system
 from memory.profile import (
     format_memory_profile_for_system,
     normalize_memory_profile,
 )
-from observability.tracing import attach_run_metadata
+from observability.tracing import emit_event
 from rag.retriever import RagChunk, format_rag_chunks_for_system
 from settings.config import Settings, get_settings
 
@@ -293,7 +294,7 @@ def build_system_prompt_with_budget(
         message_chars=0,
         budget_truncated=budget_truncated,
     )
-    attach_run_metadata(result.as_metadata())
+    emit_event(ObservabilityEventType.CONTEXT_BUDGET_COMPUTED, result.as_metadata())
     return system_str, result
 
 
@@ -439,7 +440,10 @@ def build_context_bundle(
         message_chars=message_chars,
         budget_truncated=budget.budget_truncated or turn_budget_truncated or message_truncated,
     )
-    attach_run_metadata(merged_budget.as_metadata())
+    emit_event(
+        ObservabilityEventType.CONTEXT_BUDGET_COMPUTED,
+        merged_budget.as_metadata(),
+    )
     return ContextBundle(
         system_prompt=system_str,
         model_messages=tuple(lc_messages),

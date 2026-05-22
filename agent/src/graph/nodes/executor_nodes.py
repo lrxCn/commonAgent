@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
 from contracts.context import ContextBundle
+from contracts.events import ObservabilityEventType
 from graph.chitchat_executor import chitchat_reply
 from graph.client_actions import (
     ERROR_PARSE,
@@ -23,7 +24,7 @@ from graph.executors import (
 from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
 from observability.path_contract import mark_fast_path, update_path_component
-from observability.tracing import attach_run_metadata
+from observability.tracing import emit_event
 
 from .common import extract_user_message, merge_carry, text
 
@@ -33,7 +34,8 @@ FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/
 def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
     """Append a deterministic confirmation without rewrite/RAG/Supervisor."""
     path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.EXECUTOR_CHOSEN,
         {
             "executor": "template_executor",
             "executor_reason": "turn_type_fact_update",
@@ -100,7 +102,8 @@ def supervisor_node(
         rag_chunks=state.get("rag_chunks") or [],
         tools=ctx.tools,
     )
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.EXECUTOR_CHOSEN,
         executor_trace_metadata(
             decision,
             rag_chunks=state.get("rag_chunks") or [],
@@ -204,6 +207,10 @@ def supervisor_node(
 def client_actions_emit_node(state: AgentState) -> dict[str, object]:
     """Persist assistant message with client_actions metadata; no ToolMessage."""
     actions = list(state.get("client_actions") or [])
+    emit_event(
+        ObservabilityEventType.CLIENT_ACTIONS_PARSED,
+        {"client_actions.count": len(actions), "client_actions.error": ""},
+    )
     message = build_client_actions_assistant_message(actions)
     return merge_carry(
         state,

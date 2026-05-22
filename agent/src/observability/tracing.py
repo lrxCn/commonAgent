@@ -6,6 +6,8 @@ import os
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ParamSpec, TypeVar
 
+from contracts.events import ObservabilityEvent, ObservabilityEventType
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -91,8 +93,7 @@ def configure_tracing_from_settings(settings: Any | None = None) -> bool:
     return bool(settings.LANGCHAIN_TRACING_V2)
 
 
-def attach_run_metadata(metadata: Mapping[str, Any]) -> None:
-    """Merge metadata onto the current LangSmith run tree (no-op if absent)."""
+def _attach_metadata_to_current_run(metadata: Mapping[str, Any]) -> None:
     if not metadata:
         return
     try:
@@ -105,6 +106,36 @@ def attach_run_metadata(metadata: Mapping[str, Any]) -> None:
         tree.metadata = {**existing, **dict(metadata)}
     except Exception:
         pass
+
+
+def handle_langsmith_event(event: ObservabilityEvent) -> None:
+    """Map an observability event to LangSmith metadata and attach it if possible."""
+    try:
+        from infrastructure.langsmith import event_to_metadata
+
+        metadata = event_to_metadata(event)
+    except Exception:
+        metadata = dict(event.metadata)
+    _attach_metadata_to_current_run(metadata)
+
+
+def emit_event(
+    name: str | ObservabilityEventType,
+    metadata: Mapping[str, Any] | None = None,
+) -> ObservabilityEvent:
+    """Emit a domain observability event and mirror it to LangSmith metadata."""
+    from observability.events import emit_event as _emit_event
+
+    event = _emit_event(name, metadata)
+    handle_langsmith_event(event)
+    return event
+
+
+def attach_run_metadata(metadata: Mapping[str, Any]) -> None:
+    """Compatibility API: emit a metadata event and attach it to LangSmith."""
+    if not metadata:
+        return
+    emit_event(ObservabilityEventType.METADATA_ATTACHED, metadata)
 
 
 def build_path_contract_trace_metadata(

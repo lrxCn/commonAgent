@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from pydantic import ValidationError
 
 from contracts.context import ContextBudget, ContextBundle, ContextSources
-from contracts.events import ObservabilityEvent
+from contracts.events import ObservabilityEvent, ObservabilityEventType
 from contracts.execution import ExecutorDecision, ExecutorType
 from contracts.path import (
     COMPONENTS,
@@ -184,9 +184,12 @@ def test_sse_contract_rejects_unknown_or_extra_fields() -> None:
 
 
 def test_observability_event_contract_is_immutable() -> None:
-    event = ObservabilityEvent("path.finalized", {"path_contract": "pass"})
+    event = ObservabilityEvent(
+        ObservabilityEventType.PATH_METRICS_FINALIZED,
+        {"path_contract": "pass"},
+    )
 
-    assert event.name == "path.finalized"
+    assert event.name == "path_metrics.finalized"
     assert event.metadata == {"path_contract": "pass"}
     with pytest.raises(Exception):
         event.name = "changed"  # type: ignore[misc]

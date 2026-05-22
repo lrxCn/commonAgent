@@ -6,10 +6,11 @@ import logging
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from contracts.events import ObservabilityEventType
 from contracts.rag import RagChunk, RagResult
 from domain.rag.merge import merge_candidates
 from domain.rag.models import RagCandidate, RagQueryPlan
-from observability.tracing import attach_run_metadata
+from observability.tracing import emit_event
 from settings.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class RagRetrievalService:
             mock=False,
             second_pass=plan.second_pass,
         )
-        attach_run_metadata(metadata)
+        emit_event(ObservabilityEventType.RAG_RETRIEVED, metadata)
         return RagResult.from_chunks(
             chunks,
             query=plan.query,

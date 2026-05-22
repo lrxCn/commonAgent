@@ -9,13 +9,14 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.runtime import Runtime
 from langgraph.types import RunnableConfig
 
+from contracts.events import ObservabilityEventType
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.turn_type import classify_turn_type
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import new_path_metrics
-from observability.tracing import attach_run_metadata
+from observability.tracing import emit_event
 
 from .common import (
     extract_user_message_from_messages,
@@ -69,7 +70,8 @@ def load_memory_node(
         turn_type=decision.turn_type.value,
         turn_type_reason=decision.reason,
     )
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.TURN_CLASSIFIED,
         {
             "turn_type": decision.turn_type.value,
             "turn_type_reason": decision.reason,

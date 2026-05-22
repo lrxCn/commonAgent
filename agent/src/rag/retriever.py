@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 
 from qdrant_client import QdrantClient
 
+from contracts.events import ObservabilityEventType
 from contracts.rag import RagChunk
 from domain.rag.formatting import format_rag_chunks_for_system, rag_chunk_to_dict
 from domain.rag.lexical.tokenizer import lexical_terms as _lexical_terms
@@ -23,7 +24,7 @@ from infrastructure.qdrant.payload import (
     payload_text as _payload_text,
     point_to_candidate as _point_to_candidate,
 )
-from observability.tracing import attach_run_metadata, rerank_traceable, retrieve_traceable
+from observability.tracing import emit_event, rerank_traceable, retrieve_traceable
 from settings.config import Settings, get_settings
 
 _DENSE_VECTOR_NAME = DENSE_VECTOR_NAME
@@ -353,7 +354,7 @@ def retrieve(
             mock=True,
             second_pass=second_pass,
         )
-        attach_run_metadata(metadata)
+        emit_event(ObservabilityEventType.RAG_RETRIEVED, metadata)
         return chunks
 
     client = _get_qdrant_client(cfg)

@@ -13,10 +13,11 @@ from typing import Any, Literal, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from contracts.events import ObservabilityEventType
 from contracts.llm import ModelUseCase
 from infrastructure.llm.gateway import get_llm_gateway
 from gateway.schemas import ToolSpec
-from observability.tracing import attach_run_metadata, rag_router_traceable
+from observability.tracing import emit_event, rag_router_traceable
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import get_settings
 
@@ -237,21 +238,29 @@ def classify_with_llm(
 ) -> bool:
     """Hybrid fallback: small LLM emits JSON ``need_rag``."""
     prompt = build_router_classifier_prompt(message, rewritten_query, tools_context)
-    attach_run_metadata(_call_metadata(model_name, prompt, mode))
+    emit_event(
+        ObservabilityEventType.LLM_CALL_COMPLETED,
+        _call_metadata(model_name, prompt, mode),
+    )
     try:
         raw = _invoke_classifier(prompt, model_name=model_name)
         parsed = parse_need_rag_json(raw)
         if parsed is not None:
-            attach_run_metadata({"rag_router.fallback": False})
+            emit_event(
+                ObservabilityEventType.RAG_ROUTED,
+                {"rag_router.fallback": False},
+            )
             return parsed
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.RAG_ROUTED,
             {
                 "rag_router.fallback": True,
                 "rag_router.fallback_reason": "parse_failed",
             }
         )
     except Exception as exc:
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.RAG_ROUTED,
             {
                 "rag_router.fallback": True,
                 "rag_router.fallback_reason": type(exc).__name__,
@@ -285,7 +294,8 @@ def should_retrieve(
         turn_type=turn_type,
     )
     if decision is RuleDecision.SKIP:
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.RAG_ROUTED,
             {
                 "rag_router.mode": router_mode,
                 "rag_router.rule_decision": decision.value,
@@ -294,7 +304,8 @@ def should_retrieve(
         )
         return False
     if decision is RuleDecision.RETRIEVE:
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.RAG_ROUTED,
             {
                 "rag_router.mode": router_mode,
                 "rag_router.rule_decision": decision.value,
@@ -303,7 +314,8 @@ def should_retrieve(
         )
         return True
     if router_mode == "rules":
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.RAG_ROUTED,
             {
                 "rag_router.mode": router_mode,
                 "rag_router.rule_decision": decision.value,
@@ -311,7 +323,8 @@ def should_retrieve(
             }
         )
         return True
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.RAG_ROUTED,
         {
             "rag_router.mode": router_mode,
             "rag_router.rule_decision": decision.value,

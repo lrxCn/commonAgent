@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 49 |
-| 已完成 | 46 |
+| 已完成 | 47 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：继续大重构 Phase 6：执行 [47 - Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md)。
+**当前建议下一步**：继续大重构 Phase 7：执行 [48 - 代码地图与 README 最终对齐](./prompts/48-refactor-docs-maps-readme.md)。
 
 
 ---
@@ -71,7 +71,7 @@
 | 44 | [大重构 Phase 3：Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md) | ✅ | 2026-05-22 | `graph/nodes/` 按阶段拆分，facade 兼容旧导入与 monkeypatch 路径 |
 | 45 | [大重构 Phase 4：RAG 模块边界与可替换检索服务](./prompts/45-refactor-rag-module-boundaries.md) | ✅ | 2026-05-22 | 拆出 RAG service、Qdrant store、BM25、rerank、formatting |
 | 46 | [大重构 Phase 5：统一 LLM Gateway 与模型用途策略](./prompts/46-refactor-llm-gateway.md) | ✅ | 2026-05-22 | 新增 `ModelUseCase` 与 LLM Gateway，收敛 chat/embedding/rerank/model policy |
-| 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ⬜ | — | 用 domain events 解耦业务逻辑与 LangSmith metadata |
+| 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ✅ | 2026-05-22 | 用 domain events 解耦业务逻辑与 LangSmith metadata |
 | 48 | [大重构 Phase 7：代码地图与 README 最终对齐](./prompts/48-refactor-docs-maps-readme.md) | ⬜ | — | 41-47 完成后新增 `docs/maps/`，README/AGENTS 对齐重构后真实结构与文档治理 |
 
 ---
@@ -144,3 +144,4 @@
 | 2026-05-22 | 完成任务 44：将 `graph/nodes.py` 拆为 `graph/nodes/` 阶段模块，保留 `graph.nodes` facade、图拓扑与既有导入路径兼容 |
 | 2026-05-22 | 完成任务 45：RAG 检索拆为 `domain.rag` service/merge/BM25/formatting、`infrastructure.qdrant` KB store/payload parser 与 `infrastructure.llm` rerank client，`rag.retriever` 保持兼容 facade |
 | 2026-05-22 | 完成任务 46：新增 `contracts.llm.ModelUseCase` 与 `infrastructure.llm.LlmGateway`；rewrite/router/chitchat/supervisor/summary/embedding/rerank/mem0 模型策略统一入口 |
+| 2026-05-22 | 完成任务 47：新增 typed observability events、per-context event collector 与 LangSmith metadata mapper；关键路径改为 emit event，保留 `attach_run_metadata()` 兼容 facade |

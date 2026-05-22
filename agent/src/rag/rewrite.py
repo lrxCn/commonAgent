@@ -11,10 +11,11 @@ from typing import TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from contracts.events import ObservabilityEventType
 from contracts.llm import ModelUseCase
 from infrastructure.llm.gateway import get_llm_gateway
 from memory.mem0_client import format_mem0_for_system
-from observability.tracing import attach_run_metadata, rewrite_traceable
+from observability.tracing import emit_event, rewrite_traceable
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import get_settings
 
@@ -203,7 +204,8 @@ def rewrite_passthrough(
 ) -> str:
     """Record a skipped rewrite span (no LLM) and return trimmed user text."""
     del recent_messages, mem0_memories
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.REWRITE_SKIPPED,
         {
             "rewrite_skipped": rewrite_skipped,
             "rewrite_skip_reason": rewrite_skip_reason,
@@ -237,7 +239,8 @@ def rewrite_query(
 
     recent = list(recent_messages or [])
     prompt = build_rewrite_prompt(original, mem0_text, recent)
-    attach_run_metadata(
+    emit_event(
+        ObservabilityEventType.LLM_CALL_COMPLETED,
         {
             **_call_metadata(model_name, prompt),
             "rewrite_skipped": rewrite_skipped,
@@ -248,7 +251,8 @@ def rewrite_query(
     try:
         rewritten = _invoke_llm(prompt, model_name=model_name)
     except Exception as exc:
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.REWRITE_COMPLETED,
             {
                 "rewrite.fallback": True,
                 "rewrite.fallback_reason": type(exc).__name__,
@@ -257,7 +261,8 @@ def rewrite_query(
         return original
 
     if not rewritten:
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.REWRITE_COMPLETED,
             {
                 "rewrite.fallback": True,
                 "rewrite.fallback_reason": "empty_output",
@@ -265,14 +270,15 @@ def rewrite_query(
         )
         return original
     if not _rewrite_preserves_numbers(original, rewritten):
-        attach_run_metadata(
+        emit_event(
+            ObservabilityEventType.REWRITE_COMPLETED,
             {
                 "rewrite.fallback": True,
                 "rewrite.fallback_reason": "number_changed",
             }
         )
         return original
-    attach_run_metadata({"rewrite.fallback": False})
+    emit_event(ObservabilityEventType.REWRITE_COMPLETED, {"rewrite.fallback": False})
     return rewritten
 
 

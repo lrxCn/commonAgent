@@ -3,6 +3,7 @@
 from observability.tracing import (
     attach_run_metadata,
     configure_tracing_from_settings,
+    emit_event,
     is_tracing_enabled,
     redact_secrets,
     traceable,
@@ -12,6 +13,7 @@ from observability.tracing import (
 __all__ = [
     "attach_run_metadata",
     "configure_tracing_from_settings",
+    "emit_event",
     "is_tracing_enabled",
     "redact_secrets",
     "traceable",

@@ -5,6 +5,7 @@ from __future__ import annotations
 from langgraph.runtime import Runtime
 from langgraph.types import RunnableConfig
 
+from contracts.events import ObservabilityEventType
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
@@ -12,7 +13,7 @@ from observability.path_contract import (
     finalize_path_metrics,
     mark_post_turn_schedule,
 )
-from observability.tracing import attach_run_metadata, build_path_contract_trace_metadata
+from observability.tracing import emit_event
 
 from .common import facade_attr, merge_carry, thread_id_from_config
 
@@ -37,7 +38,10 @@ def post_turn_jobs_node(
     turn_messages = extract_messages(state.get("messages") or [])
     if not turn_messages:
         metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
-        attach_run_metadata(build_path_contract_trace_metadata(metrics))
+        emit_event(
+            ObservabilityEventType.POST_TURN_SCHEDULED,
+            {"path_metrics": metrics},
+        )
         return merge_carry(state, {"path_metrics": metrics})
 
     try:
@@ -52,9 +56,15 @@ def post_turn_jobs_node(
             scheduled=False,
             error=type(exc).__name__,
         )
-        attach_run_metadata(build_path_contract_trace_metadata(metrics))
+        emit_event(
+            ObservabilityEventType.POST_TURN_SCHEDULED,
+            {"path_metrics": metrics},
+        )
         return merge_carry(state, {"path_metrics": metrics})
 
     metrics = mark_post_turn_schedule(finalized_metrics, scheduled=True)
-    attach_run_metadata(build_path_contract_trace_metadata(metrics))
+    emit_event(
+        ObservabilityEventType.POST_TURN_SCHEDULED,
+        {"path_metrics": metrics},
+    )
     return merge_carry(state, {"path_metrics": metrics})

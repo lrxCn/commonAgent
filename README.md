@@ -82,7 +82,7 @@ commonAgent/
 │   │   ├── domain/        # 纯领域逻辑：RAG service、query plan、merge、BM25、formatting
 │   │   ├── gateway/       # HTTP: chat、history、kb ingest
 │   │   ├── graph/         # Supervisor 主图、state、context_schema、薄节点适配器
-│   │   ├── infrastructure/# 外部系统适配：LLM Gateway、Qdrant KB store、payload parser
+│   │   ├── infrastructure/# 外部系统适配：LLM Gateway、Qdrant KB store、payload parser、LangSmith adapter
 │   │   ├── memory/        # checkpoint、K/M/summary、mem0
 │   │   ├── rag/           # rewrite、router、retriever/ingest 兼容 facade
 │   │   ├── guardrails/    # 入站/出站护栏
@@ -203,7 +203,7 @@ mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除�
 
 `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget` 和 `sources`。`supervisor_node`、`rag_answer_executor`、`deepagents_executor` 只消费 bundle 中的 system/messages；LangSmith context metadata 读取同一个 `ContextBudget`，避免观测上下文与实际模型输入分叉。
 
-跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义 `ContextBundle` / `ContextBudget` / `ContextSources`，`rag` 定义检索结果，`sse` 定义 SSE 事件，`llm` 定义 `ModelUseCase` 与模型调用 metadata，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
+跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义 `ContextBundle` / `ContextBudget` / `ContextSources`，`rag` 定义检索结果，`sse` 定义 SSE 事件，`llm` 定义 `ModelUseCase` 与模型调用 metadata，`events` 定义 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
 
 ## LLM Gateway
 
@@ -439,6 +439,7 @@ LANGCHAIN_PROJECT=common-agent
 
 可观察节点与 metadata：
 
+- 业务模块优先 emit `contracts.events.ObservabilityEventType` 事件，由 `infrastructure.langsmith` adapter 映射为 LangSmith metadata；`observability.tracing.attach_run_metadata()` 仍保留为兼容 facade，也会记录 `metadata.attached` 事件。
 - `rewrite`: `rewrite_skipped`、`rewrite_skip_reason`、`rewrite.model_name`、`rewrite.prompt_len`、`rewrite.fallback`、`rewrite.fallback_reason`、mem0 facts 信息。
 - `rag_router`: 是否需要检索、`rag_router.model_name`、`rag_router.prompt_len`、`rag_router.mode`、`rag_router.fallback`。
 - `retrieve` / `rerank`: role、query 长度、命中数、mock、second_pass。

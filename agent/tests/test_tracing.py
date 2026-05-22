@@ -7,7 +7,10 @@ import os
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
+from contracts.events import ObservabilityEvent, ObservabilityEventType
 from graph.build import compile_graph
+from infrastructure.langsmith import event_to_metadata
+from observability.events import collect_events, emit_event as emit_raw_event
 from observability.tracing import (
     _chitchat_process_inputs,
     _rewrite_process_inputs,
@@ -18,6 +21,7 @@ from observability.tracing import (
     redact_secrets,
     truncate_for_trace,
 )
+from observability.tracing import emit_event
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -69,6 +73,60 @@ def test_truncate_and_redact_helpers() -> None:
 
 def test_attach_run_metadata_no_raise() -> None:
     attach_run_metadata({"span": "test", "rerank": True})
+
+
+def test_attach_run_metadata_emits_compat_event() -> None:
+    with collect_events() as events:
+        attach_run_metadata({"span": "test", "rerank": True})
+
+    assert len(events) == 1
+    assert events[0].name == "metadata.attached"
+    assert events[0].metadata == {"span": "test", "rerank": True}
+
+
+def test_emit_event_records_typed_event_and_maps_metadata() -> None:
+    with collect_events() as events:
+        event = emit_event(
+            ObservabilityEventType.TURN_CLASSIFIED,
+            {"turn_type": "chitchat", "turn_type_reason": "chitchat_rule"},
+        )
+
+    assert event.name == "turn.classified"
+    assert [item.name for item in events] == ["turn.classified"]
+    assert event_to_metadata(events[0]) == {
+        "turn_type": "chitchat",
+        "turn_type_reason": "chitchat_rule",
+    }
+
+
+def test_raw_event_bus_noops_without_langsmith_adapter() -> None:
+    with collect_events() as events:
+        event = emit_raw_event("custom.event", {"x": 1})
+
+    assert event == ObservabilityEvent("custom.event", {"x": 1})
+    assert events == [event]
+
+
+def test_path_event_maps_to_legacy_metadata_keys() -> None:
+    event = ObservabilityEvent(
+        ObservabilityEventType.POST_TURN_SCHEDULED,
+        {
+            "path_metrics": {
+                "turn_type": "knowledge_query",
+                "turn_type_reason": "knowledge_intent_rule",
+                "rag": {"should_call": True, "called": True},
+                "supervisor": {"should_call": True, "called": True},
+                "post_turn_scheduled": True,
+            }
+        },
+    )
+
+    meta = event_to_metadata(event)
+
+    assert meta["path_contract"] == "pass"
+    assert meta["llm_call_count"] == 1
+    assert meta["rag.called"] is True
+    assert meta["post_turn_scheduled"] is True
 
 
 def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:
