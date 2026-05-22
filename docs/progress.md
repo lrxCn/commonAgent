@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 57 |
-| 已完成 | 49 |
+| 已完成 | 50 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行 **50 - 控制面 Phase 1：Signals 与确定性 Intent Engine**，按 50→57 顺序推进控制面、意图治理、fallback 与文档收口。
+**当前建议下一步**：执行 **51 - 控制面 Phase 2：LLM Structured Classifier 与冲突校验**，按 51→57 顺序推进控制面、意图治理、fallback 与文档收口。
 
 
 ---
@@ -74,7 +74,7 @@
 | 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ✅ | 2026-05-22 | 用 domain events 解耦业务逻辑与 LangSmith metadata |
 | 48 | [大重构 Phase 7：代码地图与 README 最终对齐](./prompts/48-refactor-docs-maps-readme.md) | ✅ | 2026-05-22 | 新增 `docs/maps/` 6 份代码地图；README 收敛为当前运行入口；复核 AGENTS/README/progress 治理一致 |
 | 49 | [控制面 Phase 0：Intent 契约与评测种子先行](./prompts/49-control-plane-intent-contracts-eval.md) | ✅ 完成 | 2026-05-22 | 新增 `IntentDecision` 契约与 intent eval seed；不改变运行路径 |
-| 50 | [控制面 Phase 1：Signals 与确定性 Intent Engine](./prompts/50-control-plane-intent-signals-rules.md) | ⬜ 待开始 | — | 抽取 signals、高置信规则与 `classify_intent()`；旧事实规则降级 |
+| 50 | [控制面 Phase 1：Signals 与确定性 Intent Engine](./prompts/50-control-plane-intent-signals-rules.md) | ✅ 完成 | 2026-05-22 | 新增 `intent/` signals、确定性规则与 `classify_intent()`；旧事实规则保持兼容 |
 | 51 | [控制面 Phase 2：LLM Structured Classifier 与冲突校验](./prompts/51-control-plane-structured-classifier.md) | ⬜ 待开始 | — | 新增 intent 小模型结构化分类器、LLM Gateway 用途与 conflict check |
 | 52 | [控制面 Phase 3：Intent Engine 影子运行与观测接入](./prompts/52-control-plane-shadow-observability.md) | ⬜ 待开始 | — | 新 intent 旁路运行并记录 metadata，不改变旧路径 |
 | 53 | [控制面 Phase 4：Policy Gate 接管 fact_update fast path](./prompts/53-control-plane-policy-fast-path.md) | ⬜ 待开始 | — | fast path 改由 policy 准入，第一人称疑问不再写记忆 |
@@ -158,3 +158,4 @@
 | 2026-05-22 | 文档：新增 [Agent 控制面、意图治理与兜底 PRD](./prd/agent-control-plane-intent-fallback.md)，沉淀意图识别、Policy Gate、memory_query、Agent 级 fallback 与 feedback 闭环方案 |
 | 2026-05-22 | 文档：基于控制面 PRD 新增任务 **49-57**，按契约与 eval、signals/rules、structured classifier、shadow observability、Policy Gate、memory_query、Fallback Manager、feedback eval、文档最终对齐拆分执行 |
 | 2026-05-22 | 完成任务 49：新增 `contracts.intent.IntentDecision` / `IntentFeedback`、`memory_query` / `safety_refusal` route 契约、`intent_seed.json` 与 seed/contract 测试；运行路径保持不变 |
+| 2026-05-22 | 完成任务 50：新增 `intent` 包，抽取 signals、高置信确定性规则与纯逻辑 `classify_intent()`；第一人称疑问进入 `memory_query`，运行 graph 未接入新控制面 |
