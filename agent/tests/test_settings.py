@@ -78,6 +78,9 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.CHITCHAT_TIMEOUT_SECONDS == 5
     assert settings.RAG_ROUTER_MAX_TOKENS == 32
     assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 5
+    assert settings.INTENT_CLASSIFIER_MODEL_NAME is None
+    assert settings.INTENT_CLASSIFIER_MAX_TOKENS == 256
+    assert settings.INTENT_CLASSIFIER_TIMEOUT_SECONDS == 5
 
 
 def test_env_files_match_settings_contract() -> None:
@@ -190,6 +193,9 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
         CHITCHAT_TIMEOUT_SECONDS="2.5",
         RAG_ROUTER_MAX_TOKENS="16",
         RAG_ROUTER_TIMEOUT_SECONDS="3.25",
+        INTENT_CLASSIFIER_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
+        INTENT_CLASSIFIER_MAX_TOKENS="192",
+        INTENT_CLASSIFIER_TIMEOUT_SECONDS="3.75",
         MEM0_LLM_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
         MEM0_LLM_MAX_TOKENS="96",
         MEM0_LLM_TIMEOUT_SECONDS="4.5",
@@ -201,6 +207,9 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.CHITCHAT_TIMEOUT_SECONDS == 2.5
     assert settings.RAG_ROUTER_MAX_TOKENS == 16
     assert settings.RAG_ROUTER_TIMEOUT_SECONDS == 3.25
+    assert settings.INTENT_CLASSIFIER_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
+    assert settings.INTENT_CLASSIFIER_MAX_TOKENS == 192
+    assert settings.INTENT_CLASSIFIER_TIMEOUT_SECONDS == 3.75
     assert settings.MEM0_LLM_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
     assert settings.MEM0_LLM_MAX_TOKENS == 96
     assert settings.MEM0_LLM_TIMEOUT_SECONDS == 4.5

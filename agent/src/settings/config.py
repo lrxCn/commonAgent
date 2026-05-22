@@ -123,6 +123,20 @@ class Settings(BaseSettings):
         description="Timeout in seconds for hybrid RAG router classification.",
     )
 
+    # --- Intent classifier ---
+    INTENT_CLASSIFIER_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Chat model for structured intent classification; defaults to OPENAI_MODEL_NAME when unset.",
+    )
+    INTENT_CLASSIFIER_MAX_TOKENS: int = Field(
+        default=256,
+        description="Maximum completion tokens for structured intent classification.",
+    )
+    INTENT_CLASSIFIER_TIMEOUT_SECONDS: float = Field(
+        default=5,
+        description="Timeout in seconds for structured intent classification.",
+    )
+
     # --- Embedding ---
     EMBEDDING_MODEL: str = Field(
         default="BAAI/bge-large-zh-v1.5",
@@ -300,6 +314,7 @@ class Settings(BaseSettings):
         "REWRITE_MODEL_NAME",
         "CHITCHAT_MODEL_NAME",
         "RAG_ROUTER_MODEL_NAME",
+        "INTENT_CLASSIFIER_MODEL_NAME",
         "MEM0_LLM_MODEL_NAME",
         "RAG_SUBAGENT_TOP_K",
         mode="before",

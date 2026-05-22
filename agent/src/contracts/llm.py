@@ -15,6 +15,7 @@ class ModelUseCase(StrEnum):
     ROUTER = "router"
     CHITCHAT = "chitchat"
     MEM0_WRITE = "mem0_write"
+    INTENT_CLASSIFIER = "intent_classifier"
     EMBEDDING = "embedding"
     RERANK = "rerank"
     SUMMARY = "summary"

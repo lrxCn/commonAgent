@@ -48,6 +48,9 @@ def test_chat_policy_resolves_each_use_case() -> None:
         MEM0_LLM_MODEL_NAME="mem0-small",
         MEM0_LLM_MAX_TOKENS=96,
         MEM0_LLM_TIMEOUT_SECONDS=4.5,
+        INTENT_CLASSIFIER_MODEL_NAME="intent-small",
+        INTENT_CLASSIFIER_MAX_TOKENS=144,
+        INTENT_CLASSIFIER_TIMEOUT_SECONDS=2.25,
     )
     gateway = get_llm_gateway(settings)
 
@@ -55,6 +58,7 @@ def test_chat_policy_resolves_each_use_case() -> None:
     router = gateway.chat_policy(ModelUseCase.ROUTER)
     chitchat = gateway.chat_policy(ModelUseCase.CHITCHAT)
     mem0 = gateway.chat_policy(ModelUseCase.MEM0_WRITE)
+    intent = gateway.chat_policy(ModelUseCase.INTENT_CLASSIFIER)
     main = gateway.chat_policy(ModelUseCase.MAIN_ANSWER, streaming=True)
 
     assert (rewrite.model_name, rewrite.max_tokens, rewrite.timeout_seconds) == (
@@ -76,6 +80,11 @@ def test_chat_policy_resolves_each_use_case() -> None:
         "mem0-small",
         96,
         4.5,
+    )
+    assert (intent.model_name, intent.max_tokens, intent.timeout_seconds) == (
+        "intent-small",
+        144,
+        2.25,
     )
     assert main.model_name == "main-model"
     assert main.streaming is True
