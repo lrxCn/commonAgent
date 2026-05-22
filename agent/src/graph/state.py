@@ -9,6 +9,7 @@ from langgraph.channels.ephemeral_value import EphemeralValue
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
+from contracts.context import ContextBundle
 from gateway.schemas import ClientAction
 from rag.retriever import RagChunk
 
@@ -30,6 +31,8 @@ class AgentState(TypedDict, total=False):
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]
     rag_chunks: Annotated[list[RagChunk], EphemeralValue]
+    context_bundle: Annotated[ContextBundle, EphemeralValue]
+    # Compatibility fields derived from ``context_bundle`` for existing traces/tests.
     system_prompt: Annotated[str, EphemeralValue]
     context_budget: Annotated[dict[str, object], EphemeralValue]
     executor: Annotated[str, EphemeralValue]

@@ -183,7 +183,7 @@ Back 变量见 [back/.env.example](back/.env.example)：`AGENT_URL`、`BACK_HOST
 
 | 机制 | 内容 | 持久化 | 来源 |
 |------|------|--------|------|
-| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`turn_type`、`turn_type_reason`、`path_metrics`、`rewritten_query`、`rag_chunks`、`system_prompt` 等单轮字段用 `EphemeralValue` | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
+| `state_schema` / `AgentState` | `messages` 用 `add_messages`；`mem0_memories`、`rolling_summary`、`turn_type`、`turn_type_reason`、`path_metrics`、`rewritten_query`、`rag_chunks`、`context_bundle` 等单轮字段用 `EphemeralValue`；`system_prompt`、`context_budget` 是从 `context_bundle` 派生的兼容字段 | 只有 `messages` 作为对话权威历史跨轮持久化；单轮字段不得依赖上一轮残留 | 图节点 |
 | `context_schema` / `GraphContextSchema` | `user_id`、`role_id`、`tools[]`，与 `gateway.schemas.RequestContext` 同构 | 不进入 checkpoint 作为权限依据 | 每轮 `graph.invoke(..., context=...)` |
 | `configurable.thread_id` | 会话键 | checkpointer 主键 | 每轮 `config={"configurable": {"thread_id": ...}}` |
 
@@ -197,16 +197,18 @@ graph.invoke(
 )
 ```
 
-mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除，rewrite 和 system prompt 组装各自在消费处调用 `format_mem0_for_system()`。
+mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除，rewrite 在消费处调用 `format_mem0_for_system()`；模型上下文由 `context_assembly` 节点一次性产出 `ContextBundle`。
 
-跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义上下文预算，`rag` 定义检索结果，`sse` 定义 SSE 事件，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
+`ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget` 和 `sources`。`supervisor_node`、`rag_answer_executor`、`deepagents_executor` 只消费 bundle 中的 system/messages；LangSmith context metadata 读取同一个 `ContextBudget`，避免观测上下文与实际模型输入分叉。
+
+跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义 `ContextBundle` / `ContextBudget` / `ContextSources`，`rag` 定义检索结果，`sse` 定义 SSE 事件，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
 
 ## 记忆分层
 
 | 类型 | 存储 | 键 | 注入位置 |
 |------|------|----|----------|
 | 完整对话 | Postgres Checkpointer | `thread_id` | 权威历史；分页 API 同源 |
-| 模型上下文 | 运行时组装 | `thread_id` | system: 指令 + mem0 + summary + RAG；messages: 前 K + 近 M + 本轮 human |
+| 模型上下文 | 运行时 `ContextBundle` | `thread_id` | system: 指令 + mem0 + summary + RAG；messages: 前 K + 近 M + 本轮 human |
 | 用户偏好 | 本地 mem0 OSS `Memory` + 本地 Qdrant | `user_id` | system；post_turn 异步写入；运行时归一化为 `memory_profile` |
 | 知识库 | Qdrant | `role_id` | system；RAG 片段带 doc/chunk 引用 |
 
@@ -237,7 +239,7 @@ mem0 约束：
 - rolling summary 按 `SUMMARY_MAX_CHARS` 截断；RAG 先按 `RAG_CHUNK_MAX_CHARS` 裁剪单 chunk，再按 `RAG_CONTEXT_MAX_CHARS` 稳定保留靠前 chunk。
 - external tools 只进入 system prompt，schema block 受 `TOOLS_SCHEMA_MAX_CHARS` 限制；Agent 仍不执行外部工具。
 - messages 先按 K/M 选择，再受 `MODEL_MESSAGE_MAX_TURNS` 和 `MODEL_MESSAGE_MAX_CHARS` 限制；超预算时优先保留最近消息和本轮 human。
-- LangSmith metadata 会记录 `system_prompt_len`、`mem0_count`、`rag_chunk_count`、`message_chars`、`budget_truncated` 等预算使用情况。
+- `ContextBundle.budget` 会记录 `system_prompt_len`、`mem0_count`、`rag_chunk_count`、`message_count`、`message_chars`、`budget_truncated` 等预算使用情况，并作为 LangSmith metadata 的来源。
 
 ## 单轮流水线
 

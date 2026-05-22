@@ -37,7 +37,16 @@ def install_gateway_graph_mocks(
     reset_supervisor_overrides()
     reset_chat_graph()
 
-    set_settings_override(settings or Settings(**_GATEWAY_GRAPH_ENV))  # type: ignore[arg-type]
+    base_settings = settings or Settings(**_GATEWAY_GRAPH_ENV)  # type: ignore[arg-type]
+    set_settings_override(
+        base_settings.model_copy(
+            update={
+                "MEM0_MOCK": True,
+                "QDRANT_MOCK": True,
+                "RAG_ROUTER_MODE": "rules",
+            }
+        )
+    )
 
     def _fake_supervisor(_system: str, messages: list) -> list:
         last_human = ""

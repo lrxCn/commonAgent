@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from memory.assembly import (
     build_context,
+    build_context_bundle,
     build_context_with_budget,
     build_system_prompt,
     build_system_prompt_with_budget,
@@ -258,3 +259,39 @@ def test_build_context_caps_model_turns_and_message_chars() -> None:
     assert "当前问题" in flat
     assert budget.message_chars <= 25
     assert budget.budget_truncated is True
+
+
+def test_build_context_bundle_is_single_source_for_legacy_tuple() -> None:
+    history = _history(6, mark_middle_turns=False)
+    chunk = RagChunk(doc_id="doc-a", chunk_id="c1", text="制度正文", score=0.9)
+
+    bundle = build_context_bundle(
+        mem0=["用户偏好简洁回答"],
+        summary="历史摘要",
+        rag_chunks=[chunk],
+        instructions="指令",
+        messages=history,
+        current_human="当前问题",
+        original_human="原始问题",
+        k=1,
+        m=2,
+    )
+    system_str, messages, budget = build_context_with_budget(
+        mem0=["用户偏好简洁回答"],
+        summary="历史摘要",
+        rag_chunks=[chunk],
+        instructions="指令",
+        messages=history,
+        current_human="当前问题",
+        original_human="原始问题",
+        k=1,
+        m=2,
+    )
+
+    assert bundle.system_prompt == system_str
+    assert bundle.messages == messages
+    assert bundle.budget == budget
+    assert bundle.budget_metadata() == budget.as_metadata()
+    assert bundle.sources.current_human == "当前问题"
+    assert bundle.sources.original_human == "原始问题"
+    assert bundle.sources.rag_chunks == (chunk,)

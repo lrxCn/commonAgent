@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from contracts.context import ContextBudget
+from contracts.context import ContextBudget, ContextBundle, ContextSources
 from memory.mem0_client import format_mem0_for_system
 from memory.profile import (
     format_memory_profile_for_system,
@@ -356,7 +356,34 @@ def build_context_with_budget(
     current_human: str | None = None,
     original_human: str | None = None,
 ) -> tuple[str, list[BaseMessage], ContextBudgetResult]:
-    """Assemble system text and model messages (prefix K + recent M + current human).
+    """Compatibility wrapper returning the legacy tuple from a context bundle."""
+    bundle = build_context_bundle(
+        mem0=mem0,
+        summary=summary,
+        rag_chunks=rag_chunks,
+        instructions=instructions,
+        messages=messages,
+        k=k,
+        m=m,
+        current_human=current_human,
+        original_human=original_human,
+    )
+    return bundle.system_prompt, bundle.messages, bundle.budget
+
+
+def build_context_bundle(
+    *,
+    mem0: Sequence[str],
+    summary: str | None,
+    rag_chunks: Sequence[RagChunk],
+    instructions: str,
+    messages: Sequence[BaseMessage],
+    k: int | None = None,
+    m: int | None = None,
+    current_human: str | None = None,
+    original_human: str | None = None,
+) -> ContextBundle:
+    """Assemble the full model context once.
 
     Historical turns between prefix and recent are represented only via ``summary``
     (coverage ``[K+1, N-M]``). Raises :class:`ContextAssemblyError` if slices overlap.
@@ -413,7 +440,18 @@ def build_context_with_budget(
         budget_truncated=budget.budget_truncated or turn_budget_truncated or message_truncated,
     )
     attach_run_metadata(merged_budget.as_metadata())
-    return system_str, lc_messages, merged_budget
+    return ContextBundle(
+        system_prompt=system_str,
+        model_messages=tuple(lc_messages),
+        budget=merged_budget,
+        sources=ContextSources(
+            mem0=tuple(mem0),
+            summary=summary,
+            rag_chunks=tuple(rag_chunks),
+            current_human=current_text,
+            original_human=orig_text,
+        ),
+    )
 
 
 def build_context(

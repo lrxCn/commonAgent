@@ -1,6 +1,6 @@
 """Stable cross-module runtime contracts for the Agent service."""
 
-from contracts.context import ContextBudget
+from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEvent
 from contracts.execution import ExecutorDecision, ExecutorReason, ExecutorType
 from contracts.path import (
@@ -30,6 +30,8 @@ __all__ = [
     "LLM_COMPONENTS",
     "ClientActionsSseEvent",
     "ContextBudget",
+    "ContextBundle",
+    "ContextSources",
     "DoneSseEvent",
     "ErrorSseEvent",
     "ExecutorDecision",

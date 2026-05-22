@@ -5,9 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from langchain_core.messages import HumanMessage
 from pydantic import ValidationError
 
-from contracts.context import ContextBudget
+from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEvent
 from contracts.execution import ExecutorDecision, ExecutorType
 from contracts.path import (
@@ -82,6 +83,38 @@ def test_context_budget_alias_preserves_existing_metadata_api() -> None:
 
     assert isinstance(budget, ContextBudget)
     assert budget.as_metadata()["rag_chunk_count"] == 3
+
+
+def test_context_bundle_contract_carries_sources_and_budget() -> None:
+    message = HumanMessage(content="当前问题")
+    chunk = RetrieverRagChunk(doc_id="doc-1", chunk_id="c-1", text="policy", score=0.9)
+    budget = ContextBudget(
+        system_prompt_len=6,
+        mem0_count=1,
+        memory_profile_count=0,
+        mem0_free_text_count=1,
+        rag_chunk_count=1,
+        message_count=1,
+        message_chars=4,
+        budget_truncated=False,
+    )
+    sources = ContextSources(
+        mem0=("偏好短答",),
+        summary="摘要",
+        rag_chunks=(chunk,),
+        current_human="当前问题",
+        original_human=None,
+    )
+    bundle = ContextBundle(
+        system_prompt="system",
+        model_messages=(message,),
+        budget=budget,
+        sources=sources,
+    )
+
+    assert bundle.messages == [message]
+    assert bundle.budget_metadata()["message_count"] == 1
+    assert bundle.sources.as_metadata()["source_rag_chunk_count"] == 1
 
 
 def test_rag_contract_is_compatible_with_retriever_chunk() -> None:

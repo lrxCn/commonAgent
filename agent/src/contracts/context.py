@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from langchain_core.messages import BaseMessage
+
+from contracts.rag import RagChunk
+
 
 @dataclass(frozen=True)
 class ContextBudget:
@@ -29,3 +33,41 @@ class ContextBudget:
             "message_chars": self.message_chars,
             "budget_truncated": self.budget_truncated,
         }
+
+
+@dataclass(frozen=True)
+class ContextSources:
+    """Inputs used to produce a model context bundle."""
+
+    mem0: tuple[str, ...]
+    summary: str | None
+    rag_chunks: tuple[RagChunk, ...]
+    current_human: str | None
+    original_human: str | None
+
+    def as_metadata(self) -> dict[str, object]:
+        return {
+            "source_mem0_count": len(self.mem0),
+            "source_summary_len": len(self.summary or ""),
+            "source_rag_chunk_count": len(self.rag_chunks),
+            "source_current_human_len": len(self.current_human or ""),
+            "source_original_human_len": len(self.original_human or ""),
+        }
+
+
+@dataclass(frozen=True)
+class ContextBundle:
+    """Single source of truth for model context in one graph turn."""
+
+    system_prompt: str
+    model_messages: tuple[BaseMessage, ...]
+    budget: ContextBudget
+    sources: ContextSources
+
+    @property
+    def messages(self) -> list[BaseMessage]:
+        """Return model messages as a mutable list for LangChain invocations."""
+        return list(self.model_messages)
+
+    def budget_metadata(self) -> dict[str, object]:
+        return self.budget.as_metadata()

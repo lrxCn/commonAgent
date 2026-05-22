@@ -177,6 +177,45 @@ def test_rag_retrieval_runs_when_router_requests() -> None:
     assert len(chunks) == 1
 
 
+def test_supervisor_receives_context_bundle_messages() -> None:
+    set_router_classifier(lambda _prompt: '{"need_rag": true}')
+    import rag.retriever as retriever_mod
+
+    retriever_mod.retrieve = MagicMock(
+        return_value=[
+            RagChunk(
+                doc_id="doc-bundle",
+                chunk_id="c-1",
+                text="bundle policy text",
+                score=0.95,
+            )
+        ]
+    )
+    seen: dict[str, object] = {}
+
+    def _capture_answer(system: str, messages: list) -> str:
+        seen["system"] = system
+        seen["messages"] = list(messages)
+        return "bundle answer"
+
+    set_answer_invoke(_capture_answer)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="报销制度是什么？")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-context-bundle"}},
+    )
+
+    bundle = result.get("context_bundle")
+    assert bundle is not None
+    assert seen["system"] == bundle.system_prompt
+    assert seen["messages"] == bundle.messages
+    assert result.get("system_prompt") == bundle.system_prompt
+    assert result.get("context_budget") == bundle.budget_metadata()
+    assert "bundle policy text" in bundle.system_prompt
+
+
 def test_ephemeral_fields_not_visible_at_start_of_second_invoke(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

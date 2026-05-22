@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.runtime import Runtime
 from langgraph.types import RunnableConfig
 
+from contracts.context import ContextBundle
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.rag_subagent import (
@@ -39,7 +40,7 @@ from graph.supervisor import (
 from graph.turn_type import classify_turn_type
 from guardrails.inbound import check_inbound
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
-from memory.assembly import build_context, build_context_with_budget
+from memory.assembly import build_context_bundle
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import (
@@ -68,6 +69,7 @@ _EPHEMERAL_CARRY_KEYS = (
     "rewritten_query",
     "rag_skipped",
     "rag_chunks",
+    "context_bundle",
     "system_prompt",
     "context_budget",
     "executor",
@@ -384,13 +386,13 @@ def context_assembly_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
 ) -> dict[str, str]:
-    """Assemble dynamic system prompt (K+M+summary+mem0+RAG)."""
+    """Assemble the single model context bundle (K+M+summary+mem0+RAG)."""
     ctx = request_context_from_runtime(runtime)
     instructions = build_supervisor_instructions(
         DEFAULT_SUPERVISOR_INSTRUCTIONS,
         ctx.tools,
     )
-    system_str, _, budget = build_context_with_budget(
+    bundle = build_context_bundle(
         mem0=list(state.get("mem0_memories") or []),
         summary=state.get("rolling_summary"),
         rag_chunks=state.get("rag_chunks") or [],
@@ -401,8 +403,9 @@ def context_assembly_node(
     return _merge_carry(
         state,
         {
-            "system_prompt": system_str,
-            "context_budget": budget.as_metadata(),
+            "context_bundle": bundle,
+            "system_prompt": bundle.system_prompt,
+            "context_budget": bundle.budget_metadata(),
         },
     )
 
@@ -413,21 +416,13 @@ def supervisor_node(
 ) -> dict[str, object]:
     """Route to a lightweight executor or deepagents, then prepare the assistant output."""
     ctx = request_context_from_runtime(runtime)
-    system_prompt = _text(state.get("system_prompt"))
-    instructions = build_supervisor_instructions(
-        DEFAULT_SUPERVISOR_INSTRUCTIONS,
-        ctx.tools,
-    )
-    _, model_messages = build_context(
-        mem0=list(state.get("mem0_memories") or []),
-        summary=state.get("rolling_summary"),
-        rag_chunks=state.get("rag_chunks") or [],
-        instructions=instructions,
-        messages=state.get("messages") or [],
-        current_human=_extract_user_message(state) or None,
-    )
+    bundle = state.get("context_bundle")
+    if not isinstance(bundle, ContextBundle):
+        raise RuntimeError("context_bundle is required before supervisor execution")
 
-    full_system = system_prompt or instructions
+    full_system = bundle.system_prompt
+    model_messages = bundle.messages
+    context_budget = bundle.budget_metadata()
     decision = choose_executor(
         turn_type=_text(state.get("turn_type")),
         user_message=_extract_user_message(state),
@@ -479,7 +474,7 @@ def supervisor_node(
             model_messages,
             executor=decision.executor.value,
             executor_reason=decision.reason,
-            context_budget=state.get("context_budget") or {},
+            context_budget=context_budget,
         )
     else:
         result_messages = invoke_supervisor(
@@ -487,7 +482,7 @@ def supervisor_node(
             model_messages,
             executor=decision.executor.value,
             executor_reason=decision.reason,
-            context_budget=state.get("context_budget") or {},
+            context_budget=context_budget,
         )
         reply = extract_latest_ai_text(result_messages)
 

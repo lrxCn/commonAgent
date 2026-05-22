@@ -15,6 +15,7 @@ from memory.post_turn import schedule_post_turn_jobs
 from memory.assembly import (
     ContextAssemblyError,
     build_context,
+    build_context_bundle,
     build_system_prompt,
     select_turn_index_ranges,
     split_into_turns,
@@ -42,6 +43,7 @@ __all__ = [
     "ThreadIdError",
     "afetch_user_memories",
     "build_context",
+    "build_context_bundle",
     "build_system_prompt",
     "count_turns",
     "fetch_user_memories",
