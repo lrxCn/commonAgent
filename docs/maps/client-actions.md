@@ -1,0 +1,42 @@
+# Client Actions
+
+回答的问题：`client_actions` 从哪里生成，谁做白名单，为什么不在 Agent 内执行。
+
+## 边界
+
+- 请求契约在 [schemas.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas.py:1)。
+- Back 在 [context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) 注入 `tools[]` 白名单。
+- Agent 只把动作表达成 `ClientAction`；Front 才是真正执行者。
+
+## 生成路径
+
+1. Back 把允许工具塞入 `context.tools`。
+2. `turn_type` 或 deepagents 输出触发动作意图。
+3. Agent 在 [client_actions.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/client_actions.py:1) 解析模型输出并校验是否在白名单内。
+4. 图进入 `client_actions_emit` 节点，落到 `state.client_actions`。
+5. Gateway 在 [chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1) 检测到 `client_actions` 后返回 JSON。
+
+## 为什么不在 Agent 内执行
+
+- 外部工具属于客户端能力，不在 LangChain/deepagents 注册表中。
+- Agent 不等待结果，不生成 ToolMessage，不 resume。
+- 浏览器直连 Agent 被禁止；Front -> Back -> Agent 边界保持单向。
+
+## 运行规则
+
+- `requires_approval` 来自 Back 传入的工具定义，Agent 原样返回给 Front。
+- 带 `tools[]` 的回合禁用 live token streaming，避免 JSON 被拆成 token。
+- `client_actions` 回合跳过 outbound 文本护栏，直接走结构化返回。
+
+## 实现入口
+
+- 契约：[schemas.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas.py:1)
+- 动作解析：[client_actions.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/client_actions.py:1)
+- Gateway 输出：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
+- Back 白名单与转发：[context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1)、[forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1)
+
+## 测试入口
+
+- 动作解析与白名单：[test_client_actions.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_client_actions.py:1)
+- SSE/JSON 输出分流：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)
+- Back 转发：[test_back_forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/tests/test_back_forward.py:1)
