@@ -3,6 +3,15 @@
 from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEvent
 from contracts.execution import ExecutorDecision, ExecutorReason, ExecutorType
+from contracts.intent import (
+    IntentDecision,
+    IntentDomain,
+    IntentFeedback,
+    IntentOperation,
+    IntentRisk,
+    IntentRoute,
+    SpeechAct,
+)
 from contracts.llm import (
     ChatModelPolicy,
     EmbeddingModelPolicy,
@@ -44,6 +53,12 @@ __all__ = [
     "ExecutorDecision",
     "ExecutorReason",
     "ExecutorType",
+    "IntentDecision",
+    "IntentDomain",
+    "IntentFeedback",
+    "IntentOperation",
+    "IntentRisk",
+    "IntentRoute",
     "ChatModelPolicy",
     "EmbeddingModelPolicy",
     "ModelCallMetadata",
@@ -60,6 +75,7 @@ __all__ = [
     "RetractSseEvent",
     "SseEvent",
     "SseEventType",
+    "SpeechAct",
     "TokenSseEvent",
     "TurnReason",
     "TurnType",

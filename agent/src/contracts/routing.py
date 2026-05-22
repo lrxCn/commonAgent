@@ -11,11 +11,13 @@ class TurnType(str, Enum):
     """Coarse turn category for one user turn."""
 
     FACT_UPDATE = "fact_update"
+    MEMORY_QUERY = "memory_query"
     CHITCHAT = "chitchat"
     KNOWLEDGE_QUERY = "knowledge_query"
     CLIENT_ACTION = "client_action"
     AMBIGUOUS = "ambiguous"
     GENERAL_CHAT = "general_chat"
+    SAFETY_REFUSAL = "safety_refusal"
 
 
 TurnReason = Literal[
