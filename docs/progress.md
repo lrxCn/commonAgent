@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 49 |
-| 已完成 | 43 |
+| 已完成 | 44 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：继续大重构 Phase 3：执行 [44 - Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md)。
+**当前建议下一步**：继续大重构 Phase 4：执行 [45 - RAG 模块边界与可替换检索服务](./prompts/45-refactor-rag-module-boundaries.md)。
 
 
 ---
@@ -68,7 +68,7 @@
 | 41 | [大重构 Phase 0：行为冻结与验证入口](./prompts/41-refactor-behavior-freeze.md) | ✅ | 2026-05-21 | 修正 Makefile 测试入口；补 state lifecycle、path characterization、SSE contract、validation entrypoint 护栏 |
 | 42 | [大重构 Phase 1：契约层与类型化运行对象](./prompts/42-refactor-contracts-layer.md) | ✅ | 2026-05-21 | 新增 `contracts/`，集中 routing、execution、path、context、RAG、SSE、events 契约并保留旧导入兼容 |
 | 43 | [大重构 Phase 2：ContextBundle 单一上下文来源](./prompts/43-refactor-context-bundle.md) | ✅ | 2026-05-22 | 模型 system/messages/budget 由 `ContextBundle` 一次性产出 |
-| 44 | [大重构 Phase 3：Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md) | ⬜ | — | 拆分 `graph/nodes.py`，保留 facade 兼容与图拓扑不变 |
+| 44 | [大重构 Phase 3：Graph Nodes 拆分为薄适配器](./prompts/44-refactor-graph-nodes-thin-adapters.md) | ✅ | 2026-05-22 | `graph/nodes/` 按阶段拆分，facade 兼容旧导入与 monkeypatch 路径 |
 | 45 | [大重构 Phase 4：RAG 模块边界与可替换检索服务](./prompts/45-refactor-rag-module-boundaries.md) | ⬜ | — | 拆出 RAG service、Qdrant store、BM25、rerank、formatting |
 | 46 | [大重构 Phase 5：统一 LLM Gateway 与模型用途策略](./prompts/46-refactor-llm-gateway.md) | ⬜ | — | 按 `ModelUseCase` 收敛 chat/embedding/rerank/model policy |
 | 47 | [大重构 Phase 6：Observability 事件化与 LangSmith 适配](./prompts/47-refactor-observability-events.md) | ⬜ | — | 用 domain events 解耦业务逻辑与 LangSmith metadata |
@@ -141,3 +141,4 @@
 | 2026-05-21 | 完成任务 41：`make test` 改跑当前 `tests/` 非 integration 集；新增 state lifecycle、典型 path、SSE event contract 与验证入口测试，冻结重构前行为 |
 | 2026-05-21 | 完成任务 42：新增 `contracts/` 契约层与 typed models；`graph`/`rag`/`memory` 保持兼容导出，SSE formatter 增加契约校验 |
 | 2026-05-22 | 完成任务 43：新增 `ContextBundle` / `ContextSources`，`context_assembly` 一次性产出模型上下文，supervisor/executor 消费同一 bundle 与 budget metadata |
+| 2026-05-22 | 完成任务 44：将 `graph/nodes.py` 拆为 `graph/nodes/` 阶段模块，保留 `graph.nodes` facade、图拓扑与既有导入路径兼容 |

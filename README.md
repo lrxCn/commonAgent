@@ -80,7 +80,7 @@ commonAgent/
 │   ├── src/
 │   │   ├── contracts/     # 跨模块运行契约：routing、execution、path、context、RAG、SSE、events
 │   │   ├── gateway/       # HTTP: chat、history、kb ingest
-│   │   ├── graph/         # Supervisor 主图、state、context_schema、节点
+│   │   ├── graph/         # Supervisor 主图、state、context_schema、薄节点适配器
 │   │   ├── memory/        # checkpoint、K/M/summary、mem0
 │   │   ├── rag/           # rewrite、router、retriever、ingest
 │   │   ├── guardrails/    # 入站/出站护栏
