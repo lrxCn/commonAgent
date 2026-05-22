@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from langchain_core.messages import AIMessage
 
+from contracts.llm import ModelUseCase
 from gateway.schemas import ToolSpec
+from infrastructure.llm.gateway import get_llm_gateway
 from rag.router import (
     RuleDecision,
     build_router_classifier_prompt,
@@ -17,7 +18,7 @@ from rag.router import (
     set_router_classifier,
     should_retrieve,
 )
-from settings.config import Settings, reset_settings, set_settings_override
+from settings.config import Settings, reset_settings
 
 _REQUIRED_ENV = {
     "LANGSMITH_API_KEY": "lsv2_test",
@@ -266,37 +267,18 @@ def test_settings_default_hybrid_mode() -> None:
     assert settings.RAG_ROUTER_MODE == "hybrid"
 
 
-def test_router_uses_model_limits_from_settings(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    set_settings_override(
-        _settings(
-            RAG_ROUTER_MODEL_NAME="router-model-v1",
-            RAG_ROUTER_MAX_TOKENS=12,
-            RAG_ROUTER_TIMEOUT_SECONDS=2.5,
-        )
+def test_router_uses_gateway_policy_from_settings() -> None:
+    settings = _settings(
+        RAG_ROUTER_MODEL_NAME="router-model-v1",
+        RAG_ROUTER_MAX_TOKENS=12,
+        RAG_ROUTER_TIMEOUT_SECONDS=2.5,
     )
-    captured: dict[str, object] = {}
+    policy = get_llm_gateway(settings).chat_policy(ModelUseCase.ROUTER)
 
-    class FakeChatOpenAI:
-        def __init__(self, **kwargs: object) -> None:
-            captured["model"] = kwargs.get("model")
-            captured["max_completion_tokens"] = kwargs.get("max_completion_tokens")
-            captured["timeout"] = kwargs.get("timeout")
-            captured["max_retries"] = kwargs.get("max_retries")
-
-        def invoke(self, _messages: list[object]) -> AIMessage:
-            return AIMessage(content='{"need_rag": false}')
-
-    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
-
-    result = classify_with_llm("帮我看看", rewritten_query="帮我看看")
-
-    assert result is False
-    assert captured["model"] == "router-model-v1"
-    assert captured["max_completion_tokens"] == 12
-    assert captured["timeout"] == 2.5
-    assert captured["max_retries"] == 0
+    assert policy.model_name == "router-model-v1"
+    assert policy.max_tokens == 12
+    assert policy.timeout_seconds == 2.5
+    assert policy.max_retries == 0
 
 
 def test_classify_with_llm_returns_true_on_exception() -> None:

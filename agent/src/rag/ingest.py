@@ -14,6 +14,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from settings.config import Settings, get_settings
 
+from infrastructure.llm.gateway import get_llm_gateway
 from infrastructure.qdrant.kb_store import DENSE_VECTOR_NAME, get_qdrant_client
 
 logger = logging.getLogger(__name__)
@@ -146,16 +147,7 @@ def _embed_texts(texts: Sequence[str], settings: Settings) -> list[list[float]]:
     if _embed_texts_override is not None:
         return _embed_texts_override(texts)
 
-    from langchain_openai import OpenAIEmbeddings
-
-    embeddings = OpenAIEmbeddings(
-        model=settings.EMBEDDING_MODEL,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        dimensions=settings.EMBEDDING_MODEL_DIMS,
-    )
-    vectors = embeddings.embed_documents(list(texts))
-    return [list(vector) for vector in vectors]
+    return get_llm_gateway(settings).embed_documents(texts)
 
 
 def _read_content(*, content: str | None, file_path: str | None) -> str:

@@ -3,6 +3,13 @@
 from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEvent
 from contracts.execution import ExecutorDecision, ExecutorReason, ExecutorType
+from contracts.llm import (
+    ChatModelPolicy,
+    EmbeddingModelPolicy,
+    ModelCallMetadata,
+    ModelUseCase,
+    RerankModelPolicy,
+)
 from contracts.path import (
     COMPONENTS,
     LLM_COMPONENTS,
@@ -37,6 +44,11 @@ __all__ = [
     "ExecutorDecision",
     "ExecutorReason",
     "ExecutorType",
+    "ChatModelPolicy",
+    "EmbeddingModelPolicy",
+    "ModelCallMetadata",
+    "ModelUseCase",
+    "RerankModelPolicy",
     "ObservabilityEvent",
     "PathComponent",
     "PathComponentMetrics",

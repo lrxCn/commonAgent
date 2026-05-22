@@ -13,10 +13,12 @@ from typing import Any, Literal, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.gateway import get_llm_gateway
 from gateway.schemas import ToolSpec
 from observability.tracing import attach_run_metadata, rag_router_traceable
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
-from settings.config import Settings, get_settings
+from settings.config import get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "router_classify.txt"
 
@@ -182,29 +184,6 @@ def parse_need_rag_json(raw: str) -> bool | None:
     return None
 
 
-def _create_classifier_model(settings: Settings, model_name: str | None) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-
-    name = _resolve_model_name(settings, model_name)
-    return ChatOpenAI(
-        model=name,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0,
-        max_completion_tokens=settings.RAG_ROUTER_MAX_TOKENS,
-        timeout=settings.RAG_ROUTER_TIMEOUT_SECONDS,
-        max_retries=0,
-    )
-
-
-def _resolve_model_name(settings: Settings, model_name: str | None) -> str:
-    return (
-        model_name
-        or settings.RAG_ROUTER_MODEL_NAME
-        or settings.OPENAI_MODEL_NAME
-    ).strip()
-
-
 def _call_metadata(
     model_name: str | None,
     prompt: str,
@@ -212,6 +191,10 @@ def _call_metadata(
 ) -> dict[str, object]:
     try:
         settings = get_settings()
+        metadata = get_llm_gateway(settings).metadata(
+            ModelUseCase.ROUTER,
+            model_name=model_name,
+        )
     except Exception:
         return {
             "rag_router.model_name": model_name or "override",
@@ -219,11 +202,12 @@ def _call_metadata(
             "rag_router.mode": mode,
         }
     return {
-        "rag_router.model_name": _resolve_model_name(settings, model_name),
+        "llm.use_case": metadata.use_case.value,
+        "rag_router.model_name": metadata.model_name,
         "rag_router.prompt_len": len(prompt),
         "rag_router.mode": mode or settings.RAG_ROUTER_MODE,
-        "rag_router.max_tokens": settings.RAG_ROUTER_MAX_TOKENS,
-        "rag_router.timeout_seconds": settings.RAG_ROUTER_TIMEOUT_SECONDS,
+        "rag_router.max_tokens": metadata.max_tokens,
+        "rag_router.timeout_seconds": metadata.timeout_seconds,
     }
 
 
@@ -235,7 +219,10 @@ def _invoke_classifier(prompt: str, *, model_name: str | None = None) -> str:
         return str(_classifier_override(prompt)).strip()  # type: ignore[operator]
 
     settings = get_settings()
-    llm = _create_classifier_model(settings, model_name)
+    llm = get_llm_gateway(settings).chat_model(
+        ModelUseCase.ROUTER,
+        model_name=model_name,
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     return str(response.content).strip()
 

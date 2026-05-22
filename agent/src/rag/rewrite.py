@@ -11,10 +11,12 @@ from typing import TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.gateway import get_llm_gateway
 from memory.mem0_client import format_mem0_for_system
 from observability.tracing import attach_run_metadata, rewrite_traceable
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
-from settings.config import Settings, get_settings
+from settings.config import get_settings
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "rewrite.txt"
 
@@ -154,38 +156,23 @@ def should_rewrite(
     return True, "needs_disambiguation"
 
 
-def _create_chat_model(settings: Settings, model_name: str | None) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-
-    name = _resolve_model_name(settings, model_name)
-    return ChatOpenAI(
-        model=name,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0,
-        max_completion_tokens=settings.REWRITE_MAX_TOKENS,
-        timeout=settings.REWRITE_TIMEOUT_SECONDS,
-        max_retries=0,
-    )
-
-
-def _resolve_model_name(settings: Settings, model_name: str | None) -> str:
-    return (model_name or settings.REWRITE_MODEL_NAME or settings.OPENAI_MODEL_NAME).strip()
-
-
 def _call_metadata(model_name: str | None, prompt: str) -> dict[str, object]:
     try:
-        settings = get_settings()
+        metadata = get_llm_gateway().metadata(
+            ModelUseCase.REWRITE,
+            model_name=model_name,
+        )
     except Exception:
         return {
             "rewrite.model_name": model_name or "override",
             "rewrite.prompt_len": len(prompt),
         }
     return {
-        "rewrite.model_name": _resolve_model_name(settings, model_name),
+        "llm.use_case": metadata.use_case.value,
+        "rewrite.model_name": metadata.model_name,
         "rewrite.prompt_len": len(prompt),
-        "rewrite.max_tokens": settings.REWRITE_MAX_TOKENS,
-        "rewrite.timeout_seconds": settings.REWRITE_TIMEOUT_SECONDS,
+        "rewrite.max_tokens": metadata.max_tokens,
+        "rewrite.timeout_seconds": metadata.timeout_seconds,
     }
 
 
@@ -197,7 +184,10 @@ def _invoke_llm(prompt: str, *, model_name: str | None = None) -> str:
         return str(_llm_override(prompt)).strip()  # type: ignore[operator]
 
     settings = get_settings()
-    llm = _create_chat_model(settings, model_name)
+    llm = get_llm_gateway(settings).chat_model(
+        ModelUseCase.REWRITE,
+        model_name=model_name,
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     return str(response.content).strip()
 

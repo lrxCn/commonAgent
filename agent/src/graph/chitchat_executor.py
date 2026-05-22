@@ -9,8 +9,10 @@ from typing import TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.gateway import get_llm_gateway
 from observability.tracing import attach_run_metadata, chitchat_traceable
-from settings.config import Settings, get_settings
+from settings.config import get_settings
 
 _llm_override: BaseChatModel | Callable[[str], str] | None = None
 
@@ -69,29 +71,12 @@ def _template_reply(user_message: str) -> str:
     return "嗯，我在。"
 
 
-def _resolve_model_name(settings: Settings, model_name: str | None) -> str:
-    return (
-        model_name or settings.CHITCHAT_MODEL_NAME or settings.OPENAI_MODEL_NAME
-    ).strip()
-
-
-def _create_chat_model(settings: Settings, model_name: str | None) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=_resolve_model_name(settings, model_name),
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0.2,
-        max_completion_tokens=settings.CHITCHAT_MAX_TOKENS,
-        timeout=settings.CHITCHAT_TIMEOUT_SECONDS,
-        max_retries=0,
-    )
-
-
 def _call_metadata(model_name: str | None, prompt: str) -> dict[str, object]:
     try:
-        settings = get_settings()
+        metadata = get_llm_gateway().metadata(
+            ModelUseCase.CHITCHAT,
+            model_name=model_name,
+        )
     except Exception:
         return {
             "executor": "small_chat_executor",
@@ -99,11 +84,12 @@ def _call_metadata(model_name: str | None, prompt: str) -> dict[str, object]:
             "chitchat.prompt_len": len(prompt),
         }
     return {
+        "llm.use_case": metadata.use_case.value,
         "executor": "small_chat_executor",
-        "chitchat.model_name": _resolve_model_name(settings, model_name),
+        "chitchat.model_name": metadata.model_name,
         "chitchat.prompt_len": len(prompt),
-        "chitchat.max_tokens": settings.CHITCHAT_MAX_TOKENS,
-        "chitchat.timeout_seconds": settings.CHITCHAT_TIMEOUT_SECONDS,
+        "chitchat.max_tokens": metadata.max_tokens,
+        "chitchat.timeout_seconds": metadata.timeout_seconds,
     }
 
 
@@ -123,7 +109,10 @@ def _invoke_llm(prompt: str, *, model_name: str | None = None) -> str:
         return str(_llm_override(prompt)).strip()  # type: ignore[operator]
 
     settings = get_settings()
-    llm = _create_chat_model(settings, model_name)
+    llm = get_llm_gateway(settings).chat_model(
+        ModelUseCase.CHITCHAT,
+        model_name=model_name,
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     return str(response.content).strip()
 

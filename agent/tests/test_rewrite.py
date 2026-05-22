@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.gateway import get_llm_gateway
 from rag.rewrite import (
     build_rewrite_prompt,
     format_recent_messages,
@@ -366,34 +368,15 @@ def test_rewrite_node_invokes_llm_when_skip_disabled() -> None:
     assert len(calls) == 1
 
 
-def test_rewrite_uses_rewrite_model_name_from_settings(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    set_settings_override(
-        _settings(
-            REWRITE_MODEL_NAME="rewrite-model-v1",
-            REWRITE_MAX_TOKENS=42,
-            REWRITE_TIMEOUT_SECONDS=3.5,
-        )
+def test_rewrite_uses_gateway_policy_from_settings() -> None:
+    settings = _settings(
+        REWRITE_MODEL_NAME="rewrite-model-v1",
+        REWRITE_MAX_TOKENS=42,
+        REWRITE_TIMEOUT_SECONDS=3.5,
     )
-    captured: dict[str, object] = {}
+    policy = get_llm_gateway(settings).chat_policy(ModelUseCase.REWRITE)
 
-    class FakeChatOpenAI:
-        def __init__(self, **kwargs: object) -> None:
-            captured["model"] = str(kwargs.get("model", ""))
-            captured["max_completion_tokens"] = kwargs.get("max_completion_tokens")
-            captured["timeout"] = kwargs.get("timeout")
-            captured["max_retries"] = kwargs.get("max_retries")
-
-        def invoke(self, _messages: list[HumanMessage]) -> AIMessage:
-            return AIMessage(content="清晰的问题")
-
-    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
-
-    result = rewrite_query("模糊问题", recent_messages=[])
-
-    assert result == "清晰的问题"
-    assert captured["model"] == "rewrite-model-v1"
-    assert captured["max_completion_tokens"] == 42
-    assert captured["timeout"] == 3.5
-    assert captured["max_retries"] == 0
+    assert policy.model_name == "rewrite-model-v1"
+    assert policy.max_tokens == 42
+    assert policy.timeout_seconds == 3.5
+    assert policy.max_retries == 0

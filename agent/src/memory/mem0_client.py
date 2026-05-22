@@ -10,6 +10,8 @@ from typing import Any
 
 from openai import OpenAI
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.policy import chat_policy, embedding_policy
 from settings.config import Settings, get_settings
 
 _CUSTOM_INSTRUCTIONS_PATH = (
@@ -45,6 +47,8 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
     """Build mem0 OSS config: Qdrant vector store + OpenAI-compatible LLM/embedder."""
     if not (settings.MEM0_LLM_MODEL_NAME or "").strip():
         raise ValueError("MEM0_LLM_MODEL_NAME must be configured for mem0 infer writes")
+    llm_policy = chat_policy(ModelUseCase.MEM0_WRITE, settings)
+    embed_policy = embedding_policy(settings)
     config: dict[str, Any] = {
         "vector_store": {
             "provider": "qdrant",
@@ -58,20 +62,20 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
         "llm": {
             "provider": "openai",
             "config": {
-                "model": settings.MEM0_LLM_MODEL_NAME.strip(),
+                "model": llm_policy.model_name,
                 "api_key": settings.OPENAI_API_KEY,
                 "openai_base_url": settings.OPENAI_BASE_URL,
-                "temperature": 0.1,
-                "max_tokens": settings.MEM0_LLM_MAX_TOKENS,
+                "temperature": llm_policy.temperature,
+                "max_tokens": llm_policy.max_tokens,
             },
         },
         "embedder": {
             "provider": "openai",
             "config": {
-                "model": settings.EMBEDDING_MODEL,
+                "model": embed_policy.model_name,
                 "api_key": settings.OPENAI_API_KEY,
                 "openai_base_url": settings.OPENAI_BASE_URL,
-                "embedding_dims": settings.EMBEDDING_MODEL_DIMS,
+                "embedding_dims": embed_policy.dimensions,
             },
         },
     }

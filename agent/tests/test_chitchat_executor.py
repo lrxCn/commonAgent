@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from contracts.llm import ModelUseCase
 from graph.chitchat_executor import chitchat_reply, set_chitchat_llm
+from infrastructure.llm.gateway import get_llm_gateway
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -57,3 +59,18 @@ def test_chitchat_falls_back_to_template_when_llm_errors() -> None:
 
     assert result["executor"] == "template_executor"
     assert result["reply"] == "不客气。"
+
+
+def test_chitchat_uses_gateway_policy_from_settings() -> None:
+    settings = Settings(
+        **_REQUIRED_ENV,
+        CHITCHAT_MODEL_NAME="chitchat-model",
+        CHITCHAT_MAX_TOKENS=17,
+        CHITCHAT_TIMEOUT_SECONDS=2.0,
+    )  # type: ignore[arg-type]
+
+    policy = get_llm_gateway(settings).chat_policy(ModelUseCase.CHITCHAT)
+
+    assert policy.model_name == "chitchat-model"
+    assert policy.max_tokens == 17
+    assert policy.timeout_seconds == 2.0

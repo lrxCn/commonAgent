@@ -10,13 +10,15 @@ from pathlib import Path
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from contracts.llm import ModelUseCase
+from infrastructure.llm.gateway import get_llm_gateway
 from memory.assembly import select_turn_index_ranges, split_into_turns
 from memory.history import (
     get_rolling_summary_state,
     load_thread_messages,
     save_rolling_summary,
 )
-from settings.config import Settings, get_settings
+from settings.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -65,18 +67,6 @@ def build_summary_update_prompt(existing_summary: str | None, new_turns_text: st
     )
 
 
-def _create_chat_model(settings: Settings, model_name: str | None) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-
-    name = (model_name or settings.OPENAI_MODEL_NAME).strip()
-    return ChatOpenAI(
-        model=name,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0.2,
-    )
-
-
 def _invoke_summarizer(prompt: str, *, model_name: str | None = None) -> str:
     if _summarizer_override is not None:
         if hasattr(_summarizer_override, "invoke"):
@@ -85,7 +75,10 @@ def _invoke_summarizer(prompt: str, *, model_name: str | None = None) -> str:
         return str(_summarizer_override(prompt)).strip()  # type: ignore[operator]
 
     settings = get_settings()
-    llm = _create_chat_model(settings, model_name)
+    llm = get_llm_gateway(settings).chat_model(
+        ModelUseCase.SUMMARY,
+        model_name=model_name,
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     return str(response.content).strip()
 

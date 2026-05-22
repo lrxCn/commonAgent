@@ -78,11 +78,11 @@ commonAgent/
 ├── back/                  # 后端占位：demo auth context + 转发 Agent
 ├── agent/                 # LangGraph / deepagents 主服务
 │   ├── src/
-│   │   ├── contracts/     # 跨模块运行契约：routing、execution、path、context、RAG、SSE、events
+│   │   ├── contracts/     # 跨模块运行契约：routing、execution、path、context、RAG、SSE、events、LLM
 │   │   ├── domain/        # 纯领域逻辑：RAG service、query plan、merge、BM25、formatting
 │   │   ├── gateway/       # HTTP: chat、history、kb ingest
 │   │   ├── graph/         # Supervisor 主图、state、context_schema、薄节点适配器
-│   │   ├── infrastructure/# 外部系统适配：Qdrant KB store、payload parser、rerank client
+│   │   ├── infrastructure/# 外部系统适配：LLM Gateway、Qdrant KB store、payload parser
 │   │   ├── memory/        # checkpoint、K/M/summary、mem0
 │   │   ├── rag/           # rewrite、router、retriever/ingest 兼容 facade
 │   │   ├── guardrails/    # 入站/出站护栏
@@ -203,7 +203,25 @@ mem0 在 state 中只保留 `mem0_memories: list[str]`。`mem0_text` 已移除�
 
 `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget` 和 `sources`。`supervisor_node`、`rag_answer_executor`、`deepagents_executor` 只消费 bundle 中的 system/messages；LangSmith context metadata 读取同一个 `ContextBudget`，避免观测上下文与实际模型输入分叉。
 
-跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义 `ContextBundle` / `ContextBudget` / `ContextSources`，`rag` 定义检索结果，`sse` 定义 SSE 事件，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
+跨模块运行值域集中在 `agent/src/contracts/`：`routing` 定义 turn type，`execution` 定义 executor，`path` 定义路径指标，`context` 定义 `ContextBundle` / `ContextBudget` / `ContextSources`，`rag` 定义检索结果，`sse` 定义 SSE 事件，`llm` 定义 `ModelUseCase` 与模型调用 metadata，`events` 预留 observability domain event。现有 `graph.*`、`rag.*`、`memory.*` 原导入路径保持兼容。
+
+## LLM Gateway
+
+所有 OpenAI 兼容模型 provider 调用统一从 `agent/src/infrastructure/llm/` 进入，业务模块只选择 `ModelUseCase`，不直接构造 `ChatOpenAI`、`OpenAIEmbeddings` 或 rerank HTTP client。
+
+| `ModelUseCase` | 调用场景 | 配置来源 |
+|----------------|----------|----------|
+| `MAIN_ANSWER` | deepagents Supervisor 主回复 | `OPENAI_MODEL_NAME` |
+| `RAG_ANSWER` | 简单 RAG answer executor | `OPENAI_MODEL_NAME` |
+| `REWRITE` | 指代消解 query rewrite | `REWRITE_MODEL_NAME` + rewrite token/timeout |
+| `ROUTER` | RAG hybrid router 不确定分类 | `RAG_ROUTER_MODEL_NAME` + router token/timeout |
+| `CHITCHAT` | 可选寒暄小模型 | `CHITCHAT_MODEL_NAME` + chitchat token/timeout |
+| `MEM0_WRITE` | mem0 infer 写入模型策略 | `MEM0_LLM_MODEL_NAME` + mem0 token/timeout |
+| `SUMMARY` | post_turn rolling summary | `OPENAI_MODEL_NAME` |
+| `EMBEDDING` | KB ingest 与检索 query embedding | `EMBEDDING_MODEL` + `EMBEDDING_MODEL_DIMS` |
+| `RERANK` | RAG 候选 rerank | `RERANK_MODEL` |
+
+Gateway 负责集中解析模型名、temperature、max token、timeout、streaming callback、embedding 维度与 rerank fallback；rewrite/router/chitchat/supervisor/summary/mem0/ingest/retriever 只保留测试 override 或兼容 facade。当前任务没有新增环境变量，仍沿用上方环境契约。
 
 ## 记忆分层
 
@@ -297,7 +315,7 @@ sequenceDiagram
 - rewrite/router 消费统一 `turn_type`：`fact_update`、`chitchat`、`client_action` 跳过 rewrite/router 小模型；`knowledge_query` 跳过 router 小模型并直接进入 RAG；rewrite 默认不调用 LLM，仅 `ambiguous` 或旧规则判断为历史依赖时调用。
 - executor router 在 Supervisor 前选择执行器：`template_executor` 处理固定确认，`small_chat_executor` 处理寒暄，`rag_answer_executor` 处理已有高质量 RAG chunks 的简单知识问答，`action_executor` 处理简单客户端动作，`deepagents_executor` 只保留给复杂规划、多步工具、长文档或不确定工作流；trace metadata 记录 `executor` 与 `executor_reason`。
 - 无外部工具的文本模型回复通过 LangChain streaming callback 直接转成 SSE `token` 事件；Gateway 对已流式展示的片段做增量出站检查，必要时发送 `retract` / `replace`。模板/护栏等非模型回复仍以兼容的 token 事件发送完整文本。带 `tools[]` 的回合禁用 live token streaming，避免 `client_actions` JSON 被拆成自然语言 token。
-- rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
+- rewrite/router/chitchat/supervisor/summary/embedding/rerank/mem0 的 provider client 由 LLM Gateway 按 `ModelUseCase` 统一构造；rewrite/router 使用 `REWRITE_MODEL_NAME`、`RAG_ROUTER_MODEL_NAME` 指向低延迟小模型；`.env.example` 默认推荐 `Qwen/Qwen2.5-7B-Instruct`，并分别用 max token 与 timeout 防止小任务拖慢关键路径。
 - rewrite 只能消解指代，不得改写事实；个人/公司事实陈述直接跳过 LLM，LLM 输出若篡改原文数字则回退原文。
 - rag_router 对个人/公司事实陈述直接跳过 RAG；hybrid LLM 仅处理规则不确定的查询，timeout 默认 5 秒且失败保守走 RAG。
 - RAG 可由 router 跳过。
@@ -308,7 +326,7 @@ sequenceDiagram
 
 1. 路由：优先消费 `turn_type`；知识查询直接检索，事实更新、寒暄与纯客户端工具意图跳过整段 RAG；未确定场景再回落到规则或小模型分类。
 2. 顺序：`rewrite -> rag_router -> retrieve`；检索使用 `rewritten_query`，跳过 rewrite 时等于用户原文。
-3. 检索：`rag.retriever.retrieve()` 是兼容 facade，内部调用 `domain.rag.RagRetrievalService`；Qdrant 访问在 `infrastructure.qdrant.QdrantKbStore`，rerank HTTP 适配在 `infrastructure.llm.rerank_client`，格式化与 merge/BM25 是可单测的 domain 逻辑。
+3. 检索：`rag.retriever.retrieve()` 是兼容 facade，内部调用 `domain.rag.RagRetrievalService`；Qdrant 访问在 `infrastructure.qdrant.QdrantKbStore`，embedding 与 rerank provider 调用经 `infrastructure.llm.LlmGateway`，格式化与 merge/BM25 是可单测的 domain 逻辑。
 4. Qdrant store 必须按 `role_id` 过滤，dense + BM25 sparse fallback 合并，再 rerank；候选进入 rerank 前还会做 payload 级 `role_id` 校验，防止越权候选泄漏。
    - BM25 fallback 不引入额外搜索服务：从 Qdrant 滚动读取当前 `role_id` 的候选 payload，本地做轻量分词、BM25 打分，再和 dense 命中做 RRF 合并。
    - 如果 embedding 查询临时失败，检索仍会继续走 BM25 fallback，而不是整段 RAG 返回空。

@@ -13,6 +13,7 @@ from domain.rag.lexical.tokenizer import lexical_terms as _lexical_terms
 from domain.rag.merge import merge_candidates
 from domain.rag.models import RagCandidate, RagQueryPlan
 from domain.rag.service import RagRetrievalService, build_retrieval_metadata
+from infrastructure.llm.gateway import get_llm_gateway
 from infrastructure.llm.rerank_client import default_rerank
 from infrastructure.qdrant.kb_store import DENSE_VECTOR_NAME, QdrantKbStore, get_qdrant_client
 from infrastructure.qdrant.kb_store import role_filter as _role_filter
@@ -141,16 +142,7 @@ def _embed_query(query: str, settings: Settings) -> list[float]:
     if _embed_query_override is not None:
         return _embed_query_override(query)
 
-    from langchain_openai import OpenAIEmbeddings
-
-    embeddings = OpenAIEmbeddings(
-        model=settings.EMBEDDING_MODEL,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        dimensions=settings.EMBEDDING_MODEL_DIMS,
-    )
-    vector = embeddings.embed_query(query)
-    return list(vector)
+    return get_llm_gateway(settings).embed_query(query)
 
 
 def _mock_retrieve(role_id: str, query: str, *, top_k: int) -> list[RagChunk]:

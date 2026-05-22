@@ -13,10 +13,12 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
 
+from contracts.llm import ModelUseCase
 from gateway.schemas import ToolSpec
 from graph.client_actions import supervisor_client_actions_instruction_block
+from infrastructure.llm.gateway import get_llm_gateway
 from observability.tracing import attach_run_metadata, supervisor_traceable
-from settings.config import Settings, get_settings
+from settings.config import get_settings
 
 _supervisor_agent_override: CompiledStateGraph | None = None
 _supervisor_invoke_override: Callable[[str, list[BaseMessage]], list[BaseMessage]] | None = None
@@ -164,20 +166,14 @@ def build_supervisor_instructions(
     return "\n\n".join(parts)
 
 
-def _create_chat_model(settings: Settings) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-
-    kwargs: dict[str, Any] = {
-        "model": settings.OPENAI_MODEL_NAME,
-        "api_key": settings.OPENAI_API_KEY,
-        "base_url": settings.OPENAI_BASE_URL,
-        "temperature": 0.2,
-    }
+def _create_chat_model(settings: Any, use_case: ModelUseCase) -> BaseChatModel:
     sink = _stream_token_sink.get()
-    if sink is not None:
-        kwargs["streaming"] = True
-        kwargs["callbacks"] = [_SupervisorStreamingCallback(sink)]
-    return ChatOpenAI(**kwargs)
+    return get_llm_gateway(settings).chat_model(
+        use_case,
+        streaming=sink is not None,
+        token_sink=sink,
+        callback_factory=_SupervisorStreamingCallback,
+    )
 
 
 def build_supervisor_agent(
@@ -187,7 +183,7 @@ def build_supervisor_agent(
 ) -> CompiledStateGraph:
     """Create a deep agent with built-in tools only (no external ToolSpec bindings)."""
     settings = get_settings()
-    resolved_model = model if model is not None else _create_chat_model(settings)
+    resolved_model = model if model is not None else _create_chat_model(settings, ModelUseCase.MAIN_ANSWER)
     return create_deep_agent(
         model=resolved_model,
         tools=[],
@@ -242,7 +238,7 @@ def invoke_answer_executor(
         return _answer_invoke_override(system_prompt, messages).strip()
 
     settings = get_settings()
-    llm = _create_chat_model(settings)
+    llm = _create_chat_model(settings, ModelUseCase.RAG_ANSWER)
     response = llm.invoke([SystemMessage(content=system_prompt), *messages])
     return str(response.content).strip()
 
