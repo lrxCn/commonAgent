@@ -10,6 +10,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from contracts.context import ContextBundle
+from contracts.intent import IntentDecision
 from gateway.schemas import ClientAction
 from rag.retriever import RagChunk
 
@@ -27,6 +28,10 @@ class AgentState(TypedDict, total=False):
     rolling_summary: Annotated[str | None, EphemeralValue]
     turn_type: Annotated[str, EphemeralValue]
     turn_type_reason: Annotated[str, EphemeralValue]
+    intent_decision: Annotated[IntentDecision, EphemeralValue]
+    intent_conflict: Annotated[bool, EphemeralValue]
+    intent_conflict_reason: Annotated[str, EphemeralValue]
+    intent_shadow_error: Annotated[str, EphemeralValue]
     path_metrics: Annotated[dict[str, object], EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]

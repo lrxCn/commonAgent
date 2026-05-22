@@ -129,6 +129,33 @@ def test_path_event_maps_to_legacy_metadata_keys() -> None:
     assert meta["post_turn_scheduled"] is True
 
 
+def test_intent_event_maps_shadow_metadata() -> None:
+    event = ObservabilityEvent(
+        ObservabilityEventType.INTENT_CLASSIFIED,
+        {
+            "intent.speech_act": "question",
+            "intent.domain": "user_memory",
+            "intent.operation": "memory_read",
+            "intent.route": "memory_query",
+            "intent.confidence": 0.95,
+            "intent.risk": "low",
+            "intent.reasons": ["first_person_question"],
+            "intent.needs_clarification": False,
+            "intent.legacy_turn_type": "fact_update",
+            "intent.legacy_turn_type_reason": "fact_statement_rule",
+            "intent.conflict": True,
+            "intent.conflict_reason": "legacy_fact_update_intent_memory_query",
+        },
+    )
+
+    meta = event_to_metadata(event)
+
+    assert meta["intent.route"] == "memory_query"
+    assert meta["intent.legacy_turn_type"] == "fact_update"
+    assert meta["intent.conflict"] is True
+    assert meta["intent.conflict_reason"] == "legacy_fact_update_intent_memory_query"
+
+
 def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:
     meta = _rewrite_process_inputs(
         {

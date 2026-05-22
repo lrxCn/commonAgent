@@ -11,6 +11,8 @@ class ObservabilityEventType(str, Enum):
     """Stable event names emitted by business code."""
 
     TURN_CLASSIFIED = "turn.classified"
+    INTENT_CLASSIFIED = "intent.classified"
+    INTENT_CONFLICT_DETECTED = "intent.conflict_detected"
     REWRITE_COMPLETED = "rewrite.completed"
     REWRITE_SKIPPED = "rewrite.skipped"
     RAG_ROUTED = "rag.routed"

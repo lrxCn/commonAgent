@@ -20,6 +20,12 @@ def event_to_metadata(event: ObservabilityEvent) -> dict[str, Any]:
             "turn_type_reason": payload.get("turn_type_reason", ""),
         }
 
+    if name == ObservabilityEventType.INTENT_CLASSIFIED.value:
+        return payload
+
+    if name == ObservabilityEventType.INTENT_CONFLICT_DETECTED.value:
+        return payload
+
     if name == ObservabilityEventType.REWRITE_SKIPPED.value:
         return {
             "rewrite_skipped": True,

@@ -10,9 +10,11 @@ from langgraph.runtime import Runtime
 from langgraph.types import RunnableConfig
 
 from contracts.events import ObservabilityEventType
+from contracts.intent import IntentDecision
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.turn_type import classify_turn_type
+from intent.engine import classify_intent
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import new_path_metrics
@@ -77,4 +79,65 @@ def load_memory_node(
             "turn_type_reason": decision.reason,
         }
     )
+
+    user_message = extract_user_message_from_messages(classify_messages)
+    try:
+        intent_decision = classify_intent(user_message, tools_context=ctx.tools)
+        conflict = intent_decision.turn_type.value != decision.turn_type.value
+        conflict_reason = (
+            f"legacy_{decision.turn_type.value}_intent_{intent_decision.route}"
+            if conflict
+            else ""
+        )
+        updates["intent_decision"] = intent_decision
+        updates["intent_conflict"] = conflict
+        updates["intent_conflict_reason"] = conflict_reason
+        intent_metadata = _intent_shadow_metadata(
+            intent_decision,
+            legacy_turn_type=decision.turn_type.value,
+            legacy_turn_type_reason=decision.reason,
+            conflict=conflict,
+            conflict_reason=conflict_reason,
+        )
+        emit_event(ObservabilityEventType.INTENT_CLASSIFIED, intent_metadata)
+        if conflict:
+            emit_event(ObservabilityEventType.INTENT_CONFLICT_DETECTED, intent_metadata)
+    except Exception as exc:
+        error = f"{exc.__class__.__name__}: {exc}"
+        updates["intent_shadow_error"] = error
+        emit_event(
+            ObservabilityEventType.INTENT_CLASSIFIED,
+            {
+                "intent.shadow_error": error,
+                "intent.legacy_turn_type": decision.turn_type.value,
+                "intent.legacy_turn_type_reason": decision.reason,
+                "intent.conflict": False,
+                "intent.conflict_reason": "",
+            },
+        )
     return merge_carry(state, updates)
+
+
+def _intent_shadow_metadata(
+    intent_decision: IntentDecision,
+    *,
+    legacy_turn_type: str,
+    legacy_turn_type_reason: str,
+    conflict: bool,
+    conflict_reason: str,
+) -> dict[str, object]:
+    trace = intent_decision.to_trace_dict()
+    return {
+        "intent.speech_act": trace.get("speech_act", ""),
+        "intent.domain": trace.get("domain", ""),
+        "intent.operation": trace.get("operation", ""),
+        "intent.route": trace.get("route", ""),
+        "intent.confidence": trace.get("confidence", 0.0),
+        "intent.risk": trace.get("risk", ""),
+        "intent.reasons": trace.get("reasons", []),
+        "intent.needs_clarification": trace.get("needs_clarification", False),
+        "intent.legacy_turn_type": legacy_turn_type,
+        "intent.legacy_turn_type_reason": legacy_turn_type_reason,
+        "intent.conflict": conflict,
+        "intent.conflict_reason": conflict_reason,
+    }
