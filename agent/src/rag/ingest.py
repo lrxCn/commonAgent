@@ -14,7 +14,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from settings.config import Settings, get_settings
 
-from rag.retriever import _DENSE_VECTOR_NAME, _get_qdrant_client
+from infrastructure.qdrant.kb_store import DENSE_VECTOR_NAME, get_qdrant_client
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +209,7 @@ def _ensure_collection(client: QdrantClient, collection: str, *, dims: int) -> N
     client.create_collection(
         collection_name=collection,
         vectors_config={
-            _DENSE_VECTOR_NAME: qmodels.VectorParams(
+            DENSE_VECTOR_NAME: qmodels.VectorParams(
                 size=dims,
                 distance=qmodels.Distance.COSINE,
             )
@@ -319,7 +319,7 @@ def ingest_document(
         msg = "embedding count mismatch"
         raise IngestError(msg)
 
-    client = _get_qdrant_client(cfg)
+    client = get_qdrant_client(cfg)
     collection = cfg.QDRANT_COLLECTION_KB
 
     try:
@@ -334,7 +334,7 @@ def ingest_document(
         points.append(
             qmodels.PointStruct(
                 id=str(uuid.uuid4()),
-                vector={_DENSE_VECTOR_NAME: vector},
+                vector={DENSE_VECTOR_NAME: vector},
                 payload=_payload(
                     role_id=rid,
                     doc_id=did,

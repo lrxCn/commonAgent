@@ -1,30 +1,59 @@
-"""RAG retrieval: Qdrant role_id filter + dense/sparse hybrid + rerank."""
+"""RAG retrieval compatibility facade over domain and infrastructure services."""
 
 from __future__ import annotations
 
-import json
-import logging
-import math
-import re
-import urllib.error
-import urllib.request
-from collections import Counter
 from collections.abc import Callable, Sequence
 from typing import Any, TypedDict
 
 from qdrant_client import QdrantClient
-from qdrant_client.http import models as qmodels
+
 from contracts.rag import RagChunk
+from domain.rag.formatting import format_rag_chunks_for_system, rag_chunk_to_dict
+from domain.rag.lexical.tokenizer import lexical_terms as _lexical_terms
+from domain.rag.merge import merge_candidates
+from domain.rag.models import RagCandidate, RagQueryPlan
+from domain.rag.service import RagRetrievalService, build_retrieval_metadata
+from infrastructure.llm.rerank_client import default_rerank
+from infrastructure.qdrant.kb_store import DENSE_VECTOR_NAME, QdrantKbStore, get_qdrant_client
+from infrastructure.qdrant.kb_store import role_filter as _role_filter
+from infrastructure.qdrant.kb_store import set_qdrant_client_override
+from infrastructure.qdrant.payload import (
+    hit_to_candidate as _hit_to_candidate,
+    payload_text as _payload_text,
+    point_to_candidate as _point_to_candidate,
+)
 from observability.tracing import attach_run_metadata, rerank_traceable, retrieve_traceable
 from settings.config import Settings, get_settings
 
-logger = logging.getLogger(__name__)
+_DENSE_VECTOR_NAME = DENSE_VECTOR_NAME
 
-# Qdrant vector names (aligned with future ingest in task 20)
-_DENSE_VECTOR_NAME = "dense"
-_LEXICAL_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]+")
-_BM25_MIN_SCROLL_LIMIT = 50
-_BM25_SCROLL_MULTIPLIER = 8
+__all__ = [
+    "RagChunk",
+    "RagRetrievalNodeState",
+    "_DENSE_VECTOR_NAME",
+    "_bm25_search",
+    "_dense_search",
+    "_get_qdrant_client",
+    "_hit_to_candidate",
+    "_lexical_terms",
+    "_merge_candidates",
+    "_payload_text",
+    "_point_to_candidate",
+    "_role_filter",
+    "_sparse_search",
+    "_text_search",
+    "build_retrieval_metadata",
+    "default_rerank",
+    "format_rag_chunks_for_system",
+    "rag_chunk_to_dict",
+    "rag_retrieval_node",
+    "rerank_candidates",
+    "reset_retriever_overrides",
+    "retrieve",
+    "set_embed_query",
+    "set_qdrant_client",
+    "set_reranker",
+]
 
 RerankFn = Callable[[str, list[str]], list[float]]
 
@@ -42,25 +71,27 @@ class RagRetrievalNodeState(TypedDict, total=False):
     rag_chunks: list[RagChunk]
 
 
-# Mock fixtures for QDRANT_MOCK (filtered by role_id at runtime)
 _MOCK_CHUNKS: tuple[RagChunk, ...] = (
     RagChunk(
         doc_id="doc-reimbursement",
         chunk_id="chunk-001",
         text="报销制度：差旅费需在出差结束后 30 日内提交审批。",
         score=0.92,
+        channel="mock",
     ),
     RagChunk(
         doc_id="doc-reimbursement",
         chunk_id="chunk-002",
         text="报销制度：单笔超过 5000 元需部门负责人加签。",
         score=0.88,
+        channel="mock",
     ),
     RagChunk(
         doc_id="doc-leave",
         chunk_id="chunk-010",
         text="年假规则：工作满一年享有 5 天带薪年假。",
         score=0.85,
+        channel="mock",
     ),
 )
 
@@ -74,6 +105,7 @@ def set_qdrant_client(client: QdrantClient | None) -> None:
     """Replace Qdrant client (tests). Pass None to clear."""
     global _qdrant_client_override
     _qdrant_client_override = client
+    set_qdrant_client_override(client)
 
 
 def set_reranker(reranker: RerankFn | None) -> None:
@@ -99,139 +131,10 @@ def _text(value: str | None) -> str:
     return (value or "").strip()
 
 
-def _role_filter(role_id: str) -> qmodels.Filter:
-    return qmodels.Filter(
-        must=[
-            qmodels.FieldCondition(
-                key="role_id",
-                match=qmodels.MatchValue(value=role_id),
-            )
-        ]
-    )
-
-
-def _payload_text(payload: dict[str, Any]) -> str:
-    for key in ("text", "content", "chunk_text"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return ""
-
-
-def _lexical_terms(text: str) -> list[str]:
-    """Low-dependency tokenizer for English words and Chinese character n-grams."""
-    normalized = text.strip().lower()
-    if not normalized:
-        return []
-
-    terms: list[str] = []
-    for match in _LEXICAL_TOKEN_RE.finditer(normalized):
-        token = match.group(0)
-        if not token:
-            continue
-        if all("\u4e00" <= ch <= "\u9fff" for ch in token):
-            chars = list(token)
-            terms.extend(chars)
-            terms.extend("".join(chars[i : i + 2]) for i in range(len(chars) - 1))
-            terms.extend("".join(chars[i : i + 3]) for i in range(len(chars) - 2))
-            if len(token) <= 12:
-                terms.append(token)
-            continue
-        terms.append(token)
-    return terms
-
-
-def _compact_text(text: str) -> str:
-    return re.sub(r"\s+", "", text.strip().lower())
-
-
-def _hit_to_candidate(hit: Any, *, channel: str, role_id: str | None = None) -> dict[str, Any] | None:
-    payload = hit.payload if isinstance(hit.payload, dict) else {}
-    if role_id is not None and str(payload.get("role_id") or "").strip() != role_id:
-        return None
-    doc_id = str(payload.get("doc_id") or "").strip()
-    chunk_id = str(payload.get("chunk_id") or hit.id or "").strip()
-    text = _payload_text(payload)
-    if not doc_id or not chunk_id or not text:
-        return None
-    score = float(hit.score) if hit.score is not None else 0.0
-    return {
-        "doc_id": doc_id,
-        "chunk_id": chunk_id,
-        "text": text,
-        "score": score,
-        "channel": channel,
-    }
-
-
-def _point_to_candidate(
-    point: Any,
-    *,
-    channel: str,
-    score: float = 0.0,
-    role_id: str | None = None,
-) -> dict[str, Any] | None:
-    payload = point.payload if isinstance(point.payload, dict) else {}
-    if role_id is not None and str(payload.get("role_id") or "").strip() != role_id:
-        return None
-    doc_id = str(payload.get("doc_id") or "").strip()
-    chunk_id = str(payload.get("chunk_id") or point.id or "").strip()
-    text = _payload_text(payload)
-    if not doc_id or not chunk_id or not text:
-        return None
-    return {
-        "doc_id": doc_id,
-        "chunk_id": chunk_id,
-        "text": text,
-        "score": score,
-        "channel": channel,
-    }
-
-
-def _merge_candidates(*groups: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
-    """RRF-style merge by chunk_id across dense/sparse channels."""
-    merged: dict[str, dict[str, Any]] = {}
-    rank_constant = 60
-    for group in groups:
-        for rank, item in enumerate(group, start=1):
-            key = item["chunk_id"]
-            rrf = 1.0 / (rank_constant + rank)
-            if key not in merged:
-                merged[key] = {**item, "score": rrf}
-            else:
-                merged[key]["score"] = float(merged[key]["score"]) + rrf
-                if item["score"] > merged[key].get("channel_score", 0.0):
-                    merged[key]["channel_score"] = item["score"]
-    return sorted(merged.values(), key=lambda x: float(x["score"]), reverse=True)
-
-
-def _mock_retrieve(role_id: str, query: str, *, top_k: int) -> list[RagChunk]:
-    if not query:
-        return []
-    chunks = [
-        c
-        for c in _MOCK_CHUNKS
-        if _MOCK_ROLE_BY_DOC.get(c.doc_id) == role_id
-    ]
-    return chunks[:top_k]
-
-
 def _get_qdrant_client(settings: Settings) -> QdrantClient:
     if _qdrant_client_override is not None:
         return _qdrant_client_override
-    return QdrantClient(url=settings.qdrant_url, prefer_grpc=False)
-
-
-def _collection_has_sparse(client: QdrantClient, collection_name: str) -> bool:
-    try:
-        info = client.get_collection(collection_name)
-        config = info.config.params if info.config else None  # type: ignore[union-attr]
-        if config is None:
-            return False
-        sparse_vectors = getattr(config, "sparse_vectors", None)
-        return bool(sparse_vectors)
-    except Exception:
-        return False
+    return get_qdrant_client(settings)
 
 
 def _embed_query(query: str, settings: Settings) -> list[float]:
@@ -250,6 +153,49 @@ def _embed_query(query: str, settings: Settings) -> list[float]:
     return list(vector)
 
 
+def _mock_retrieve(role_id: str, query: str, *, top_k: int) -> list[RagChunk]:
+    if not query:
+        return []
+    chunks = [
+        c
+        for c in _MOCK_CHUNKS
+        if _MOCK_ROLE_BY_DOC.get(c.doc_id) == role_id
+    ]
+    return chunks[:top_k]
+
+
+def _candidate_from_mapping(item: RagCandidate | dict[str, Any]) -> RagCandidate:
+    if isinstance(item, RagCandidate):
+        return item
+    return RagCandidate(
+        doc_id=str(item["doc_id"]),
+        chunk_id=str(item["chunk_id"]),
+        text=str(item["text"]),
+        score=float(item.get("score", 0.0)),
+        channel=str(item.get("channel") or "dense"),  # type: ignore[arg-type]
+    )
+
+
+def _candidate_to_mapping(item: RagCandidate) -> dict[str, Any]:
+    return {
+        "doc_id": item.doc_id,
+        "chunk_id": item.chunk_id,
+        "text": item.text,
+        "score": item.score,
+        "channel": item.channel,
+    }
+
+
+def _merge_candidates(*groups: Sequence[dict[str, Any] | RagCandidate]) -> list[dict[str, Any]]:
+    """Compatibility wrapper for the old dict-shaped merge helper."""
+    candidate_groups = [[_candidate_from_mapping(item) for item in group] for group in groups]
+    return [_candidate_to_mapping(item) for item in merge_candidates(*candidate_groups)]
+
+
+def _store(client: QdrantClient, *, collection: str) -> QdrantKbStore:
+    return QdrantKbStore(client=client, collection=collection)
+
+
 def _dense_search(
     client: QdrantClient,
     *,
@@ -258,33 +204,14 @@ def _dense_search(
     query_vector: list[float],
     limit: int,
 ) -> list[dict[str, Any]]:
-    try:
-        hits = client.search(
-            collection_name=collection,
-            query_vector=(_DENSE_VECTOR_NAME, query_vector),
-            query_filter=_role_filter(role_id),
+    return [
+        _candidate_to_mapping(item)
+        for item in _store(client, collection=collection).dense_search(
+            role_id=role_id,
+            query_vector=query_vector,
             limit=limit,
-            with_payload=True,
         )
-    except Exception:
-        try:
-            hits = client.search(
-                collection_name=collection,
-                query_vector=query_vector,
-                query_filter=_role_filter(role_id),
-                limit=limit,
-                with_payload=True,
-            )
-        except Exception:
-            logger.debug("dense search failed for collection %s", collection, exc_info=True)
-            return []
-
-    candidates: list[dict[str, Any]] = []
-    for hit in hits:
-        item = _hit_to_candidate(hit, channel="dense", role_id=role_id)
-        if item:
-            candidates.append(item)
-    return candidates
+    ]
 
 
 def _sparse_search(
@@ -295,22 +222,14 @@ def _sparse_search(
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    """
-    Sparse / keyword channel.
-
-    Uses a lightweight local BM25 fallback over role-scoped Qdrant payloads. If a
-    Qdrant full-text index is available, its matches are merged into the same channel.
-    """
-    if _collection_has_sparse(client, collection):
-        logger.debug(
-            "collection %s has sparse vectors; BM25 fallback used until sparse query vectors are wired",
-            collection,
+    return [
+        _candidate_to_mapping(item)
+        for item in _store(client, collection=collection).lexical_search(
+            role_id=role_id,
+            query=query,
+            limit=limit,
         )
-    text_hits = _text_search(client, collection=collection, role_id=role_id, query=query, limit=limit)
-    bm25_hits = _bm25_search(client, collection=collection, role_id=role_id, query=query, limit=limit)
-    if text_hits and bm25_hits:
-        return _merge_candidates(text_hits, bm25_hits)[:limit]
-    return bm25_hits or text_hits
+    ]
 
 
 def _text_search(
@@ -321,37 +240,14 @@ def _text_search(
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    """Keyword-style fallback when sparse vectors are not configured."""
-    if not query:
-        return []
-    try:
-        records, _ = client.scroll(
-            collection_name=collection,
-            scroll_filter=qmodels.Filter(
-                must=[
-                    qmodels.FieldCondition(
-                        key="role_id",
-                        match=qmodels.MatchValue(value=role_id),
-                    ),
-                    qmodels.FieldCondition(
-                        key="text",
-                        match=qmodels.MatchText(text=query),
-                    ),
-                ]
-            ),
+    return [
+        _candidate_to_mapping(item)
+        for item in _store(client, collection=collection).text_search(
+            role_id=role_id,
+            query=query,
             limit=limit,
-            with_payload=True,
         )
-    except Exception:
-        logger.debug("text scroll search failed", exc_info=True)
-        return []
-
-    candidates: list[dict[str, Any]] = []
-    for point in records:
-        item = _point_to_candidate(point, channel="text", score=0.5, role_id=role_id)
-        if item:
-            candidates.append(item)
-    return candidates
+    ]
 
 
 def _bm25_search(
@@ -362,121 +258,19 @@ def _bm25_search(
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    """BM25 fallback over role-scoped payload text, used when no sparse service is configured."""
-    query_terms = _lexical_terms(query)
-    if not query_terms:
-        return []
-
-    scroll_limit = max(_BM25_MIN_SCROLL_LIMIT, limit * _BM25_SCROLL_MULTIPLIER)
-    try:
-        records, _ = client.scroll(
-            collection_name=collection,
-            scroll_filter=_role_filter(role_id),
-            limit=scroll_limit,
-            with_payload=True,
+    return [
+        _candidate_to_mapping(item)
+        for item in _store(client, collection=collection).bm25_search(
+            role_id=role_id,
+            query=query,
+            limit=limit,
         )
-    except Exception:
-        logger.debug("BM25 role-scoped scroll failed", exc_info=True)
-        return []
-
-    candidates: list[dict[str, Any]] = []
-    term_counts: list[Counter[str]] = []
-    lengths: list[int] = []
-    df: Counter[str] = Counter()
-    for point in records:
-        item = _point_to_candidate(point, channel="bm25", role_id=role_id)
-        if not item:
-            continue
-        counts = Counter(_lexical_terms(str(item["text"])))
-        if not counts:
-            continue
-        candidates.append(item)
-        term_counts.append(counts)
-        length = sum(counts.values())
-        lengths.append(length)
-        df.update(counts.keys())
-
-    if not candidates:
-        return []
-
-    query_counts = Counter(query_terms)
-    total_docs = len(candidates)
-    avg_len = max(1.0, sum(lengths) / total_docs)
-    compact_query = _compact_text(query)
-    k1 = 1.5
-    b = 0.75
-
-    scored: list[dict[str, Any]] = []
-    for item, counts, doc_len in zip(candidates, term_counts, lengths, strict=True):
-        score = 0.0
-        for term, query_count in query_counts.items():
-            term_freq = counts.get(term, 0)
-            if term_freq <= 0:
-                continue
-            doc_freq = max(1, df.get(term, 0))
-            idf = math.log(1.0 + (total_docs - doc_freq + 0.5) / (doc_freq + 0.5))
-            denom = term_freq + k1 * (1.0 - b + b * (doc_len / avg_len))
-            score += query_count * idf * ((term_freq * (k1 + 1.0)) / denom)
-        if compact_query and compact_query in _compact_text(str(item["text"])):
-            score += 2.0
-        if score <= 0.0:
-            continue
-        scored.append({**item, "score": score})
-
-    scored.sort(key=lambda x: float(x["score"]), reverse=True)
-    return scored[:limit]
+    ]
 
 
-def default_rerank(query: str, documents: list[str], *, settings: Settings | None = None) -> list[float]:
-    """Rerank via SiliconFlow / OpenAI-compatible ``/rerank`` endpoint."""
-    if not documents:
-        return []
-
-    cfg = settings or get_settings()
-    payload = {
-        "model": cfg.RERANK_MODEL,
-        "query": query,
-        "documents": documents,
-        "top_n": len(documents),
-    }
-    url = f"{cfg.OPENAI_BASE_URL.rstrip('/')}/rerank"
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {cfg.OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
-        logger.debug("rerank API failed; using retrieval order", exc_info=True)
-        return [float(len(documents) - i) for i in range(len(documents))]
-
-    results = body.get("results") if isinstance(body, dict) else None
-    if not isinstance(results, list):
-        return [float(len(documents) - i) for i in range(len(documents))]
-
-    scores = [0.0] * len(documents)
-    for item in results:
-        if not isinstance(item, dict):
-            continue
-        index = item.get("index")
-        score = item.get("relevance_score", item.get("score"))
-        if isinstance(index, int) and 0 <= index < len(documents) and score is not None:
-            scores[index] = float(score)
-    if all(s == 0.0 for s in scores):
-        return [float(len(documents) - i) for i in range(len(documents))]
-    return scores
-
-
-@rerank_traceable()
-def rerank_candidates(
+def _rerank_candidates_impl(
     query: str,
-    candidates: Sequence[dict[str, Any]],
+    candidates: Sequence[dict[str, Any] | RagCandidate],
     *,
     top_k: int,
     settings: Settings | None = None,
@@ -486,8 +280,8 @@ def rerank_candidates(
 
     cfg = settings or get_settings()
     limit = min(len(candidates), cfg.RERANK_TOP_K)
-    pool = list(candidates)[:limit]
-    documents = [str(c["text"]) for c in pool]
+    pool = [_candidate_from_mapping(c) for c in candidates[:limit]]
+    documents = [c.text for c in pool]
 
     if _reranker_override is not None:
         scores = _reranker_override(query, documents)
@@ -502,35 +296,35 @@ def rerank_candidates(
     for item, score in ranked[:top_k]:
         chunks.append(
             RagChunk(
-                doc_id=str(item["doc_id"]),
-                chunk_id=str(item["chunk_id"]),
-                text=str(item["text"]),
+                doc_id=item.doc_id,
+                chunk_id=item.chunk_id,
+                text=item.text,
                 score=float(score),
+                channel=item.channel,
+                metadata=item.metadata,
             )
         )
     return chunks
 
 
-def build_retrieval_metadata(
-    *,
-    role_id: str,
+@rerank_traceable()
+def rerank_candidates(
     query: str,
-    dense_count: int,
-    sparse_count: int,
-    result_count: int,
-    mock: bool,
-    second_pass: bool = False,
-) -> dict[str, Any]:
-    """Span metadata for LangSmith (task 21)."""
-    return {
-        "rag.role_id": role_id,
-        "rag.query_len": len(query),
-        "rag.dense_hits": dense_count,
-        "rag.sparse_hits": sparse_count,
-        "rag.result_count": result_count,
-        "rag.mock": mock,
-        "rag.second_pass": second_pass,
-    }
+    candidates: Sequence[dict[str, Any] | RagCandidate],
+    *,
+    top_k: int,
+    settings: Settings | None = None,
+) -> list[RagChunk]:
+    return _rerank_candidates_impl(query, candidates, top_k=top_k, settings=settings)
+
+
+def _service_rerank(
+    query: str,
+    candidates: list[RagCandidate],
+    top_k: int,
+    settings: Settings,
+) -> list[RagChunk]:
+    return _rerank_candidates_impl(query, candidates, top_k=top_k, settings=settings)
 
 
 @retrieve_traceable()
@@ -571,59 +365,23 @@ def retrieve(
         return chunks
 
     client = _get_qdrant_client(cfg)
-    collection = cfg.QDRANT_COLLECTION_KB
+    service = RagRetrievalService(
+        store=QdrantKbStore(client=client, collection=cfg.QDRANT_COLLECTION_KB),
+        embed_query=_embed_query,
+        rerank=_service_rerank,
+        settings=cfg,
+    )
     prefetch_limit = max(final_k, cfg.RERANK_TOP_K)
-
-    try:
-        dense_vector = _embed_query(q, cfg)
-    except Exception:
-        logger.debug("query embedding failed; continuing with BM25 fallback", exc_info=True)
-        dense_hits = []
-    else:
-        dense_hits = _dense_search(
-            client,
-            collection=collection,
+    result = service.retrieve(
+        RagQueryPlan(
             role_id=rid,
-            query_vector=dense_vector,
-            limit=prefetch_limit,
+            query=q,
+            top_k=final_k,
+            prefetch_limit=prefetch_limit,
+            second_pass=second_pass,
         )
-    sparse_hits = _sparse_search(
-        client,
-        collection=collection,
-        role_id=rid,
-        query=q,
-        limit=prefetch_limit,
     )
-    merged = _merge_candidates(dense_hits, sparse_hits)
-    chunks = rerank_candidates(q, merged, top_k=final_k, settings=cfg)
-
-    metadata = build_retrieval_metadata(
-        role_id=rid,
-        query=q,
-        dense_count=len(dense_hits),
-        sparse_count=len(sparse_hits),
-        result_count=len(chunks),
-        mock=False,
-        second_pass=second_pass,
-    )
-    attach_run_metadata(metadata)
-    return chunks
-
-
-def format_rag_chunks_for_system(chunks: Sequence[RagChunk]) -> str:
-    """Format chunks for system prompt with doc/chunk citation markers."""
-    if not chunks:
-        return ""
-    lines = ["## Knowledge base excerpts", ""]
-    for chunk in chunks:
-        ref = f"[doc:{chunk.doc_id}/chunk:{chunk.chunk_id}]"
-        lines.append(f"- {ref} {chunk.text}")
-    return "\n".join(lines)
-
-
-def rag_chunk_to_dict(chunk: RagChunk) -> dict[str, Any]:
-    """Serialize for LangGraph state / JSON."""
-    return dict(chunk.to_dict())
+    return list(result.chunks)
 
 
 def rag_retrieval_node(state: RagRetrievalNodeState) -> dict[str, list[RagChunk]]:

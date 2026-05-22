@@ -79,10 +79,12 @@ commonAgent/
 ├── agent/                 # LangGraph / deepagents 主服务
 │   ├── src/
 │   │   ├── contracts/     # 跨模块运行契约：routing、execution、path、context、RAG、SSE、events
+│   │   ├── domain/        # 纯领域逻辑：RAG service、query plan、merge、BM25、formatting
 │   │   ├── gateway/       # HTTP: chat、history、kb ingest
 │   │   ├── graph/         # Supervisor 主图、state、context_schema、薄节点适配器
+│   │   ├── infrastructure/# 外部系统适配：Qdrant KB store、payload parser、rerank client
 │   │   ├── memory/        # checkpoint、K/M/summary、mem0
-│   │   ├── rag/           # rewrite、router、retriever、ingest
+│   │   ├── rag/           # rewrite、router、retriever/ingest 兼容 facade
 │   │   ├── guardrails/    # 入站/出站护栏
 │   │   ├── observability/ # LangSmith tracing
 │   │   └── settings/      # .env -> Settings
@@ -306,12 +308,13 @@ sequenceDiagram
 
 1. 路由：优先消费 `turn_type`；知识查询直接检索，事实更新、寒暄与纯客户端工具意图跳过整段 RAG；未确定场景再回落到规则或小模型分类。
 2. 顺序：`rewrite -> rag_router -> retrieve`；检索使用 `rewritten_query`，跳过 rewrite 时等于用户原文。
-3. 检索：Qdrant 按 `role_id` 过滤，dense + BM25 sparse fallback 合并，再 rerank；候选进入 rerank 前还会做 payload 级 `role_id` 校验，防止越权候选泄漏。
+3. 检索：`rag.retriever.retrieve()` 是兼容 facade，内部调用 `domain.rag.RagRetrievalService`；Qdrant 访问在 `infrastructure.qdrant.QdrantKbStore`，rerank HTTP 适配在 `infrastructure.llm.rerank_client`，格式化与 merge/BM25 是可单测的 domain 逻辑。
+4. Qdrant store 必须按 `role_id` 过滤，dense + BM25 sparse fallback 合并，再 rerank；候选进入 rerank 前还会做 payload 级 `role_id` 校验，防止越权候选泄漏。
    - BM25 fallback 不引入额外搜索服务：从 Qdrant 滚动读取当前 `role_id` 的候选 payload，本地做轻量分词、BM25 打分，再和 dense 命中做 RRF 合并。
    - 如果 embedding 查询临时失败，检索仍会继续走 BM25 fallback，而不是整段 RAG 返回空。
-4. 主链路只查一次；RagSubAgent 只在主检索为空或最高分低于阈值时二查，不做第三次。
-5. Ingest：`doc_id` + `version`；先写新版本，再按 `doc_name` 删除旧版本；默认 chunk 约 768 token、overlap 0.12。
-6. 注入 system 的知识片段必须带 `[doc:.../chunk:...]` 标识，回答相关知识时引用来源。
+5. 主链路只查一次；RagSubAgent 只在主检索为空或最高分低于阈值时二查，不做第三次。
+6. Ingest：`doc_id` + `version`；先写新版本，再按 `doc_name` 删除旧版本；默认 chunk 约 768 token、overlap 0.12。
+7. 注入 system 的知识片段必须带 `[doc:.../chunk:...]` 标识，回答相关知识时引用来源。
 
 ## client_actions
 

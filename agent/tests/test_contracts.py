@@ -132,6 +132,28 @@ def test_rag_contract_is_compatible_with_retriever_chunk() -> None:
     assert result.skipped is False
 
 
+def test_rag_chunk_can_carry_channel_metadata_without_breaking_legacy_shape() -> None:
+    chunk = RagChunk(
+        doc_id="doc-1",
+        chunk_id="c-1",
+        text="policy",
+        score=0.9,
+        channel="bm25",
+        metadata={"source": "fallback"},
+    )
+
+    assert chunk.to_dict()["channel"] == "bm25"
+    assert chunk.to_dict()["metadata"] == {"source": "fallback"}
+
+
+def test_pyproject_declares_domain_and_infrastructure_packages() -> None:
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+
+    assert '"domain"' in text
+    assert '"infrastructure"' in text
+
+
 def test_sse_contract_validates_all_current_event_shapes() -> None:
     action = ClientAction(tool="jumpPage", args={"page": "pageA"}, requires_approval=False)
     payloads = [
