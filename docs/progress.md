@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 57 |
-| 已完成 | 55 |
+| 已完成 | 56 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行 **56 - 控制面 Phase 7：Intent Feedback 与控制面评测闭环**，按 56→57 顺序推进控制面 feedback 与文档收口。
+**当前建议下一步**：执行 **57 - 控制面 Phase 8：README、代码地图与文档治理最终对齐**，完成控制面文档收口。
 
 
 ---
@@ -80,7 +80,7 @@
 | 53 | [控制面 Phase 4：Policy Gate 接管 fact_update fast path](./prompts/53-control-plane-policy-fast-path.md) | ✅ 完成 | 2026-05-24 | fast path 改由 policy 准入，第一人称疑问不再写记忆 |
 | 54 | [控制面 Phase 5：memory_query 一等路径与记忆回答执行器](./prompts/54-control-plane-memory-query-executor.md) | ✅ 完成 | 2026-05-24 | 新增 `memory_query_executor`，基于 memory_profile / mem0 / thread 可靠记忆回答，缺失时诚实说明 |
 | 55 | [控制面 Phase 6：Agent 级 Fallback Manager 与降级策略](./prompts/55-control-plane-agent-fallback-manager.md) | ✅ 完成 | 2026-05-24 | 新增 FallbackDecision / Fallback Manager，统一 intent、memory、RAG、tool、schema/LLM、output guard fallback metadata |
-| 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ⬜ 待开始 | — | 新增 feedback 事件、本地 intent eval runner 与 LangSmith dry-run 同步 |
+| 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ✅ 完成 | 2026-05-24 | 新增 feedback helper、本地 intent eval runner 与 intent seed LangSmith dry-run 同步 |
 | 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress 与文档治理 |
 
 ---
@@ -164,3 +164,4 @@
 | 2026-05-24 | 完成任务 53：新增 Policy Gate 接管 `fact_update` fast path 准入；被拒绝的旧事实路径不模板确认、不调度 mem0 写入，第一人称疑问进入保守路径 |
 | 2026-05-24 | 完成任务 54：新增 `memory_query` 一等 graph 路由与 `memory_query_executor`；「我是谁」类问题跳过 rewrite/RAG/deepagents，不调度 mem0 写入，按可靠记忆回答或诚实缺失 |
 | 2026-05-24 | 完成任务 55：新增 Agent 级 fallback 契约、策略矩阵与 `fallback.*` 观测字段；RAG 空/弱命中不再交给 deepagents 兜底，memory missing/tool unavailable/output guard 等场景统一记录 |
+| 2026-05-24 | 完成任务 56：新增 Intent feedback 标准 failure_type、feedback→seed helper、本地 intent/path eval runner；`intent_seed.json` 纳入第一人称疑问误判回归样本，LangSmith 同步脚本支持 intent seed dry-run |

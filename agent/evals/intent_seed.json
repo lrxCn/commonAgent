@@ -60,6 +60,28 @@
     }
   },
   {
+    "id": "intent-feedback-whoami-fp-fact-update-001",
+    "input": "我是谁",
+    "context": {"user_id": "u-feedback", "role_id": "role-sales", "tools": []},
+    "expected_intent": {
+      "speech_act": "question",
+      "domain": "user_memory",
+      "operation": "memory_read",
+      "route": "memory_query",
+      "risk": "low",
+      "reasons": ["first_person_question", "memory_profile_target"],
+      "evidence": ["我是谁"],
+      "needs_clarification": false
+    },
+    "feedback": {
+      "source": "feedback",
+      "failure_type": "false_positive_fact_update",
+      "predicted_route": "fact_update",
+      "corrected_route": "memory_query",
+      "note": "用户是在问记忆，不是在写事实"
+    }
+  },
+  {
     "id": "intent-memory-name-short-001",
     "input": "我叫什么",
     "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},

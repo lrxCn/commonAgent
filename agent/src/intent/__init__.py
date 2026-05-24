@@ -19,6 +19,12 @@ from intent.fallback import (
     schema_fallback_decision,
     tool_fallback_decision,
 )
+from intent.feedback import (
+    feedback_from_correction,
+    feedback_from_fallback_conflict,
+    feedback_from_path_contract_failure,
+    normalize_failure_type,
+)
 from intent.policy import (
     PolicyDecision,
     decide_fast_path_policy,
@@ -40,9 +46,13 @@ __all__ = [
     "decide_fast_path_policy",
     "decide_fast_path_policy_for_message",
     "extract_signals",
+    "feedback_from_correction",
+    "feedback_from_fallback_conflict",
+    "feedback_from_path_contract_failure",
     "intent_fallback_decision",
     "llm_fallback_decision",
     "memory_query_fallback_decision",
+    "normalize_failure_type",
     "normalize_text",
     "output_guard_fallback_decision",
     "policy_denied_fallback_decision",

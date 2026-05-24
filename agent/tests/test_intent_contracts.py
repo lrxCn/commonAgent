@@ -9,6 +9,7 @@ from contracts.intent import (
     IntentDecision,
     IntentDomain,
     IntentFeedback,
+    IntentFeedbackFailureType,
     IntentOperation,
     IntentRisk,
     IntentRoute,
@@ -123,18 +124,26 @@ def test_intent_decision_rejects_blank_reason_or_evidence() -> None:
         )
 
 
-def test_intent_feedback_serializes_for_future_eval_loop() -> None:
+def test_intent_feedback_serializes_for_eval_loop() -> None:
     feedback = IntentFeedback(
-        input="我是谁",
+        original_text="我是谁",
         predicted_route=IntentRoute.FACT_UPDATE,
         corrected_route=IntentRoute.MEMORY_QUERY,
-        reason="first_person_question_was_misrouted",
+        failure_type=IntentFeedbackFailureType.FALSE_POSITIVE_FACT_UPDATE,
+        trace_id="trace-1",
+        thread_id="thread-1",
+        user_id="user-1",
+        note="用户是在问记忆，不是在写事实",
     )
 
     assert feedback.model_dump(mode="json") == {
-        "input": "我是谁",
+        "original_text": "我是谁",
         "predicted_route": "fact_update",
         "corrected_route": "memory_query",
-        "reason": "first_person_question_was_misrouted",
+        "failure_type": "false_positive_fact_update",
+        "trace_id": "trace-1",
+        "thread_id": "thread-1",
+        "user_id": "user-1",
+        "note": "用户是在问记忆，不是在写事实",
         "source": "user",
     }

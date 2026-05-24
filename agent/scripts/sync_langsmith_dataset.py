@@ -43,12 +43,17 @@ def load_seed(seed_path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def get_or_create_dataset(client: Client, dataset_name: str) -> Any:
+def get_or_create_dataset(
+    client: Client,
+    dataset_name: str,
+    *,
+    seed_path: Path = _DEFAULT_SEED,
+) -> Any:
     for dataset in client.list_datasets(dataset_name=dataset_name):
         return dataset
     return client.create_dataset(
         dataset_name=dataset_name,
-        description="commonAgent local eval seed synced from agent/evals/seed.json",
+        description=f"commonAgent local eval seed synced from {seed_path.name}",
     )
 
 
@@ -59,17 +64,30 @@ def example_payload(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]
     }
     if "kb_fixture" in row:
         inputs["kb_fixture"] = row["kb_fixture"]
-    outputs = {
-        "expected_answer": row["expected_answer"],
-        "expected_path": row["expected_path"],
-    }
+    if "expected_intent" in row:
+        outputs = {"expected_intent": row["expected_intent"]}
+    else:
+        outputs = {
+            "expected_answer": row["expected_answer"],
+            "expected_path": row["expected_path"],
+        }
     metadata = {
         "id": row["id"],
         "seed_version": "local-json-v1",
     }
     if "eval_tags" in row:
         metadata["eval_tags"] = row["eval_tags"]
+    if "feedback" in row:
+        metadata["feedback"] = row["feedback"]
     return inputs, outputs, metadata
+
+
+def dry_run_dataset(*, dataset_name: str, rows: list[dict[str, Any]]) -> int:
+    for row in rows:
+        example_payload(row)
+        print(f"dry-run: {row['id']}")
+    print(f"dry-run dataset={dataset_name} rows={len(rows)}")
+    return 0
 
 
 def sync_dataset(
@@ -78,8 +96,12 @@ def sync_dataset(
     dataset_name: str,
     rows: list[dict[str, Any]],
     dry_run: bool,
+    seed_path: Path = _DEFAULT_SEED,
 ) -> int:
-    dataset = get_or_create_dataset(client, dataset_name)
+    if dry_run:
+        return dry_run_dataset(dataset_name=dataset_name, rows=rows)
+
+    dataset = get_or_create_dataset(client, dataset_name, seed_path=seed_path)
     dataset_id = str(dataset.id)
     existing = {
         (example.metadata or {}).get("id"): example
@@ -92,10 +114,6 @@ def sync_dataset(
     for row in rows:
         inputs, outputs, metadata = example_payload(row)
         current = existing.get(row["id"])
-        if dry_run:
-            action = "update" if current is not None else "create"
-            print(f"{action}: {row['id']}")
-            continue
         if current is None:
             client.create_example(
                 dataset_id=dataset_id,
@@ -112,10 +130,6 @@ def sync_dataset(
             metadata=metadata,
         )
         updated += 1
-
-    if dry_run:
-        print(f"dry-run dataset={dataset_name} rows={len(rows)}")
-        return 0
 
     print(f"dataset={dataset_name} created={created} updated={updated}")
     return 0
@@ -138,12 +152,15 @@ def main() -> int:
     args = parse_args()
     load_agent_env()
     rows = load_seed(args.seed)
+    if args.dry_run:
+        return dry_run_dataset(dataset_name=args.dataset_name, rows=rows)
     client = Client()
     return sync_dataset(
         client=client,
         dataset_name=args.dataset_name,
         rows=rows,
         dry_run=bool(args.dry_run),
+        seed_path=args.seed,
     )
 
 

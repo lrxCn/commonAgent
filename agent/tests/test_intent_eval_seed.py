@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from contracts.intent import IntentDecision
+from contracts.intent import IntentDecision, IntentFeedback
 
 
 _SEED_PATH = Path(__file__).resolve().parents[1] / "evals" / "intent_seed.json"
@@ -52,6 +52,22 @@ def test_intent_seed_rows_validate_against_contract() -> None:
         assert decision.turn_type.value == expected["route"]
         assert decision.to_trace_dict()["turn_type_reason"] == expected["reasons"][0]
 
+        if "feedback" in row:
+            feedback = row["feedback"]
+            IntentFeedback.model_validate(
+                {
+                    "original_text": row["input"],
+                    "predicted_route": feedback["predicted_route"],
+                    "corrected_route": feedback.get("corrected_route"),
+                    "failure_type": feedback["failure_type"],
+                    "trace_id": feedback.get("trace_id"),
+                    "thread_id": feedback.get("thread_id"),
+                    "user_id": feedback.get("user_id"),
+                    "note": feedback.get("note", ""),
+                    "source": feedback.get("feedback_source", feedback.get("source", "review")),
+                }
+            )
+
 
 def test_intent_seed_has_required_route_coverage() -> None:
     rows = _load_seed()
@@ -82,6 +98,21 @@ def test_first_person_questions_are_memory_queries_not_fact_updates() -> None:
         assert expected["operation"] == "memory_read"
         assert expected["route"] == "memory_query"
         assert expected["route"] != "fact_update"
+
+
+def test_seed_includes_feedback_regression_for_whoami_fact_update_false_positive() -> None:
+    rows = _load_seed()
+    feedback_rows = [
+        row
+        for row in rows
+        if row.get("feedback", {}).get("failure_type") == "false_positive_fact_update"
+    ]
+
+    assert any(row["input"] == "我是谁" for row in feedback_rows)
+    for row in feedback_rows:
+        feedback = row["feedback"]
+        assert feedback["predicted_route"] == "fact_update"
+        assert feedback["corrected_route"] == row["expected_intent"]["route"]
 
 
 def test_client_action_intent_rows_include_tools_context() -> None:
