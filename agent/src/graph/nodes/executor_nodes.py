@@ -23,7 +23,8 @@ from graph.executors import (
 )
 from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
-from observability.path_contract import mark_fast_path, update_path_component
+from memory.query import answer_memory_query, memory_query_trace_metadata
+from observability.path_contract import ensure_path_metrics, mark_fast_path, update_path_component
 from observability.tracing import emit_event
 
 from .common import extract_user_message, merge_carry, text
@@ -75,6 +76,43 @@ def chitchat_reply_node(state: AgentState) -> dict[str, object]:
             "supervisor_draft": outcome["reply"],
             "executor": outcome["executor"],
             "executor_reason": "turn_type_chitchat",
+            "client_actions": None,
+            "client_actions_error": None,
+            "outbound_blocked": False,
+            "path_metrics": path_metrics,
+        },
+    )
+
+
+def memory_query_reply_node(state: AgentState) -> dict[str, object]:
+    """Answer memory read queries without RAG, deepagents, or mem0 writes."""
+    decision = choose_executor(
+        turn_type="memory_query",
+        user_message=extract_user_message(state),
+    )
+    result = answer_memory_query(
+        extract_user_message(state),
+        mem0_memories=state.get("mem0_memories") or [],
+        messages=state.get("messages") or [],
+    )
+    path_metrics = ensure_path_metrics(state.get("path_metrics"))
+    path_metrics["turn_type"] = "memory_query"
+    path_metrics["turn_type_reason"] = decision.reason
+    path_metrics = mark_fast_path(path_metrics, enabled=True)
+    emit_event(
+        ObservabilityEventType.EXECUTOR_CHOSEN,
+        {
+            **executor_trace_metadata(decision),
+            **memory_query_trace_metadata(result),
+        },
+    )
+    return merge_carry(
+        state,
+        {
+            "messages": [AIMessage(content=result.reply)],
+            "supervisor_draft": result.reply,
+            "executor": decision.executor.value,
+            "executor_reason": decision.reason,
             "client_actions": None,
             "client_actions_error": None,
             "outbound_blocked": False,

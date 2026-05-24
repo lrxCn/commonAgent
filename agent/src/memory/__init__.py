@@ -32,16 +32,26 @@ from memory.profile import (
     format_memory_profile_for_system,
     normalize_memory_profile,
 )
+from memory.query import (
+    MISSING_MEMORY_REPLY,
+    MemoryQueryEvidence,
+    MemoryQueryResult,
+    answer_memory_query,
+)
 
 __all__ = [
     "ContextAssemblyError",
     "Mem0UserIdError",
     "MemoryProfile",
+    "MemoryQueryEvidence",
+    "MemoryQueryResult",
+    "MISSING_MEMORY_REPLY",
     "ProfileNormalization",
     "ROLLING_SUMMARY_METADATA_KEY",
     "ROLLING_SUMMARY_THROUGH_TURN_KEY",
     "ThreadIdError",
     "afetch_user_memories",
+    "answer_memory_query",
     "build_context",
     "build_context_bundle",
     "build_system_prompt",

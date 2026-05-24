@@ -126,6 +126,24 @@ def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:
     assert metrics["supervisor"] == {"should_call": False, "called": False}
 
 
+def test_memory_query_path_contract_skips_rag_and_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: ["用户叫刘日兴"])
+    result = _invoke("我是谁", thread_id="path-memory-query")
+
+    metrics = result["path_metrics"]
+    assert result["executor"] == "memory_query_executor"
+    assert metrics["path_contract"] == "pass"
+    assert metrics["fast_path"] is True
+    assert metrics["post_turn_scheduled"] is False
+    assert metrics["llm_call_count"] == 0
+    assert metrics["rewrite"] == {"should_call": False, "called": False}
+    assert metrics["rag_router"] == {"should_call": False, "called": False}
+    assert metrics["rag"] == {"should_call": False, "called": False}
+    assert metrics["supervisor"] == {"should_call": False, "called": False}
+
+
 def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
     retriever_mod.retrieve = lambda *_args, **_kwargs: [
         RagChunk(doc_id="doc-1", chunk_id="c-1", text="policy", score=0.92)

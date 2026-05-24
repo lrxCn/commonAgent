@@ -30,7 +30,9 @@ from rag.retriever import RagChunk as RetrieverRagChunk
 
 def test_routing_and_execution_contracts_preserve_existing_values() -> None:
     assert TurnType.FACT_UPDATE.value == "fact_update"
+    assert TurnType.MEMORY_QUERY.value == "memory_query"
     assert TurnType.CLIENT_ACTION.value == "client_action"
+    assert ExecutorType.MEMORY_QUERY.value == "memory_query_executor"
     assert ExecutorType.RAG_ANSWER.value == "rag_answer_executor"
     assert ExecutorType.DEEPAGENTS.value == "deepagents_executor"
 

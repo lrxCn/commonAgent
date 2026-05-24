@@ -143,14 +143,14 @@ def test_memory_questions_do_not_enter_fact_update_fast_path(
 
     assert result.get("policy_fast_path_allowed") is False
     assert result.get("policy_denied_reason")
+    assert result["intent_decision"].route == "memory_query"
+    assert result["executor"] == "memory_query_executor"
     assert result["messages"][-1].content != FACT_UPDATE_CONFIRMATION
     assert "已收到" not in str(result["messages"][-1].content)
-    assert result["path_metrics"]["fast_path"] is False
-    if result["turn_type"] == "fact_update":
-        assert result["path_metrics"]["post_turn_scheduled"] is False
-        assert schedule.call_count == 0
-    else:
-        assert schedule.call_count == 1
+    assert result["path_metrics"]["turn_type"] == "memory_query"
+    assert result["path_metrics"]["fast_path"] is True
+    assert result["path_metrics"]["post_turn_scheduled"] is False
+    assert schedule.call_count == 0
 
 
 def test_policy_denied_legacy_fact_update_does_not_confirm_or_schedule_mem0(
@@ -177,8 +177,10 @@ def test_policy_denied_legacy_fact_update_does_not_confirm_or_schedule_mem0(
     assert result["intent_decision"].route == "memory_query"
     assert result["policy_fast_path_allowed"] is False
     assert result["policy_denied_reason"] == "speech_act_not_statement"
+    assert result["executor"] == "memory_query_executor"
     assert result["messages"][-1].content != FACT_UPDATE_CONFIRMATION
-    assert result["path_metrics"]["fast_path"] is False
+    assert result["path_metrics"]["turn_type"] == "memory_query"
+    assert result["path_metrics"]["fast_path"] is True
     assert result["path_metrics"]["post_turn_scheduled"] is False
     assert schedule.call_count == 0
 

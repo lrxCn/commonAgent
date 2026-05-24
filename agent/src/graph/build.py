@@ -13,6 +13,7 @@ from graph.nodes import (
     fact_update_confirm_node,
     inbound_guard_node,
     load_memory_node,
+    memory_query_reply_node,
     outbound_guard_node,
     post_turn_jobs_node,
     route_after_load_memory,
@@ -45,6 +46,7 @@ def compile_graph(
     builder.add_node("inbound_guard", inbound_guard_node)
     builder.add_node("load_memory", load_memory_node)
     builder.add_node("fact_update_confirm", fact_update_confirm_node)
+    builder.add_node("memory_query_reply", memory_query_reply_node)
     builder.add_node("chitchat_reply", chitchat_reply_node)
     builder.add_node("rewrite", rewrite_graph_node)
     builder.add_node("rag_router", rag_router_graph_node)
@@ -67,11 +69,13 @@ def compile_graph(
         route_after_load_memory,
         {
             "fact_update_confirm": "fact_update_confirm",
+            "memory_query_reply": "memory_query_reply",
             "chitchat_reply": "chitchat_reply",
             "rewrite": "rewrite",
         },
     )
     builder.add_edge("fact_update_confirm", "post_turn_jobs")
+    builder.add_edge("memory_query_reply", "post_turn_jobs")
     builder.add_edge("chitchat_reply", "post_turn_jobs")
     builder.add_edge("rewrite", "rag_router")
     builder.add_edge("rag_router", "rag_retrieval")

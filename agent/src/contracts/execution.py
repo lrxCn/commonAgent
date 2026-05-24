@@ -12,6 +12,7 @@ class ExecutorType(str, Enum):
 
     TEMPLATE = "template_executor"
     SMALL_CHAT = "small_chat_executor"
+    MEMORY_QUERY = "memory_query_executor"
     RAG_ANSWER = "rag_answer_executor"
     ACTION = "action_executor"
     DEEPAGENTS = "deepagents_executor"
@@ -20,6 +21,7 @@ class ExecutorType(str, Enum):
 ExecutorReason = Literal[
     "turn_type_fact_update",
     "turn_type_chitchat",
+    "turn_type_memory_query",
     "simple_client_action",
     "complex_knowledge_task",
     "ambiguous_with_tools",

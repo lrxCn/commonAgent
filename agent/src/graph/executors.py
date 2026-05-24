@@ -50,6 +50,8 @@ def choose_executor(
 
     if normalized_turn_type == "fact_update":
         return ExecutorDecision(ExecutorType.TEMPLATE, "turn_type_fact_update")
+    if normalized_turn_type == "memory_query":
+        return ExecutorDecision(ExecutorType.MEMORY_QUERY, "turn_type_memory_query")
     if normalized_turn_type == "chitchat":
         return ExecutorDecision(ExecutorType.SMALL_CHAT, "turn_type_chitchat")
 

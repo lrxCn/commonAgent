@@ -36,6 +36,7 @@ from .executor_nodes import (
     chitchat_reply_node,
     client_actions_emit_node,
     fact_update_confirm_node,
+    memory_query_reply_node,
     supervisor_node,
 )
 from .guardrail_nodes import inbound_guard_node, outbound_guard_node, route_after_inbound
@@ -76,6 +77,7 @@ __all__ = [
     "inbound_guard_node",
     "load_memory_node",
     "load_thread_messages",
+    "memory_query_reply_node",
     "outbound_guard_node",
     "post_turn_jobs_node",
     "rag_retrieval_graph_node",

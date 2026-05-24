@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 57 |
-| 已完成 | 53 |
+| 已完成 | 54 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行 **54 - 控制面 Phase 5：memory_query 一等路径与记忆回答执行器**，按 54→57 顺序推进控制面、意图治理、fallback 与文档收口。
+**当前建议下一步**：执行 **55 - 控制面 Phase 6：Agent 级 Fallback Manager 与降级策略**，按 55→57 顺序推进控制面 fallback、feedback 与文档收口。
 
 
 ---
@@ -78,7 +78,7 @@
 | 51 | [控制面 Phase 2：LLM Structured Classifier 与冲突校验](./prompts/51-control-plane-structured-classifier.md) | ✅ 完成 | 2026-05-22 | 新增 intent 小模型结构化分类器、LLM Gateway 用途与 conflict check |
 | 52 | [控制面 Phase 3：Intent Engine 影子运行与观测接入](./prompts/52-control-plane-shadow-observability.md) | ✅ 完成 | 2026-05-22 | 新 intent 旁路运行并记录 metadata，不改变旧路径 |
 | 53 | [控制面 Phase 4：Policy Gate 接管 fact_update fast path](./prompts/53-control-plane-policy-fast-path.md) | ✅ 完成 | 2026-05-24 | fast path 改由 policy 准入，第一人称疑问不再写记忆 |
-| 54 | [控制面 Phase 5：memory_query 一等路径与记忆回答执行器](./prompts/54-control-plane-memory-query-executor.md) | ⬜ 待开始 | — | 新增 `memory_query` executor，基于可靠记忆回答“我是谁”等问题 |
+| 54 | [控制面 Phase 5：memory_query 一等路径与记忆回答执行器](./prompts/54-control-plane-memory-query-executor.md) | ✅ 完成 | 2026-05-24 | 新增 `memory_query_executor`，基于 memory_profile / mem0 / thread 可靠记忆回答，缺失时诚实说明 |
 | 55 | [控制面 Phase 6：Agent 级 Fallback Manager 与降级策略](./prompts/55-control-plane-agent-fallback-manager.md) | ⬜ 待开始 | — | 统一 intent/memory/RAG/tool/LLM/schema/output guard fallback 观测 |
 | 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ⬜ 待开始 | — | 新增 feedback 事件、本地 intent eval runner 与 LangSmith dry-run 同步 |
 | 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress 与文档治理 |
@@ -162,3 +162,4 @@
 | 2026-05-22 | 完成任务 51：新增 `ModelUseCase.INTENT_CLASSIFIER`、结构化 intent classifier、冲突检测与 schema/timeout/provider fallback；运行 graph 未接入新控制面 |
 | 2026-05-22 | 完成任务 52：主图在旧 `turn_type` 分类旁影子运行 `classify_intent()`，新增 intent state、事件和 LangSmith metadata；旧路径与用户可见行为保持不变 |
 | 2026-05-24 | 完成任务 53：新增 Policy Gate 接管 `fact_update` fast path 准入；被拒绝的旧事实路径不模板确认、不调度 mem0 写入，第一人称疑问进入保守路径 |
+| 2026-05-24 | 完成任务 54：新增 `memory_query` 一等 graph 路由与 `memory_query_executor`；「我是谁」类问题跳过 rewrite/RAG/deepagents，不调度 mem0 写入，按可靠记忆回答或诚实缺失 |

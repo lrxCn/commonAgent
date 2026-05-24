@@ -147,6 +147,24 @@ def test_chitchat_does_not_call_supervisor() -> None:
     assert result.get("path_metrics", {}).get("fast_path") is True
 
 
+def test_memory_query_invoke_uses_memory_executor(monkeypatch: pytest.MonkeyPatch) -> None:
+    supervisor = MagicMock(return_value=[AIMessage(content="mock-reply:我是谁")])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: ["用户叫刘日兴"])
+    set_supervisor_invoke(supervisor)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="我是谁")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-memory-query-invoke"}},
+    )
+
+    assert result["intent_decision"].route == "memory_query"
+    assert result["executor"] == "memory_query_executor"
+    assert "刘日兴" in str(result["messages"][-1].content)
+    assert supervisor.call_count == 0
+
+
 def test_rag_retrieval_runs_when_router_requests() -> None:
     set_router_classifier(lambda _prompt: '{"need_rag": true}')
 

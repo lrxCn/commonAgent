@@ -38,6 +38,16 @@ def post_turn_jobs_node(
             },
         )
         return merge_carry(state, {"path_metrics": metrics})
+    if _skip_mem0_for_memory_query(state):
+        metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
+        emit_event(
+            ObservabilityEventType.POST_TURN_SCHEDULED,
+            {
+                "path_metrics": metrics,
+                "post_turn.skip_reason": "memory_query",
+            },
+        )
+        return merge_carry(state, {"path_metrics": metrics})
 
     ctx = request_context_from_runtime(runtime)
     thread_id = thread_id_from_config(config)
@@ -84,4 +94,16 @@ def _skip_mem0_for_denied_fact_update(state: AgentState) -> bool:
     return (
         state.get("turn_type") == "fact_update"
         and state.get("policy_fast_path_allowed") is not True
+    )
+
+
+def _skip_mem0_for_memory_query(state: AgentState) -> bool:
+    intent_decision = state.get("intent_decision")
+    return (
+        state.get("turn_type") == "memory_query"
+        or state.get("executor") == "memory_query_executor"
+        or (
+            intent_decision is not None
+            and getattr(intent_decision, "route", "") == "memory_query"
+        )
     )
