@@ -14,6 +14,28 @@ isProject: false
 
 本文目标是把这层设计清楚，使后续任务不再围绕单个误判打补丁。
 
+## 落地状态与偏差说明
+
+截至任务 57，控制面路线 49-56 已按渐进方式落地。README 是当前运行契约；本 PRD 保留设计意图、历史判断和后续方向。
+
+已落地：
+
+- `IntentDecision`、`IntentFeedback`、`FallbackDecision` typed contracts。
+- `intent/` 包中的 signals、rules、确定性 `classify_intent()`、structured classifier、policy、fallback、feedback helper。
+- `load_memory` 阶段旁路/接入 `IntentDecision`、intent conflict、Policy Gate 和 fallback metadata。
+- Policy Gate 接管 `fact_update` fast path 准入，第一人称疑问不会再模板确认或调度 mem0 写入。
+- `memory_query` 一等 graph 分支和 `memory_query_executor`，查询缺证据时诚实说明并跳过 mem0 写入。
+- RAG 空/弱命中、tool unavailable/schema invalid、LLM/schema fallback、output guard 等场景统一记录 `fallback.*`。
+- `intent_seed.json`、feedback helper、本地 intent eval runner 与 LangSmith dry-run 同步入口。
+
+与原设计的主要偏差：
+
+- 当前 graph 热路径使用确定性 `classify_intent()`，没有在运行时调用 `INTENT_CLASSIFIER`；structured classifier 已实现为候选能力和测试对象。
+- `turn_type` 仍作为兼容路由字段存在，并未完全由 `IntentDecision.route` 替换。
+- Policy Gate 当前只治理 `fact_update` 快速路径；高风险工具 HITL 仍停留在 fallback/action 语义记录层，没有完整审批流。
+- Feedback 目前是 helper + seed 转换 + eval runner，不是线上自动采集系统。
+- 本 PRD 中的部分目录建议是设计草案；实际实现入口以 README 和 `docs/maps/control-plane.md` 为准。
+
 ## 背景
 
 一次真实问题暴露了控制面短板：

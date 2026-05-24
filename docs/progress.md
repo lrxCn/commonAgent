@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 57 |
-| 已完成 | 56 |
+| 已完成 | 57 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行 **57 - 控制面 Phase 8：README、代码地图与文档治理最终对齐**，完成控制面文档收口。
+**当前建议下一步**：控制面路线 49-57 已收口。后续新需求应先新增或选择新的 `docs/prompts/` 任务卡。
 
 
 ---
@@ -81,7 +81,7 @@
 | 54 | [控制面 Phase 5：memory_query 一等路径与记忆回答执行器](./prompts/54-control-plane-memory-query-executor.md) | ✅ 完成 | 2026-05-24 | 新增 `memory_query_executor`，基于 memory_profile / mem0 / thread 可靠记忆回答，缺失时诚实说明 |
 | 55 | [控制面 Phase 6：Agent 级 Fallback Manager 与降级策略](./prompts/55-control-plane-agent-fallback-manager.md) | ✅ 完成 | 2026-05-24 | 新增 FallbackDecision / Fallback Manager，统一 intent、memory、RAG、tool、schema/LLM、output guard fallback metadata |
 | 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ✅ 完成 | 2026-05-24 | 新增 feedback helper、本地 intent eval runner 与 intent seed LangSmith dry-run 同步 |
-| 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress 与文档治理 |
+| 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-24 | README、docs/maps、PRD 落地偏差、progress 与文档治理最终对齐 |
 
 ---
 
@@ -165,3 +165,4 @@
 | 2026-05-24 | 完成任务 54：新增 `memory_query` 一等 graph 路由与 `memory_query_executor`；「我是谁」类问题跳过 rewrite/RAG/deepagents，不调度 mem0 写入，按可靠记忆回答或诚实缺失 |
 | 2026-05-24 | 完成任务 55：新增 Agent 级 fallback 契约、策略矩阵与 `fallback.*` 观测字段；RAG 空/弱命中不再交给 deepagents 兜底，memory missing/tool unavailable/output guard 等场景统一记录 |
 | 2026-05-24 | 完成任务 56：新增 Intent feedback 标准 failure_type、feedback→seed helper、本地 intent/path eval runner；`intent_seed.json` 纳入第一人称疑问误判回归样本，LangSmith 同步脚本支持 intent seed dry-run |
+| 2026-05-24 | 完成任务 57：README 同步控制面当前契约；docs/maps 增补 intent、policy、memory_query、fallback、feedback/eval 入口并新增 control-plane 地图；控制面 PRD 补充落地状态与偏差说明；文档治理顺序保持 AGENTS.md 约定 |

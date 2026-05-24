@@ -13,8 +13,9 @@
 按拓扑顺序：
 
 - `inbound_guard`：入站文本护栏。
-- `load_memory`：并行读取 checkpoint history、rolling summary、mem0，并确定 `turn_type`。
-- `fact_update_confirm`：事实更新快速路径模板确认。
+- `load_memory`：并行读取 checkpoint history、rolling summary、mem0，确定兼容 `turn_type`，运行 `classify_intent()`，执行 Policy Gate，并记录 intent/policy/fallback metadata。
+- `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 时执行事实更新快速路径模板确认。
+- `memory_query_reply`：记忆查询一等路径，只读可靠记忆证据，跳过 RAG/deepagents/mem0 写入。
 - `chitchat_reply`：寒暄轻量执行器。
 - `rewrite`：按 `turn_type` 决定跳过或做指代消解。
 - `rag_router`：按 `turn_type`、规则或小模型决定是否走 RAG。
@@ -33,19 +34,32 @@
 
 ## 快速路径
 
-- `fact_update`：跳过 rewrite、RAG、Supervisor、outbound guard。
+- `fact_update`：必须通过 Policy Gate；通过后跳过 rewrite、RAG、Supervisor、outbound guard。
+- `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过 mem0 写入。
 - `chitchat`：跳过 rewrite、RAG、deepagents。
 - `knowledge_query`：跳过 router 小模型，直接进入 RAG。
+
+## 控制面决策点
+
+- Intent 契约：[contracts/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/intent.py:1)
+- 确定性入口：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1)
+- Policy Gate：[policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1)
+- Fallback 决策：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
+- 记忆查询执行：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
 
 ## 实现入口
 
 - Agent 入口：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
 - 图拓扑：[build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)
 - 节点 facade：[graph/nodes/__init__.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)
+- 读取与控制面节点：[memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py:1)
+- 执行器节点：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)
 
 ## 测试入口
 
 - 图拓扑与 context schema：[test_graph_compile.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_compile.py:1)
 - 端到端 invoke 路径：[test_graph_invoke_mock.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
 - 路径契约：[test_path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_path_contract.py:1)
+- 控制面影子与路径接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- memory_query 路径：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
 - SSE 行为：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)

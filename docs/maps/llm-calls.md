@@ -16,6 +16,7 @@
 - `ROUTER`：RAG 路由分类。
 - `CHITCHAT`：寒暄回复。
 - `MEM0_WRITE`：mem0 `infer=True` 写入。
+- `INTENT_CLASSIFIER`：低置信或冲突 intent 的结构化候选分类器。
 - `SUMMARY`：rolling summary 更新。
 - `EMBEDDING`：query/doc embedding。
 - `RERANK`：候选 rerank。
@@ -26,11 +27,14 @@
 - Rewrite：[rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/rewrite.py:1)
 - Router：[router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/router.py:1)
 - Chitchat：[chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/chitchat_executor.py:1)
+- Intent classifier：[classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/classifier.py:1)
 - mem0 / summary：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py:1)、[summary_job.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/summary_job.py:1)
 - Embedding / rerank：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
 
 ## 降级规则
 
+- 当前 graph 热路径的 `classify_intent()` 是确定性规则，不调用 `INTENT_CLASSIFIER`。
+- `INTENT_CLASSIFIER` 输出必须通过 `IntentDecision` schema 校验；schema invalid 会尝试 repair，冲突时回退到规则/保守候选。
 - rewrite/router 小模型只在必要时调用，超时或异常时回退保守路径。
 - rerank HTTP 失败时按原候选顺序生成稳定 fallback 分数。
 - embedding 失败时 RAG 继续走 lexical BM25 fallback。
@@ -48,3 +52,4 @@
 - Supervisor 用途选择：[test_supervisor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_supervisor.py:1)
 - Rewrite / router fallback：[test_rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
 - Chitchat fallback：[test_chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chitchat_executor.py:1)
+- Intent classifier fallback：[test_intent_classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_classifier.py:1)
