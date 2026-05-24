@@ -12,7 +12,11 @@ from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.context import graph_context_from_request
 from graph.nodes import FACT_UPDATE_CONFIRMATION
-from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
+from graph.supervisor import (
+    reset_supervisor_overrides,
+    set_answer_invoke,
+    set_supervisor_invoke,
+)
 from memory.history import set_history_checkpointer
 import rag.retriever as retriever_mod
 from rag.retriever import reset_retriever_overrides
@@ -107,6 +111,76 @@ def test_fact_update_returns_template_and_skips_llm_rag(
     assert len(kwargs["turn_messages"]) == 2
     assert isinstance(kwargs["turn_messages"][0], HumanMessage)
     assert isinstance(kwargs["turn_messages"][1], AIMessage)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "我是谁",
+        "我叫什么",
+        "我的名字是什么",
+        "我公司在哪",
+        "我喜欢什么",
+        "我是做什么的",
+        "你知道我是谁吗",
+    ],
+)
+def test_memory_questions_do_not_enter_fact_update_fast_path(
+    monkeypatch: pytest.MonkeyPatch,
+    message: str,
+) -> None:
+    schedule = MagicMock()
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule)
+    set_supervisor_invoke(MagicMock(return_value=[AIMessage(content="supervisor reply")]))
+    set_answer_invoke(MagicMock(return_value="answer reply"))
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content=message)]},
+        context=_context(),
+        config={"configurable": {"thread_id": f"thread-memory-question-{message}"}},
+    )
+
+    assert result.get("policy_fast_path_allowed") is False
+    assert result.get("policy_denied_reason")
+    assert result["messages"][-1].content != FACT_UPDATE_CONFIRMATION
+    assert "已收到" not in str(result["messages"][-1].content)
+    assert result["path_metrics"]["fast_path"] is False
+    if result["turn_type"] == "fact_update":
+        assert result["path_metrics"]["post_turn_scheduled"] is False
+        assert schedule.call_count == 0
+    else:
+        assert schedule.call_count == 1
+
+
+def test_policy_denied_legacy_fact_update_does_not_confirm_or_schedule_mem0(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rewrite_llm = MagicMock(return_value="我是谁")
+    router_classifier = MagicMock(return_value='{"need_rag": false}')
+    supervisor = MagicMock(return_value=[AIMessage(content="supervisor reply")])
+    schedule = MagicMock()
+
+    set_rewrite_llm(rewrite_llm)
+    set_router_classifier(router_classifier)
+    set_supervisor_invoke(supervisor)
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="我是做什么的")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-policy-denied-fact"}},
+    )
+
+    assert result["turn_type"] == "fact_update"
+    assert result["intent_decision"].route == "memory_query"
+    assert result["policy_fast_path_allowed"] is False
+    assert result["policy_denied_reason"] == "speech_act_not_statement"
+    assert result["messages"][-1].content != FACT_UPDATE_CONFIRMATION
+    assert result["path_metrics"]["fast_path"] is False
+    assert result["path_metrics"]["post_turn_scheduled"] is False
+    assert schedule.call_count == 0
 
 
 def test_fact_update_fast_path_messages_are_checkpointed(

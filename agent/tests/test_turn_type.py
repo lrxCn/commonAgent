@@ -17,6 +17,13 @@ def test_classifies_fact_update() -> None:
     assert decision.reason == "fact_statement_rule"
 
 
+def test_legacy_turn_type_can_misclassify_fact_like_question() -> None:
+    decision = classify_turn_type("我是做什么的")
+
+    assert decision.turn_type is TurnType.FACT_UPDATE
+    assert decision.reason == "fact_statement_rule"
+
+
 def test_classifies_chitchat() -> None:
     decision = classify_turn_type("谢谢")
 

@@ -33,6 +33,8 @@ FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/
 
 def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
     """Append a deterministic confirmation without rewrite/RAG/Supervisor."""
+    if state.get("policy_fast_path_allowed") is not True:
+        raise RuntimeError("fact_update_confirm requires policy_fast_path_allowed")
     path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
     emit_event(
         ObservabilityEventType.EXECUTOR_CHOSEN,

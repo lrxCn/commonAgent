@@ -32,6 +32,8 @@ class AgentState(TypedDict, total=False):
     intent_conflict: Annotated[bool, EphemeralValue]
     intent_conflict_reason: Annotated[str, EphemeralValue]
     intent_shadow_error: Annotated[str, EphemeralValue]
+    policy_fast_path_allowed: Annotated[bool, EphemeralValue]
+    policy_denied_reason: Annotated[str, EphemeralValue]
     path_metrics: Annotated[dict[str, object], EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]

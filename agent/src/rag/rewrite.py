@@ -39,6 +39,7 @@ class RewriteNodeState(TypedDict, total=False):
     mem0_memories: list[str]
     recent_messages: list[BaseMessage]
     messages: list[BaseMessage]
+    policy_fast_path_allowed: bool
     rewritten_query: str
 
 
@@ -107,6 +108,7 @@ def should_rewrite(
     recent_messages: Sequence[BaseMessage],
     mem0_memories: Sequence[str] | None = None,
     turn_type: str | None = None,
+    policy_denied_fact_update: bool = False,
 ) -> tuple[bool, str]:
     """
     Return ``(need_llm_rewrite, reason_code)``.
@@ -117,6 +119,9 @@ def should_rewrite(
     text = user_message.strip()
     if not text:
         return False, "empty"
+
+    if policy_denied_fact_update:
+        return True, "policy_denied_fact_update"
 
     normalized_turn_type = (turn_type or "").strip()
     if normalized_turn_type in {
@@ -309,11 +314,24 @@ def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
     use_skip = settings.REWRITE_SKIP_ENABLED and not settings.REWRITE_FORCE
 
     if use_skip:
+        if (
+            state.get("turn_type") == "fact_update"
+            and state.get("policy_fast_path_allowed") is True
+        ):
+            rewritten = rewrite_passthrough(
+                user_message,
+                rewrite_skip_reason="policy_allowed_fact_update",
+                rewrite_skipped=True,
+                recent_messages=recent_messages,
+                mem0_memories=mem0_memories,
+            )
+            return {"rewritten_query": rewritten}
         need_llm, reason = should_rewrite(
             user_message,
             recent_messages=recent_messages,
             mem0_memories=mem0_memories,
             turn_type=state.get("turn_type"),
+            policy_denied_fact_update=bool(state.get("policy_denied_fact_update", False)),
         )
         if not need_llm:
             rewritten = rewrite_passthrough(

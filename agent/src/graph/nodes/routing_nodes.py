@@ -11,7 +11,7 @@ def route_after_load_memory(
     state: AgentState,
 ) -> Literal["fact_update_confirm", "chitchat_reply", "rewrite"]:
     """Route fact updates/chitchat to lightweight executors after turn classification."""
-    if state.get("turn_type") == "fact_update":
+    if state.get("policy_fast_path_allowed") is True:
         return "fact_update_confirm"
     if state.get("turn_type") == "chitchat":
         return "chitchat_reply"

@@ -8,6 +8,11 @@ from intent.classifier import (
 )
 from intent.engine import classify_intent
 from intent.conflicts import IntentConflictCheck, check_intent_conflicts
+from intent.policy import (
+    PolicyDecision,
+    decide_fast_path_policy,
+    decide_fast_path_policy_for_message,
+)
 from intent.rules import decide_with_rules
 from intent.signals import IntentSignals, extract_signals, normalize_text
 
@@ -15,10 +20,13 @@ __all__ = [
     "IntentClassifierResult",
     "IntentConflictCheck",
     "IntentSignals",
+    "PolicyDecision",
     "classify_intent",
     "classify_intent_with_llm",
     "check_intent_conflicts",
     "decide_with_rules",
+    "decide_fast_path_policy",
+    "decide_fast_path_policy_for_message",
     "extract_signals",
     "normalize_text",
     "set_intent_classifier_llm",

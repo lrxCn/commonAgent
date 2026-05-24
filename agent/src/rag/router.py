@@ -57,6 +57,7 @@ class RagRouterNodeState(TypedDict, total=False):
     rewritten_query: str
     tools: list[ToolSpec]
     tools_context: list[ToolSpec]
+    policy_denied_fact_update: bool
     rag_skipped: bool
 
 
@@ -129,8 +130,12 @@ def classify_with_rules(
     tools_context: Sequence[ToolSpec | dict[str, Any]] | None = None,
     *,
     turn_type: str | None = None,
+    policy_denied_fact_update: bool = False,
 ) -> RuleDecision:
     """Apply deterministic routing rules."""
+    if policy_denied_fact_update:
+        return RuleDecision.UNCERTAIN
+
     normalized_turn_type = (turn_type or "").strip()
     if normalized_turn_type in {"fact_update", "chitchat", "client_action"}:
         return RuleDecision.SKIP
@@ -278,6 +283,7 @@ def should_retrieve(
     *,
     mode: Literal["rules", "hybrid"] | None = None,
     turn_type: str | None = None,
+    policy_denied_fact_update: bool = False,
 ) -> bool:
     """
     Whether this turn should run RAG retrieval.
@@ -292,6 +298,7 @@ def should_retrieve(
         rewritten_query,
         tools_context,
         turn_type=turn_type,
+        policy_denied_fact_update=policy_denied_fact_update,
     )
     if decision is RuleDecision.SKIP:
         emit_event(
@@ -339,6 +346,13 @@ def rag_router_node(state: RagRouterNodeState) -> dict[str, bool]:
     rewritten = state.get("rewritten_query")
     tools = state.get("tools_context") or state.get("tools")
     turn_type = state.get("turn_type")
+    policy_denied_fact_update = bool(state.get("policy_denied_fact_update", False))
 
-    need_rag = should_retrieve(message, rewritten, tools, turn_type=turn_type)
+    need_rag = should_retrieve(
+        message,
+        rewritten,
+        tools,
+        turn_type=turn_type,
+        policy_denied_fact_update=policy_denied_fact_update,
+    )
     return {"rag_skipped": not need_rag}

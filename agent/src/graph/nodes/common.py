@@ -21,6 +21,8 @@ _EPHEMERAL_CARRY_KEYS = (
     "intent_conflict",
     "intent_conflict_reason",
     "intent_shadow_error",
+    "policy_fast_path_allowed",
+    "policy_denied_reason",
     "path_metrics",
     "rewritten_query",
     "rag_skipped",

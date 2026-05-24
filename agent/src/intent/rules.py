@@ -143,6 +143,8 @@ def _is_memory_query(signals: IntentSignals) -> bool:
         return False
     if signals.is_first_person and _has_memory_target(signals):
         return True
+    if "我是谁" in signals.normalized_text:
+        return True
     return signals.is_org_self_reference and _has_company_memory_question(signals)
 
 
@@ -154,6 +156,7 @@ def _has_memory_target(signals: IntentSignals) -> bool:
         or "我是谁" in text
         or "叫什么" in text
         or "喜欢什么" in text
+        or "做什么" in text
     )
 
 

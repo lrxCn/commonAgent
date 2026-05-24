@@ -28,6 +28,16 @@ def post_turn_jobs_node(
         return merge_carry(state, {})
 
     finalized_metrics = finalize_path_metrics(state.get("path_metrics"))
+    if _skip_mem0_for_denied_fact_update(state):
+        metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
+        emit_event(
+            ObservabilityEventType.POST_TURN_SCHEDULED,
+            {
+                "path_metrics": metrics,
+                "post_turn.skip_reason": "policy_denied_fact_update",
+            },
+        )
+        return merge_carry(state, {"path_metrics": metrics})
 
     ctx = request_context_from_runtime(runtime)
     thread_id = thread_id_from_config(config)
@@ -68,3 +78,10 @@ def post_turn_jobs_node(
         {"path_metrics": metrics},
     )
     return merge_carry(state, {"path_metrics": metrics})
+
+
+def _skip_mem0_for_denied_fact_update(state: AgentState) -> bool:
+    return (
+        state.get("turn_type") == "fact_update"
+        and state.get("policy_fast_path_allowed") is not True
+    )

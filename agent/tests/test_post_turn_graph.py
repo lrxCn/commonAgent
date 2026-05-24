@@ -66,3 +66,26 @@ def test_invoke_schedules_post_turn_jobs_without_blocking(
     assert kwargs["user_id"] == "user-pt"
     assert len(kwargs["turn_messages"]) == 2
     assert result.get("messages")
+
+
+def test_policy_denied_legacy_fact_update_does_not_schedule_mem0(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    schedule_mock = MagicMock()
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule_mock)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    ctx = graph_context_from_request(
+        RequestContext(user_id="user-pt", role_id="role-1", tools=[]),
+    )
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="我是做什么的")]},
+        context=ctx,
+        config={"configurable": {"thread_id": "thread-pt-denied-fact"}},
+    )
+
+    assert result["turn_type"] == "fact_update"
+    assert result["policy_fast_path_allowed"] is False
+    assert result["policy_denied_reason"]
+    assert result["path_metrics"]["post_turn_scheduled"] is False
+    assert schedule_mock.call_count == 0

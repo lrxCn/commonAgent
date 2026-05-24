@@ -13,6 +13,7 @@ class ObservabilityEventType(str, Enum):
     TURN_CLASSIFIED = "turn.classified"
     INTENT_CLASSIFIED = "intent.classified"
     INTENT_CONFLICT_DETECTED = "intent.conflict_detected"
+    POLICY_EVALUATED = "policy.evaluated"
     REWRITE_COMPLETED = "rewrite.completed"
     REWRITE_SKIPPED = "rewrite.skipped"
     RAG_ROUTED = "rag.routed"

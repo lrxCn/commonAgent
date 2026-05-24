@@ -15,6 +15,8 @@ from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.turn_type import classify_turn_type
 from intent.engine import classify_intent
+from intent.policy import decide_fast_path_policy
+from intent.signals import extract_signals
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
 from observability.path_contract import new_path_metrics
@@ -92,6 +94,12 @@ def load_memory_node(
         updates["intent_decision"] = intent_decision
         updates["intent_conflict"] = conflict
         updates["intent_conflict_reason"] = conflict_reason
+        policy_decision = decide_fast_path_policy(
+            intent_decision,
+            signals=extract_signals(user_message, tools_context=ctx.tools),
+        )
+        updates["policy_fast_path_allowed"] = policy_decision.fast_path_allowed
+        updates["policy_denied_reason"] = policy_decision.denied_reason
         intent_metadata = _intent_shadow_metadata(
             intent_decision,
             legacy_turn_type=decision.turn_type.value,
@@ -102,9 +110,15 @@ def load_memory_node(
         emit_event(ObservabilityEventType.INTENT_CLASSIFIED, intent_metadata)
         if conflict:
             emit_event(ObservabilityEventType.INTENT_CONFLICT_DETECTED, intent_metadata)
+        emit_event(
+            ObservabilityEventType.POLICY_EVALUATED,
+            policy_decision.to_trace_dict(),
+        )
     except Exception as exc:
         error = f"{exc.__class__.__name__}: {exc}"
         updates["intent_shadow_error"] = error
+        updates["policy_fast_path_allowed"] = False
+        updates["policy_denied_reason"] = "intent_shadow_error"
         emit_event(
             ObservabilityEventType.INTENT_CLASSIFIED,
             {
@@ -113,6 +127,13 @@ def load_memory_node(
                 "intent.legacy_turn_type_reason": decision.reason,
                 "intent.conflict": False,
                 "intent.conflict_reason": "",
+            },
+        )
+        emit_event(
+            ObservabilityEventType.POLICY_EVALUATED,
+            {
+                "policy.fast_path_allowed": False,
+                "policy.denied_reason": "intent_shadow_error",
             },
         )
     return merge_carry(state, updates)

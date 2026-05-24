@@ -49,6 +49,18 @@ def test_first_person_questions_are_memory_reads_not_writes(message: str) -> Non
 
 @pytest.mark.parametrize(
     "message",
+    ["我是做什么的", "你知道我是谁吗"],
+)
+def test_fact_like_first_person_questions_are_memory_reads(message: str) -> None:
+    decision = classify_intent(message)
+
+    assert decision.route == IntentRoute.MEMORY_QUERY
+    assert decision.operation == IntentOperation.MEMORY_READ
+    assert decision.operation != IntentOperation.MEMORY_WRITE
+
+
+@pytest.mark.parametrize(
+    "message",
     ["我叫张三", "我的生日是1997年1月1日", "我公司在天翔街188号"],
 )
 def test_fact_updates_require_explicit_attribute_and_value(message: str) -> None:
