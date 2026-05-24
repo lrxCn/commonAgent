@@ -129,6 +129,28 @@ def test_path_event_maps_to_legacy_metadata_keys() -> None:
     assert meta["post_turn_scheduled"] is True
 
 
+def test_fallback_event_maps_to_legacy_metadata_keys() -> None:
+    event = ObservabilityEvent(
+        ObservabilityEventType.FALLBACK_TRIGGERED,
+        {
+            "fallback.triggered": True,
+            "fallback.layer": "tool",
+            "fallback.reason": "tool_not_allowed",
+            "fallback.action": "tool_unavailable_reply",
+            "fallback.user_visible": True,
+            "fallback.recovered": True,
+            "fallback.original_route": "client_action",
+            "fallback.final_route": "general_chat",
+        },
+    )
+
+    meta = event_to_metadata(event)
+
+    assert meta["fallback.triggered"] is True
+    assert meta["fallback.layer"] == "tool"
+    assert meta["fallback.reason"] == "tool_not_allowed"
+
+
 def test_intent_event_maps_shadow_metadata() -> None:
     event = ObservabilityEvent(
         ObservabilityEventType.INTENT_CLASSIFIED,

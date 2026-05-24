@@ -6,9 +6,13 @@ from typing import Literal
 
 from langchain_core.messages import AIMessage
 
+from contracts.events import ObservabilityEventType
 from graph.state import AgentState
 from guardrails.inbound import check_inbound
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
+from intent.fallback import output_guard_fallback_decision
+from observability.path_contract import record_fallback_decision
+from observability.tracing import emit_event
 from settings.config import get_settings
 
 from .common import extract_user_message, merge_carry, text
@@ -52,10 +56,19 @@ def outbound_guard_node(state: AgentState) -> dict[str, object]:
         )
 
     safe_reply = guard.message or OUTBOUND_SAFE_REPLY
+    fallback_decision = output_guard_fallback_decision(
+        guard.reason_code or "output_guard_failed"
+    )
+    path_metrics = record_fallback_decision(state.get("path_metrics"), fallback_decision)
+    emit_event(
+        ObservabilityEventType.FALLBACK_TRIGGERED,
+        fallback_decision.to_trace_dict(),
+    )
     return merge_carry(
         state,
         {
             "messages": [AIMessage(content=safe_reply)],
             "outbound_blocked": True,
+            "path_metrics": path_metrics,
         },
     )

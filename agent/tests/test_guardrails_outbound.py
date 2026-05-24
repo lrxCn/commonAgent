@@ -135,6 +135,9 @@ def test_graph_replaces_violating_supervisor_output(settings_enabled: Settings) 
     ]
     assert OUTBOUND_TEST_SAMPLE not in ai_texts
     assert any(OUTBOUND_SAFE_REPLY in text for text in ai_texts)
+    assert result["path_metrics"]["fallback_layer"] == "output_guard"
+    assert result["path_metrics"]["fallback_reason"] == "policy_violation"
+    assert result["path_metrics"]["fallback_action"] == "retract_replace_refusal"
 
 
 def test_graph_passes_clean_supervisor_output(settings_enabled: Settings) -> None:

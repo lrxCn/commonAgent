@@ -154,3 +154,14 @@ def test_memory_query_graph_skips_rag_deepagents_and_mem0_write(
     assert supervisor.call_count == 0
     assert schedule.call_count == 0
     assert result["path_metrics"]["post_turn_scheduled"] is False
+
+
+def test_memory_query_graph_records_missing_memory_fallback() -> None:
+    result = _invoke("我是谁", thread_id="thread-memory-missing-fallback")
+
+    assert result["messages"][-1].content == MISSING_MEMORY_REPLY
+    assert result["path_metrics"]["fallback_count"] == 2
+    assert result["path_metrics"]["fallback_layer"] == "memory"
+    assert result["path_metrics"]["fallback_reason"] == "missing_memory_profile"
+    assert result["path_metrics"]["fallback_action"] == "honest_missing_memory"
+    assert result["path_metrics"]["fallback_user_visible"] is True

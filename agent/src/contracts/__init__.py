@@ -3,6 +3,7 @@
 from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEvent
 from contracts.execution import ExecutorDecision, ExecutorReason, ExecutorType
+from contracts.fallback import FallbackAction, FallbackDecision, FallbackLayer
 from contracts.intent import (
     IntentDecision,
     IntentDomain,
@@ -53,6 +54,9 @@ __all__ = [
     "ExecutorDecision",
     "ExecutorReason",
     "ExecutorType",
+    "FallbackAction",
+    "FallbackDecision",
+    "FallbackLayer",
     "IntentDecision",
     "IntentDomain",
     "IntentFeedback",

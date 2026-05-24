@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
+from contracts.fallback import FallbackDecision
 from contracts.path import COMPONENTS, LLM_COMPONENTS, PathComponent, PathMetrics
 
 
@@ -99,6 +100,25 @@ def increment_fallback_count(
     return updated
 
 
+def record_fallback_decision(
+    metrics: Mapping[str, Any] | None,
+    decision: FallbackDecision,
+) -> dict[str, Any]:
+    """Record the latest normalized fallback decision in path metrics."""
+    updated = ensure_path_metrics(metrics)
+    if decision.triggered:
+        updated["fallback_count"] = int(updated.get("fallback_count") or 0) + 1
+    updated["fallback_triggered"] = bool(decision.triggered)
+    updated["fallback_layer"] = str(decision.layer)
+    updated["fallback_reason"] = decision.reason
+    updated["fallback_action"] = str(decision.action)
+    updated["fallback_user_visible"] = bool(decision.user_visible)
+    updated["fallback_recovered"] = bool(decision.recovered)
+    updated["fallback_original_route"] = decision.original_route
+    updated["fallback_final_route"] = decision.final_route
+    return updated
+
+
 def finalize_path_metrics(metrics: Mapping[str, Any] | None) -> dict[str, Any]:
     """Compute derived counts and pass/fail status."""
     finalized = ensure_path_metrics(metrics)
@@ -133,6 +153,14 @@ def path_metrics_metadata(metrics: Mapping[str, Any] | None) -> dict[str, Any]:
         "path_contract_reason": finalized["path_contract_reason"],
         "llm_call_count": finalized["llm_call_count"],
         "fallback_count": finalized.get("fallback_count", 0),
+        "fallback.triggered": bool(finalized.get("fallback_triggered", False)),
+        "fallback.layer": finalized.get("fallback_layer", ""),
+        "fallback.reason": finalized.get("fallback_reason", ""),
+        "fallback.action": finalized.get("fallback_action", ""),
+        "fallback.user_visible": bool(finalized.get("fallback_user_visible", False)),
+        "fallback.recovered": bool(finalized.get("fallback_recovered", False)),
+        "fallback.original_route": finalized.get("fallback_original_route", ""),
+        "fallback.final_route": finalized.get("fallback_final_route", ""),
         "fast_path": finalized.get("fast_path", False),
         "post_turn_scheduled": finalized.get("post_turn_scheduled", False),
         "post_turn_schedule_error": finalized.get("post_turn_schedule_error", ""),

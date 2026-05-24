@@ -29,6 +29,9 @@ def event_to_metadata(event: ObservabilityEvent) -> dict[str, Any]:
     if name == ObservabilityEventType.POLICY_EVALUATED.value:
         return payload
 
+    if name == ObservabilityEventType.FALLBACK_TRIGGERED.value:
+        return payload
+
     if name == ObservabilityEventType.REWRITE_SKIPPED.value:
         return {
             "rewrite_skipped": True,

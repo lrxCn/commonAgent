@@ -7,6 +7,7 @@ from langgraph.runtime import Runtime
 
 from contracts.context import ContextBundle
 from contracts.events import ObservabilityEventType
+from contracts.execution import ExecutorDecision
 from graph.chitchat_executor import chitchat_reply
 from graph.client_actions import (
     ERROR_PARSE,
@@ -21,15 +22,24 @@ from graph.executors import (
     choose_executor,
     executor_trace_metadata,
 )
+from graph.rag_subagent import max_chunk_score
 from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
+from intent.fallback import memory_query_fallback_decision, tool_fallback_decision
 from memory.query import answer_memory_query, memory_query_trace_metadata
-from observability.path_contract import ensure_path_metrics, mark_fast_path, update_path_component
+from observability.path_contract import (
+    ensure_path_metrics,
+    mark_fast_path,
+    record_fallback_decision,
+    update_path_component,
+)
 from observability.tracing import emit_event
+from settings.config import get_settings
 
 from .common import extract_user_message, merge_carry, text
 
 FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/事实参考。"
+NO_RAG_SOURCE_REPLY = "知识库未找到可靠来源，我不能基于内部知识库给出确定答案。你可以补充更多关键词或联系管理员补充资料。"
 
 
 def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
@@ -99,6 +109,13 @@ def memory_query_reply_node(state: AgentState) -> dict[str, object]:
     path_metrics["turn_type"] = "memory_query"
     path_metrics["turn_type_reason"] = decision.reason
     path_metrics = mark_fast_path(path_metrics, enabled=True)
+    fallback_decision = memory_query_fallback_decision(result)
+    if fallback_decision is not None:
+        path_metrics = record_fallback_decision(path_metrics, fallback_decision)
+        emit_event(
+            ObservabilityEventType.FALLBACK_TRIGGERED,
+            fallback_decision.to_trace_dict(),
+        )
     emit_event(
         ObservabilityEventType.EXECUTOR_CHOSEN,
         {
@@ -142,6 +159,8 @@ def supervisor_node(
         rag_chunks=state.get("rag_chunks") or [],
         tools=ctx.tools,
     )
+    if _should_use_no_source_reply(state):
+        decision = ExecutorDecision(ExecutorType.TEMPLATE, "rag_no_reliable_source")
     emit_event(
         ObservabilityEventType.EXECUTOR_CHOSEN,
         executor_trace_metadata(
@@ -179,6 +198,38 @@ def supervisor_node(
                     "supervisor_draft": "",
                 },
             )
+        fallback_decision = tool_fallback_decision("tool_unavailable")
+        path_metrics = record_fallback_decision(path_metrics, fallback_decision)
+        emit_event(
+            ObservabilityEventType.FALLBACK_TRIGGERED,
+            fallback_decision.to_trace_dict(),
+        )
+        return merge_carry(
+            state,
+            {
+                **base_updates,
+                "path_metrics": path_metrics,
+                "client_actions": None,
+                "client_actions_error": {
+                    "code": ERROR_TOOL_NOT_ALLOWED,
+                    "message": "No matching client tool arguments could be built.",
+                },
+                "supervisor_draft": "该操作当前不可用或缺少必要参数，无法调用外部工具。",
+            },
+        )
+
+    if decision.executor is ExecutorType.TEMPLATE and decision.reason == "rag_no_reliable_source":
+        return merge_carry(
+            state,
+            {
+                **base_updates,
+                "executor": decision.executor.value,
+                "executor_reason": decision.reason,
+                "supervisor_draft": NO_RAG_SOURCE_REPLY,
+                "client_actions": None,
+                "client_actions_error": None,
+            },
+        )
 
     if decision.executor is ExecutorType.RAG_ANSWER:
         reply = invoke_answer_executor(
@@ -214,14 +265,29 @@ def supervisor_node(
             code = outcome.error_code or ERROR_PARSE
             if code == ERROR_TOOL_NOT_ALLOWED:
                 user_msg = "该操作未授权，无法调用此外部工具。"
+                fallback_decision = tool_fallback_decision("tool_not_allowed")
             elif code == ERROR_PARSE:
                 user_msg = "无法解析客户端工具指令，请换一种说法或联系管理员。"
+                fallback_decision = tool_fallback_decision(
+                    "schema_invalid",
+                    final_route=decision.executor.value,
+                )
             else:
                 user_msg = outcome.error_message or "客户端工具指令无效。"
+                fallback_decision = tool_fallback_decision(
+                    code,
+                    final_route=decision.executor.value,
+                )
+            path_metrics = record_fallback_decision(path_metrics, fallback_decision)
+            emit_event(
+                ObservabilityEventType.FALLBACK_TRIGGERED,
+                fallback_decision.to_trace_dict(),
+            )
             return merge_carry(
                 state,
                 {
                     **base_updates,
+                    "path_metrics": path_metrics,
                     "client_actions": None,
                     "client_actions_error": {
                         "code": code,
@@ -242,6 +308,17 @@ def supervisor_node(
             "client_actions_error": None,
         },
     )
+
+
+def _should_use_no_source_reply(state: AgentState) -> bool:
+    if text(state.get("turn_type")) != "knowledge_query":
+        return False
+    if bool(state.get("rag_skipped", False)):
+        return False
+    chunks = list(state.get("rag_chunks") or [])
+    if not chunks:
+        return True
+    return max_chunk_score(chunks) < get_settings().RAG_SUBAGENT_SCORE_THRESHOLD
 
 
 def client_actions_emit_node(state: AgentState) -> dict[str, object]:

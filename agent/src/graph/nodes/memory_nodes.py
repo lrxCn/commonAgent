@@ -15,11 +15,12 @@ from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.turn_type import classify_turn_type
 from intent.engine import classify_intent
+from intent.fallback import intent_fallback_decision, policy_denied_fallback_decision
 from intent.policy import decide_fast_path_policy
 from intent.signals import extract_signals
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
-from observability.path_contract import new_path_metrics
+from observability.path_contract import new_path_metrics, record_fallback_decision
 from observability.tracing import emit_event
 
 from .common import (
@@ -100,6 +101,25 @@ def load_memory_node(
         )
         updates["policy_fast_path_allowed"] = policy_decision.fast_path_allowed
         updates["policy_denied_reason"] = policy_decision.denied_reason
+        fallback_decision = intent_fallback_decision(
+            intent_decision,
+            conflict_reason=conflict_reason,
+            original_route=decision.turn_type.value,
+        )
+        if fallback_decision is None and decision.turn_type.value == "fact_update":
+            fallback_decision = policy_denied_fallback_decision(
+                policy_decision.denied_reason,
+                original_route=decision.turn_type.value,
+                final_route=intent_decision.turn_type.value,
+            )
+        if fallback_decision is not None:
+            updates["path_metrics"] = record_fallback_decision(
+                updates.get("path_metrics"), fallback_decision
+            )
+            emit_event(
+                ObservabilityEventType.FALLBACK_TRIGGERED,
+                fallback_decision.to_trace_dict(),
+            )
         intent_metadata = _intent_shadow_metadata(
             intent_decision,
             legacy_turn_type=decision.turn_type.value,
@@ -119,6 +139,14 @@ def load_memory_node(
         updates["intent_shadow_error"] = error
         updates["policy_fast_path_allowed"] = False
         updates["policy_denied_reason"] = "intent_shadow_error"
+        fallback_decision = intent_fallback_decision(
+            None,
+            conflict_reason="intent_shadow_error",
+            original_route=decision.turn_type.value,
+        )
+        updates["path_metrics"] = record_fallback_decision(
+            updates.get("path_metrics"), fallback_decision
+        )
         emit_event(
             ObservabilityEventType.INTENT_CLASSIFIED,
             {
@@ -135,6 +163,10 @@ def load_memory_node(
                 "policy.fast_path_allowed": False,
                 "policy.denied_reason": "intent_shadow_error",
             },
+        )
+        emit_event(
+            ObservabilityEventType.FALLBACK_TRIGGERED,
+            fallback_decision.to_trace_dict(),
         )
     return merge_carry(state, updates)
 

@@ -14,6 +14,7 @@ class ObservabilityEventType(str, Enum):
     INTENT_CLASSIFIED = "intent.classified"
     INTENT_CONFLICT_DETECTED = "intent.conflict_detected"
     POLICY_EVALUATED = "policy.evaluated"
+    FALLBACK_TRIGGERED = "fallback.triggered"
     REWRITE_COMPLETED = "rewrite.completed"
     REWRITE_SKIPPED = "rewrite.skipped"
     RAG_ROUTED = "rag.routed"

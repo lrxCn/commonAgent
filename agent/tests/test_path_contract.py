@@ -161,6 +161,27 @@ def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
     assert metrics["supervisor"] == {"should_call": True, "called": True}
 
 
+def test_knowledge_query_empty_rag_uses_no_source_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    retriever_mod.retrieve = lambda *_args, **_kwargs: []
+    monkeypatch.setattr("graph.nodes.run_rag_subagent_retrieval", lambda *_args, **_kwargs: [])
+
+    result = _invoke("报销制度是什么？", thread_id="path-rag-empty-fallback")
+
+    metrics = result["path_metrics"]
+    assert result["executor"] == "template_executor"
+    assert result["executor_reason"] == "rag_no_reliable_source"
+    assert "知识库未找到可靠来源" in str(result["messages"][-1].content)
+    assert metrics["path_contract"] == "pass"
+    assert metrics["llm_call_count"] == 0
+    assert metrics["fallback_count"] >= 1
+    assert metrics["fallback_layer"] == "rag"
+    assert metrics["fallback_reason"] == "rag_empty"
+    assert metrics["fallback_action"] == "report_no_source"
+    assert metrics["fallback_user_visible"] is True
+
+
 def test_client_action_path_contract_uses_action_executor_without_model() -> None:
     result = _invoke("打开 pageA", thread_id="path-client-action", tools=[_JUMP_TOOL])
 

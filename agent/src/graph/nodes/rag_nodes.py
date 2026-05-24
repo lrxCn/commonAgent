@@ -6,14 +6,18 @@ from typing import Any, Literal, cast
 
 from langgraph.runtime import Runtime
 
+from contracts.events import ObservabilityEventType
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.rag_subagent import (
     apply_rag_subagent_merge,
+    max_chunk_score,
     run_rag_subagent_retrieval,
     should_delegate_rag_subagent,
 )
 from graph.state import AgentState
-from observability.path_contract import update_path_component
+from intent.fallback import llm_fallback_decision, rag_quality_fallback_decision, schema_fallback_decision
+from observability.path_contract import record_fallback_decision, update_path_component
+from observability.tracing import emit_event
 from rag.retriever import rag_retrieval_node
 from rag.rewrite import rewrite_node, should_rewrite
 from rag.router import RuleDecision, classify_with_rules, rag_router_node
@@ -51,6 +55,12 @@ def rewrite_graph_node(state: AgentState) -> dict[str, object]:
         "rewrite",
         should_call=should_call,
         called=called,
+    )
+    path_metrics = _record_upstream_fallback(
+        path_metrics,
+        updates,
+        flag="rewrite.fallback",
+        reason_key="rewrite.fallback_reason",
     )
     return merge_carry(state, {**updates, "path_metrics": path_metrics})
 
@@ -90,6 +100,12 @@ def rag_router_graph_node(
         should_call=should_call,
         called=should_call,
     )
+    path_metrics = _record_upstream_fallback(
+        path_metrics,
+        updates,
+        flag="rag_router.fallback",
+        reason_key="rag_router.fallback_reason",
+    )
     return merge_carry(state, {**updates, "path_metrics": path_metrics})
 
 
@@ -105,6 +121,28 @@ def _policy_denied_fact_update(state: AgentState) -> bool:
         text(state.get("turn_type")) == "fact_update"
         and state.get("policy_fast_path_allowed") is not True
     )
+
+
+def _record_upstream_fallback(
+    path_metrics: dict[str, object],
+    updates: dict[str, object],
+    *,
+    flag: str,
+    reason_key: str,
+) -> dict[str, object]:
+    if updates.get(flag) is not True:
+        return path_metrics
+    reason = text(updates.get(reason_key)) or "provider_error"
+    if reason in {"parse_failed", "schema_invalid"}:
+        fallback_decision = schema_fallback_decision(reason, recovered=True)
+    else:
+        fallback_decision = llm_fallback_decision(reason, recovered=True)
+    path_metrics = record_fallback_decision(path_metrics, fallback_decision)
+    emit_event(
+        ObservabilityEventType.FALLBACK_TRIGGERED,
+        fallback_decision.to_trace_dict(),
+    )
+    return path_metrics
 
 
 def rag_retrieval_graph_node(
@@ -126,6 +164,17 @@ def rag_retrieval_graph_node(
         should_call=should_call,
         called=should_call,
     )
+    fallback_decision = rag_quality_fallback_decision(
+        rag_skipped=bool(state.get("rag_skipped", False)),
+        chunks=updates.get("rag_chunks") or [],
+        threshold=get_settings().RAG_SUBAGENT_SCORE_THRESHOLD,
+    )
+    if fallback_decision is not None:
+        path_metrics = record_fallback_decision(path_metrics, fallback_decision)
+        emit_event(
+            ObservabilityEventType.FALLBACK_TRIGGERED,
+            fallback_decision.to_trace_dict(),
+        )
     return merge_carry(state, {**updates, "path_metrics": path_metrics})
 
 
@@ -160,4 +209,17 @@ def rag_subagent_graph_node(
     apply_merge = facade_attr("apply_rag_subagent_merge", apply_rag_subagent_merge)
     secondary = run_retrieval(role_id, query, settings=get_settings())
     merged = apply_merge(primary, secondary, settings=get_settings())
-    return merge_carry(state, {"rag_chunks": merged})
+    updates: dict[str, object] = {"rag_chunks": merged}
+    settings = get_settings()
+    fallback_decision = rag_quality_fallback_decision(
+        rag_skipped=bool(state.get("rag_skipped", False)),
+        chunks=merged,
+        threshold=settings.RAG_SUBAGENT_SCORE_THRESHOLD,
+        second_pass=True,
+        final=not merged or max_chunk_score(merged) < settings.RAG_SUBAGENT_SCORE_THRESHOLD,
+    )
+    if fallback_decision is not None:
+        path_metrics = record_fallback_decision(state.get("path_metrics"), fallback_decision)
+        emit_event(ObservabilityEventType.FALLBACK_TRIGGERED, fallback_decision.to_trace_dict())
+        updates["path_metrics"] = path_metrics
+    return merge_carry(state, updates)

@@ -27,6 +27,7 @@ ExecutorReason = Literal[
     "ambiguous_with_tools",
     "complex_task_rule",
     "default_deepagents",
+    "rag_no_reliable_source",
 ]
 
 
