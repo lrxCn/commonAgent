@@ -90,6 +90,17 @@ def mark_post_turn_schedule(
     return updated
 
 
+def mark_memory_write_mode(
+    metrics: Mapping[str, Any] | None,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    """Record structured vs inferred mem0 write mode for path contract traces."""
+    updated = ensure_path_metrics(metrics)
+    updated["memory_write_mode"] = str(mode)
+    return updated
+
+
 def increment_fallback_count(
     metrics: Mapping[str, Any] | None,
     count: int = 1,

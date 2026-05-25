@@ -110,6 +110,7 @@ def test_fact_update_path_contract_skips_small_llms_and_rag() -> None:
     assert metrics["rag_router"] == {"should_call": False, "called": False}
     assert metrics["rag"] == {"should_call": False, "called": False}
     assert metrics["supervisor"] == {"should_call": False, "called": False}
+    assert metrics.get("memory_write_mode") == "structured"
 
 
 def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:

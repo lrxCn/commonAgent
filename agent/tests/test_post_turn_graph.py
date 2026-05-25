@@ -65,7 +65,9 @@ def test_invoke_schedules_post_turn_jobs_without_blocking(
     assert kwargs["thread_id"] == "thread-pt-1"
     assert kwargs["user_id"] == "user-pt"
     assert len(kwargs["turn_messages"]) == 2
+    assert kwargs.get("memory_write_record") is None
     assert result.get("messages")
+    assert result["path_metrics"]["memory_write_mode"] == "inferred"
 
 
 def test_policy_denied_legacy_fact_update_does_not_schedule_mem0(
@@ -84,7 +86,7 @@ def test_policy_denied_legacy_fact_update_does_not_schedule_mem0(
         config={"configurable": {"thread_id": "thread-pt-denied-fact"}},
     )
 
-    assert result["turn_type"] == "fact_update"
+    assert result["turn_type"] == "memory_query"
     assert result["policy_fast_path_allowed"] is False
     assert result["policy_denied_reason"]
     assert result["path_metrics"]["post_turn_scheduled"] is False

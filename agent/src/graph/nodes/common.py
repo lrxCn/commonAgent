@@ -23,6 +23,7 @@ _EPHEMERAL_CARRY_KEYS = (
     "intent_shadow_error",
     "policy_fast_path_allowed",
     "policy_denied_reason",
+    "memory_write_record",
     "path_metrics",
     "rewritten_query",
     "rag_skipped",

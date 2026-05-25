@@ -11,6 +11,7 @@ from graph.state import AgentState
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from observability.path_contract import (
     finalize_path_metrics,
+    mark_memory_write_mode,
     mark_post_turn_schedule,
 )
 from observability.tracing import emit_event
@@ -64,11 +65,13 @@ def post_turn_jobs_node(
         )
         return merge_carry(state, {"path_metrics": metrics})
 
+    memory_write_record = state.get("memory_write_record")
     try:
         facade_attr("schedule_post_turn_jobs", schedule_post_turn_jobs)(
             thread_id=thread_id,
             user_id=ctx.user_id,
             turn_messages=turn_messages,
+            memory_write_record=memory_write_record,
         )
     except Exception as exc:
         metrics = mark_post_turn_schedule(
@@ -83,6 +86,10 @@ def post_turn_jobs_node(
         return merge_carry(state, {"path_metrics": metrics})
 
     metrics = mark_post_turn_schedule(finalized_metrics, scheduled=True)
+    metrics = mark_memory_write_mode(
+        metrics,
+        mode="structured" if memory_write_record is not None else "inferred",
+    )
     emit_event(
         ObservabilityEventType.POST_TURN_SCHEDULED,
         {"path_metrics": metrics},
@@ -91,10 +98,13 @@ def post_turn_jobs_node(
 
 
 def _skip_mem0_for_denied_fact_update(state: AgentState) -> bool:
-    return (
-        state.get("turn_type") == "fact_update"
-        and state.get("policy_fast_path_allowed") is not True
-    )
+    if state.get("turn_type") != "fact_update":
+        return False
+    if state.get("policy_fast_path_allowed") is True:
+        return False
+    if state.get("policy_denied_reason") == "structured_fill_failed":
+        return False
+    return True
 
 
 def _skip_mem0_for_memory_query(state: AgentState) -> bool:

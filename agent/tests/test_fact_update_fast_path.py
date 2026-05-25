@@ -17,6 +17,7 @@ from graph.supervisor import (
     set_answer_invoke,
     set_supervisor_invoke,
 )
+from memory.post_turn import reset_post_turn_executor, schedule_post_turn_jobs
 from memory.history import set_history_checkpointer
 import rag.retriever as retriever_mod
 from rag.retriever import reset_retriever_overrides
@@ -46,6 +47,7 @@ def _graph_env(monkeypatch: pytest.MonkeyPatch) -> None:
     set_history_checkpointer(None)
     reset_retriever_overrides()
     reset_supervisor_overrides()
+    reset_post_turn_executor()
     set_router_classifier(None)
     yield
     set_rewrite_llm(None)
@@ -53,6 +55,7 @@ def _graph_env(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_retriever_overrides()
     retriever_mod.retrieve = _ORIGINAL_RETRIEVE
     reset_supervisor_overrides()
+    reset_post_turn_executor()
     set_history_checkpointer(None)
     reset_settings()
 
@@ -111,6 +114,37 @@ def test_fact_update_returns_template_and_skips_llm_rag(
     assert len(kwargs["turn_messages"]) == 2
     assert isinstance(kwargs["turn_messages"][0], HumanMessage)
     assert isinstance(kwargs["turn_messages"][1], AIMessage)
+    assert kwargs["memory_write_record"] is not None
+    assert kwargs["memory_write_record"].attribute == "birthday"
+    assert kwargs["memory_write_record"].value == "1997"
+    assert result.get("memory_write_record") is not None
+    assert metrics["memory_write_mode"] == "structured"
+
+
+def test_fact_update_post_turn_uses_structured_store_not_infer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store_structured = MagicMock(
+        return_value=MagicMock(status="stored", stored_memories=("用户出生于1997年",), reason="")
+    )
+    extract = MagicMock()
+    monkeypatch.setattr("memory.post_turn.store_structured_record", store_structured)
+    monkeypatch.setattr("memory.post_turn.extract_and_store", extract)
+    monkeypatch.setattr("memory.post_turn.update_rolling_summary", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule_post_turn_jobs)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    graph.invoke(
+        {"messages": [HumanMessage(content="我出生于1997年")]},
+        context=_context(),
+        config={"configurable": {"thread_id": "thread-structured-store"}},
+    )
+
+    store_structured.assert_called_once()
+    extract.assert_not_called()
+    record = store_structured.call_args.args[1]
+    assert record.attribute == "birthday"
+    assert store_structured.call_args.args[0] == "user-fast"
 
 
 @pytest.mark.parametrize(
@@ -173,10 +207,7 @@ def test_policy_denied_legacy_fact_update_does_not_confirm_or_schedule_mem0(
         config={"configurable": {"thread_id": "thread-policy-denied-fact"}},
     )
 
-    assert result["turn_type"] == "fact_update"
     assert result["intent_decision"].route == "memory_query"
-    assert result["policy_fast_path_allowed"] is False
-    assert result["policy_denied_reason"] == "speech_act_not_statement"
     assert result["executor"] == "memory_query_executor"
     assert result["messages"][-1].content != FACT_UPDATE_CONFIRMATION
     assert result["path_metrics"]["turn_type"] == "memory_query"

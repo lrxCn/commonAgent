@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import cast
+from typing import Any, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.runtime import Runtime
@@ -11,6 +12,7 @@ from langgraph.types import RunnableConfig
 
 from contracts.events import ObservabilityEventType
 from contracts.intent import IntentDecision
+from contracts.memory_write import StructuredMemoryRecord
 from contracts.routing import TurnType, TurnTypeDecision
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
@@ -20,6 +22,7 @@ from intent.policy import decide_fast_path_policy
 from intent.signals import extract_signals
 from memory.history import get_rolling_summary, load_thread_messages
 from memory.mem0_client import fetch_user_memories
+from memory.structured_record import build_structured_memory_record
 from observability.path_contract import new_path_metrics, record_fallback_decision
 from observability.tracing import emit_event
 
@@ -87,19 +90,34 @@ def load_memory_node(
         updates["intent_decision"] = intent_decision
         updates["intent_conflict"] = False
         updates["intent_conflict_reason"] = ""
+        signals = extract_signals(user_message, tools_context=ctx.tools)
         policy_decision = decide_fast_path_policy(
             intent_decision,
-            signals=extract_signals(user_message, tools_context=ctx.tools),
+            signals=signals,
         )
         updates["policy_fast_path_allowed"] = policy_decision.fast_path_allowed
         updates["policy_denied_reason"] = policy_decision.denied_reason
+        updates["memory_write_record"] = None
+
+        if policy_decision.fast_path_allowed:
+            memory_write_record = build_structured_memory_record(
+                signals,
+                intent_decision,
+                source_turn_id=_source_turn_id(thread_id, classify_messages),
+            )
+            if memory_write_record is None:
+                updates["policy_fast_path_allowed"] = False
+                updates["policy_denied_reason"] = "structured_fill_failed"
+            else:
+                updates["memory_write_record"] = memory_write_record
+
         fallback_decision = intent_fallback_decision(
             intent_decision,
             original_route=decision.turn_type.value,
         )
         if fallback_decision is None and decision.turn_type.value == "fact_update":
             fallback_decision = policy_denied_fallback_decision(
-                policy_decision.denied_reason,
+                str(updates.get("policy_denied_reason") or ""),
                 original_route=decision.turn_type.value,
                 final_route=intent_decision.turn_type.value,
             )
@@ -115,7 +133,12 @@ def load_memory_node(
         emit_event(ObservabilityEventType.INTENT_CLASSIFIED, intent_metadata)
         emit_event(
             ObservabilityEventType.POLICY_EVALUATED,
-            policy_decision.to_trace_dict(),
+            _policy_trace_metadata(
+                policy_decision,
+                fast_path_allowed=bool(updates.get("policy_fast_path_allowed")),
+                denied_reason=str(updates.get("policy_denied_reason") or ""),
+                memory_write_record=updates.get("memory_write_record"),
+            ),
         )
     except Exception as exc:
         error = f"{exc.__class__.__name__}: {exc}"
@@ -138,6 +161,7 @@ def load_memory_node(
         updates["intent_conflict_reason"] = ""
         updates["policy_fast_path_allowed"] = False
         updates["policy_denied_reason"] = "intent_classify_error"
+        updates["memory_write_record"] = None
         fallback_decision = intent_fallback_decision(
             None,
             conflict_reason="intent_classify_error",
@@ -166,6 +190,31 @@ def load_memory_node(
             fallback_decision.to_trace_dict(),
         )
     return merge_carry(state, updates)
+
+
+def _source_turn_id(thread_id: str, messages: Sequence[BaseMessage]) -> str:
+    human_turns = sum(1 for message in messages if isinstance(message, HumanMessage))
+    return f"{thread_id}:turn-{human_turns or 1}"
+
+
+def _policy_trace_metadata(
+    policy_decision: object,
+    *,
+    fast_path_allowed: bool,
+    denied_reason: str,
+    memory_write_record: object | None,
+) -> dict[str, object]:
+    trace = cast(Any, policy_decision).to_trace_dict()
+    trace["policy.fast_path_allowed"] = fast_path_allowed
+    trace["policy.denied_reason"] = denied_reason
+    if memory_write_record is not None:
+        record = cast(StructuredMemoryRecord, memory_write_record)
+        trace["memory_write.mode"] = "structured"
+        trace["memory_write.record.attribute"] = record.attribute
+        trace["memory_write.extraction_method"] = record.extraction_method
+    elif denied_reason == "structured_fill_failed":
+        trace["memory_write.structured_fill_failed"] = True
+    return trace
 
 
 def _intent_trace_metadata(intent_decision: IntentDecision) -> dict[str, object]:

@@ -8,7 +8,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from langchain_core.messages import BaseMessage, HumanMessage
 
-from memory.mem0_write import extract_and_store
+from contracts.memory_write import StructuredMemoryRecord
+from memory.mem0_write import extract_and_store, store_structured_record
 from memory.summary_job import update_rolling_summary
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ def _run_post_turn_jobs(
     thread_id: str,
     user_id: str,
     turn_messages: Sequence[BaseMessage],
+    memory_write_record: StructuredMemoryRecord | None,
     k: int | None,
     m: int | None,
 ) -> None:
@@ -54,7 +56,10 @@ def _run_post_turn_jobs(
         )
 
     try:
-        write_result = extract_and_store(user_id, turn_messages)
+        if memory_write_record is not None:
+            write_result = store_structured_record(user_id, memory_write_record)
+        else:
+            write_result = extract_and_store(user_id, turn_messages)
     except Exception:
         logger.exception(
             "post_turn.mem0_write_failed",
@@ -88,6 +93,7 @@ def schedule_post_turn_jobs(
     thread_id: str,
     user_id: str,
     turn_messages: Sequence[BaseMessage],
+    memory_write_record: StructuredMemoryRecord | None = None,
     k: int | None = None,
     m: int | None = None,
 ) -> Future[None]:
@@ -97,6 +103,7 @@ def schedule_post_turn_jobs(
         thread_id=thread_id,
         user_id=user_id,
         turn_messages=list(turn_messages),
+        memory_write_record=memory_write_record,
         k=k,
         m=m,
     )

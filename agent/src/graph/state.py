@@ -11,6 +11,7 @@ from typing_extensions import TypedDict
 
 from contracts.context import ContextBundle
 from contracts.intent import IntentDecision
+from contracts.memory_write import StructuredMemoryRecord
 from gateway.schemas import ClientAction
 from rag.retriever import RagChunk
 
@@ -36,6 +37,7 @@ class AgentState(TypedDict, total=False):
     intent_shadow_error: Annotated[str, EphemeralValue]
     policy_fast_path_allowed: Annotated[bool, EphemeralValue]
     policy_denied_reason: Annotated[str, EphemeralValue]
+    memory_write_record: Annotated[StructuredMemoryRecord | None, EphemeralValue]
     path_metrics: Annotated[dict[str, object], EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]
