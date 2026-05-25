@@ -110,7 +110,8 @@ graph.invoke(
 - 其余单轮字段通过 `EphemeralValue` 挂在 [state.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/state.py:1)，不可依赖上一轮残留。
 - `GraphContextSchema` 只携带 `user_id`、`role_id`、`tools[]`，作为每轮上下文，不进入 checkpoint 作为权限依据。
 - `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget`、`sources`；执行器和 trace 读同一份 bundle。
-- `IntentDecision` 是控制面的结构化意图结果，当前由确定性 signals/rules 在 `load_memory` 阶段生成；旧 `turn_type` 仍作为兼容路由字段存在。
+- `IntentDecision` 是运行时唯一意图权威来源，当前由确定性 `classify_intent()`（signals/rules）在 `load_memory` 阶段生成。
+- `turn_type` / `turn_type_reason` 是从 `IntentDecision` 派生的兼容路由字段，供 rewrite/router/executor、path metrics 与 seed 使用；旧 `graph.turn_type.classify_turn_type()` 仅为兼容 adapter，内部委托同一 authority。
 - Policy Gate 只决定事实写入快速路径是否准入；被拒绝的旧 `fact_update` 不会模板确认，也不会调度 mem0 写入。
 - `FallbackDecision` 是 Agent 级降级记录，统一写入 path metrics、LangSmith metadata 和 `FALLBACK_TRIGGERED` 事件。
 
@@ -127,9 +128,7 @@ sequenceDiagram
   Back->>GW: POST /internal/chat {thread_id, message, context}
   GW->>G: invoke(state, context=RequestContext, configurable.thread_id)
   G->>G: inbound_guard
-  G->>G: load_memory
-  G->>G: turn_type classify
-  G->>G: classify_intent + policy gate
+  G->>G: load_memory (classify_intent → derive turn_type + policy gate)
   alt policy-approved fact_update
     G->>G: fact_update_confirm
   else memory_query
@@ -171,11 +170,12 @@ sequenceDiagram
 当前运行契约：
 
 - `classify_intent()` 是纯确定性入口：normalize -> signals -> rules，不读 graph state，不调用 LLM，不执行副作用。
+- `turn_type_decision_from_intent()` 从 `IntentDecision.turn_type` / `turn_type_reason` 派生兼容 `TurnTypeDecision`；主图与 adapter 共用这一契约。
 - `IntentDecision` 包含 `speech_act`、`domain`、`operation`、`route`、`confidence`、`risk`、`reasons`、`evidence` 和 `needs_clarification`，并通过 `route` 派生兼容 `turn_type`。
 - `INTENT_CLASSIFIER` 小模型结构化分类器已经有模型用途、schema 校验、repair 和冲突 fallback，但当前 graph 热路径不调用它；它服务于低置信控制面评测和后续接入。
-- Policy Gate 当前只准入高置信、低风险、显式属性和值的 `fact_update` 记忆写入快速路径；第一人称疑问会被拒绝并走保守路径或 `memory_query`。
+- Policy Gate 当前只准入高置信、低风险、显式属性和值的 `fact_update` 记忆写入快速路径；第一人称疑问会被拒绝并走 `memory_query` 或保守路径。
 - `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / mem0 文本 / 当前 thread 里可靠证据回答，缺失时诚实说明。
-- Fallback Manager 用 `FallbackDecision` 记录 intent 冲突、policy denied、memory missing、RAG 空/弱命中、tool unavailable、schema/LLM fallback、output guard 等降级。
+- Fallback Manager 用 `FallbackDecision` 记录 intent 低置信/分类失败、policy denied、memory missing、RAG 空/弱命中、tool unavailable、schema/LLM fallback、output guard 等降级；`intent_conflict` 字段保留兼容但常态为 `false`。
 - Feedback/Eval 闭环使用 `IntentFeedback`、[intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json) 和本地 eval runner，将人工纠错或 fallback conflict 转成可回归 seed。
 
 控制面不会绕过三层边界：Back 仍负责鉴权、角色和工具白名单；Agent 只做意图、策略、回答和结构化 `client_actions`；Front 仍负责客户端动作执行。
@@ -301,7 +301,7 @@ Front：
 - 事件收集器在 [events.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/events.py:1)。
 - LangSmith 适配在 [metadata_mapper.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/langsmith/metadata_mapper.py:1)。
 - 业务逻辑优先 emit 事件，再由 LangSmith adapter 映射 metadata；兼容 facade 仍保留。
-- 控制面事件包含 intent classified、intent conflict、policy evaluated、executor chosen、fallback triggered。
+- 控制面事件包含 intent classified、policy evaluated、executor chosen、fallback triggered；`intent.conflict` 常态为 `false`。
 - path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`executor`、`llm_call_count` 和各阶段 should/called。
 
 评测：
@@ -377,11 +377,11 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 
 ## 验证入口
 
-任务 57 的文档检查：
+任务 62 的文档检查：
 
 ```bash
-rg -n "IntentDecision|memory_query|Policy Gate|Fallback|intent_seed|INTENT_CLASSIFIER" README.md docs agent/evals
-rg -n "rag/intent.py|is_user_fact_statement|turn_type|memory_query" README.md docs/maps docs/prd docs/prompts
+rg -n "IntentDecision|turn_type|classify_turn_type|classify_intent|单源|唯一权威|兼容派生" README.md docs/maps docs/prd docs/progress.md
+rg -n "双轨|shadow|intent_conflict|legacy_turn_type|is_user_fact_statement" README.md docs/maps docs/prd
 rg -n "文档秩序|Governance|Source Of Truth|source of truth|用户同意|approval" AGENTS.md README.md docs
 rg -n "TODO|待补|旧结构|未来会" README.md docs/maps docs/progress.md
 ```
@@ -390,7 +390,9 @@ rg -n "TODO|待补|旧结构|未来会" README.md docs/maps docs/progress.md
 
 ```bash
 cd agent
+uv run pytest tests/test_intent_authority_contract.py tests/test_intent_authority_characterization.py tests/test_turn_type.py -v
 uv run pytest tests/test_intent_contracts.py tests/test_policy_gate.py tests/test_memory_query_executor.py tests/test_fallback_manager.py -v
+uv run pytest tests/test_intent_shadow_graph.py tests/test_graph_invoke_mock.py tests/test_path_contract.py -v
 uv run pytest tests/test_intent_feedback.py tests/test_intent_eval_seed.py tests/test_intent_eval_runner.py -v
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
 uv run pytest tests/test_graph_compile.py tests/test_state_lifecycle.py tests/test_context_assembly.py -v

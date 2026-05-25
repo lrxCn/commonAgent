@@ -13,7 +13,7 @@
 按拓扑顺序：
 
 - `inbound_guard`：入站文本护栏。
-- `load_memory`：并行读取 checkpoint history、rolling summary、mem0，确定兼容 `turn_type`，运行 `classify_intent()`，执行 Policy Gate，并记录 intent/policy/fallback metadata。
+- `load_memory`：并行读取 checkpoint history、rolling summary、mem0；调用 `classify_intent()` 生成 `IntentDecision`，派生兼容 `turn_type`，执行 Policy Gate，并记录 intent/policy/fallback metadata。
 - `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 时执行事实更新快速路径模板确认。
 - `memory_query_reply`：记忆查询一等路径，只读可靠记忆证据，跳过 RAG/deepagents/mem0 写入。
 - `chitchat_reply`：寒暄轻量执行器。
@@ -42,7 +42,7 @@
 ## 控制面决策点
 
 - Intent 契约：[contracts/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/intent.py:1)
-- 确定性入口：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1)
+- 派生 helper：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) 中的 `turn_type_decision_from_intent()`
 - Policy Gate：[policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1)
 - Fallback 决策：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
 - 记忆查询执行：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
@@ -60,6 +60,7 @@
 - 图拓扑与 context schema：[test_graph_compile.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_compile.py:1)
 - 端到端 invoke 路径：[test_graph_invoke_mock.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
 - 路径契约：[test_path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_path_contract.py:1)
-- 控制面影子与路径接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- 意图单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- 权威对齐矩阵：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
 - memory_query 路径：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
 - SSE 行为：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)

@@ -4,8 +4,9 @@
 
 ## 路由
 
-- 用户问题先经过 [turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/turn_type.py:1) 生成兼容 `turn_type`，并由 [engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) 生成 `IntentDecision`。
-- [policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1) 会决定旧 `fact_update` 是否允许进入快速路径；被拒绝时 rewrite/router 会按保守路径处理。
+- `load_memory` 调用 `classify_intent()` 生成 `IntentDecision`，并派生兼容 `turn_type`；RAG router 读取 state 中的派生 `turn_type`，不是独立全局分类。
+- [graph/turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/turn_type.py:1) 仅为兼容 adapter，内部委托 [engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1)。
+- [policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1) 决定 `fact_update` 是否允许进入快速路径；被拒绝时 rewrite/router 会按保守路径处理。
 - RAG 路由兼容入口在 [router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/router.py:1)。
 - `knowledge_query` 直接检索；Policy 通过的 `fact_update`、`memory_query`、`chitchat`、纯 `client_action` 跳过 RAG；不确定时再走规则或小模型。
 - [rag/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/intent.py:1) 只保留 rewrite/router 局部启发式兼容，不是全局意图来源。
@@ -51,5 +52,5 @@
 - 检索与 chunk 格式：[test_rag_retrieval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_retrieval.py:1)
 - 边界与 fallback：[test_rag_boundaries.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_boundaries.py:1)
 - RagSubAgent：[test_rag_subagent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_subagent.py:1)
-- 控制面路径：[test_policy_gate.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_policy_gate.py:1)、[test_intent_rules.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_rules.py:1)
+- 控制面路径：[test_policy_gate.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_policy_gate.py:1)、[test_intent_rules.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_rules.py:1)、[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
 - Ingest API：[test_kb_ingest.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_kb_ingest.py:1)

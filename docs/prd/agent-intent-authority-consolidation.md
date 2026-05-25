@@ -12,44 +12,33 @@ isProject: false
 
 ## 背景
 
-控制面任务 49-57 已经把 `IntentDecision`、Policy Gate、`memory_query`、Fallback Manager 和 feedback/eval 闭环落地。当前主图仍保留双轨分类：
+控制面任务 49-57 已经把 `IntentDecision`、Policy Gate、`memory_query`、Fallback Manager 和 feedback/eval 闭环落地。任务 58-62（2026-05-25 完成）已将运行时意图权威收敛为单源结构。
 
-- 旧兼容分类：`agent/src/graph/turn_type.py::classify_turn_type()`，直接基于 `rag.intent` 和 `rag.router` 的启发式规则产出 `TurnTypeDecision`。
-- 新控制面分类：`agent/src/intent/engine.py::classify_intent()`，产出结构化 `IntentDecision`。
-- 兼容映射：`IntentDecision.turn_type` 根据 `route` 派生旧 `TurnType`。
+迁移前主图曾保留双轨分类（历史事实，见下方「历史双轨行为」）：
 
-这种双轨设计是渐进迁移阶段的合理折中，但继续保留会带来长期风险：
+- 旧兼容分类：`graph.turn_type.classify_turn_type()` 直接基于 `rag.intent` 和 `rag.router` 启发式规则。
+- 新控制面分类：`intent.engine.classify_intent()` 产出结构化 `IntentDecision`。
 
-- 同一用户输入可能被两套规则判成不同路径。
-- `turn_type` 看起来仍像独立权威，弱化了控制面治理。
-- rewrite/router/executor/path metrics 的真实来源不够清晰。
-- 后续维护者可能继续改旧规则，绕过 `IntentDecision`、Policy Gate 和 intent eval。
+继续保留双轨会带来同一输入两套路径、观测字段语义混乱等长期风险，因此任务 58-61 已完成收敛。
 
-## 核心判断
+## 落地状态（2026-05-25）
 
-运行时应该只有一个意图权威来源：`IntentDecision`。
+| 项 | 状态 | 说明 |
+|----|------|------|
+| 58 行为冻结 | ✅ | `test_intent_authority_characterization.py` 记录迁移前分歧矩阵；现已改为单源对齐测试 |
+| 59 派生契约 | ✅ | `turn_type_decision_from_intent()` 在 [engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) |
+| 60 graph 切换 | ✅ | [memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py:1) 仅调用 `classify_intent()` 并派生 `turn_type` |
+| 61 adapter 降级 | ✅ | [turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/turn_type.py:1) 委托 control plane，不再独立分类 |
+| 62 文档对齐 | ✅ | README、docs/maps、progress 同步单源权威当前事实 |
 
-`turn_type` 仍可以存在，但只能是兼容字段，由 `IntentDecision.route` 派生，不能再拥有独立分类权。旧 `graph.turn_type.classify_turn_type()` 可以保留为 adapter，以保护旧导入和测试迁移，但其内部必须委托控制面。
+### 与 README 的偏差说明
 
-## 目标
+- **已落地**：`IntentDecision` 为唯一权威；`turn_type` 为兼容派生；`intent_conflict` 常态 `false`；`classify_intent()` 失败时保守回退 `general_chat`。
+- **仍保留兼容**：`TurnType` enum、`graph.turn_type.classify_turn_type()` 导出、`intent_conflict` / `intent_shadow_error` state 字段、`INTENT_CONFLICT_DETECTED` 事件类型（当前 graph 不 emit）。
+- **未接入 hot path**：`INTENT_CLASSIFIER` LLM 结构化分类器；`check_intent_conflicts()` 仍服务于 classifier 评测，不是 graph 常态观测。
+- **局部保留**：`rag.intent` helper 仍供 rewrite/router/signals 局部使用，不是全局意图权威。
 
-1. 冻结并记录当前双轨分歧，明确哪些分歧是目标行为、哪些是迁移风险。
-2. 建立单一权威入口：控制面先产出 `IntentDecision`，再派生 `turn_type` / `turn_type_reason`。
-3. 主图 `load_memory` 不再分别调用旧 `classify_turn_type()` 和新 `classify_intent()`。
-4. rewrite/router/executor/path metrics 消费的 `turn_type` 均来自同一个 `IntentDecision`。
-5. 旧 `graph.turn_type` 降级为兼容 adapter，不再直接依赖 `rag.intent` 的全局意图启发式。
-6. 文档最终说明：`IntentDecision` 是唯一权威，`turn_type` 是兼容派生字段。
-
-## 非目标
-
-- 不移除 `TurnType` enum；它仍是兼容、trace、seed 和下游字段。
-- 不删除 `IntentDecision.turn_type` property。
-- 不把 hot path 改为默认调用 `INTENT_CLASSIFIER` LLM；当前仍以确定性规则为主。
-- 不重写 RAG 检索、memory query 证据抽取、client_actions 执行边界。
-- 不改变 Front -> Back -> Agent 三层边界。
-- 不在规划阶段提前修改 README 的当前事实。
-
-## 当前双轨行为
+## 历史双轨行为（迁移前）
 
 ```mermaid
 flowchart TD
@@ -62,7 +51,30 @@ flowchart TD
   E --> H["Policy Gate / fallback / metadata"]
 ```
 
-这个结构允许观测分歧，但不应该长期存在。
+这个结构在任务 52-60 期间用于观测分歧，已于任务 60 移除。
+
+## 当前结构（与 README 一致）
+
+运行时只有一个意图权威来源：`IntentDecision`（见 [README.md](../../README.md) 当前契约）。
+
+`turn_type` 仍可以存在，但只能是兼容字段，由 `IntentDecision.route` 派生。`graph.turn_type.classify_turn_type()` 保留为 adapter，内部委托控制面。
+
+## 目标（已完成）
+
+1. 冻结并记录双轨分歧，明确目标行为（任务 58）。
+2. 建立单一权威入口：控制面先产出 `IntentDecision`，再派生 `turn_type` / `turn_type_reason`（任务 59-60）。
+3. 主图 `load_memory` 不再并行调用两套分类（任务 60）。
+4. rewrite/router/executor/path metrics 消费的 `turn_type` 均来自同一 `IntentDecision`（任务 60-61）。
+5. 旧 `graph.turn_type` 降级为兼容 adapter（任务 61）。
+6. README、maps、progress 说明单源权威当前事实（任务 62）。
+
+## 非目标
+
+- 不移除 `TurnType` enum；它仍是兼容、trace、seed 和下游字段。
+- 不删除 `IntentDecision.turn_type` property。
+- 不把 hot path 改为默认调用 `INTENT_CLASSIFIER` LLM；当前仍以确定性规则为主。
+- 不重写 RAG 检索、memory query 证据抽取、client_actions 执行边界。
+- 不改变 Front -> Back -> Agent 三层边界。
 
 ## 目标结构
 
@@ -76,7 +88,7 @@ flowchart TD
   F --> G["rewrite/router/executor/path metrics"]
 ```
 
-迁移完成后：
+当前事实：
 
 - `load_memory` 只运行一次控制面分类。
 - `state.intent_decision` 和 `state.turn_type` 必须同源。
@@ -118,15 +130,15 @@ flowchart TD
 
 ## 任务拆分
 
-| ID | 任务 | 目的 |
+| ID | 任务 | 状态 |
 |----|------|------|
-| 58 | 行为冻结与双轨分歧审计 | 先证明当前两套分类哪里一致、哪里分歧，并把目标行为写进测试 |
-| 59 | 单一权威派生契约 | 明确从 `IntentDecision` 派生 `TurnTypeDecision` 的 helper / adapter 契约 |
-| 60 | Graph 切换到 IntentDecision 单源 | `load_memory` 只调用控制面分类，并派生 `turn_type` |
-| 61 | 旧 turn_type 分类器降级与清理 | `graph.turn_type` 降级为兼容 adapter，清除旧全局分类权 |
-| 62 | README、maps、PRD 与 progress 最终对齐 | 实现完成后统一更新所有该更新的文档 |
+| 58 | 行为冻结与双轨分歧审计 | ✅ 2026-05-25 |
+| 59 | 单一权威派生契约 | ✅ 2026-05-25 |
+| 60 | Graph 切换到 IntentDecision 单源 | ✅ 2026-05-25 |
+| 61 | 旧 turn_type 分类器降级与清理 | ✅ 2026-05-25 |
+| 62 | README、maps、PRD 与 progress 最终对齐 | ✅ 2026-05-25 |
 
-## 验收标准
+## 验收标准（已满足）
 
 - 主图每轮只运行一个权威意图分类入口。
 - `state.turn_type` 与 `state.intent_decision.turn_type` 同源。

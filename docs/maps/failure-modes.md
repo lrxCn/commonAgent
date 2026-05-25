@@ -16,8 +16,8 @@
 
 ## RAG 与模型依赖失败
 
-- intent 冲突或低置信：记录 intent fallback，禁用危险快速路径，转入保守执行路径。
-- Policy Gate 拒绝旧 `fact_update`：记录 policy denied fallback，不执行模板确认，不调度 mem0 写入。
+- intent 低置信或 `classify_intent()` 失败：记录 intent fallback，禁用危险快速路径，转入保守执行路径；`intent_conflict` 不再表示双轨分歧。
+- Policy Gate 拒绝 `fact_update`：记录 policy denied fallback，不执行模板确认，不调度 mem0 写入。
 - rewrite 小模型失败：回退原文。
 - router 小模型失败：保守走 RAG。
 - embedding 失败：继续 lexical BM25 fallback。
@@ -61,4 +61,5 @@
 - Fallback manager：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
 - memory_query 缺失证据：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
 - post_turn 非阻塞：[test_post_turn_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_post_turn_graph.py:1)
+- intent 分类失败 / 单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
 - LangSmith / event 兼容：[test_tracing.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_tracing.py:1)

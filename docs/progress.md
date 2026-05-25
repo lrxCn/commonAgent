@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 62 |
-| 已完成 | 61 |
+| 已完成 | 62 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：执行 **62 - 意图权威收敛 Phase 4：README、代码地图与文档最终对齐**，统一更新 README、docs/maps、PRD 落地偏差与 progress。
+**当前建议下一步**：意图权威收敛（任务 58-62）已全部完成；可按新需求从 `docs/prd/` 或 `docs/prompts/` 规划下一批任务。
 
 
 ---
@@ -86,7 +86,7 @@
 | 59 | [意图权威收敛 Phase 1：单一权威派生契约](./prompts/59-intent-authority-derived-turn-contract.md) | ✅ 完成 | 2026-05-25 | 新增 `turn_type_decision_from_intent()`；`test_intent_authority_contract.py` 覆盖全 route 映射与 reason；主图仍走旧 `classify_turn_type()` |
 | 60 | [意图权威收敛 Phase 2：Graph 切换到 IntentDecision 单源](./prompts/60-intent-authority-graph-cutover.md) | ✅ 完成 | 2026-05-25 | `load_memory_node()` 仅 `classify_intent()` + 派生 `turn_type`；`intent_conflict` 常态为 false；分类失败时降级旧分类器 |
 | 61 | [意图权威收敛 Phase 3：旧 turn_type 分类器降级与清理](./prompts/61-intent-authority-legacy-turn-type-cleanup.md) | ✅ 完成 | 2026-05-25 | `classify_turn_type()` 委托 intent authority；移除 `rag.intent` 独立分类依赖；`test_turn_type.py` 改为 adapter 对齐测试 |
-| 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress |
+| 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-25 | README、docs/maps、PRD 落地状态同步单源 intent authority；progress 收口 58-62 |
 
 ---
 
@@ -176,3 +176,4 @@
 | 2026-05-25 | 完成任务 59：新增 `intent.engine.turn_type_decision_from_intent()` 派生契约；仅读取 `IntentDecision.turn_type` / `turn_type_reason`；`test_intent_authority_contract.py` 覆盖 8 条 `IntentRoute` 映射；主图运行路径不变 |
 | 2026-05-25 | 完成任务 60：主图 `load_memory_node()` 切换为 `classify_intent()` 单源并派生 `turn_type`；第一人称疑问不再因旧分类进入 fact_update；`intent_conflict` 常态 false；分类失败时降级 `classify_turn_type()` |
 | 2026-05-25 | 完成任务 61：`graph.turn_type.classify_turn_type()` 降级为 intent authority 兼容 adapter；移除对 `rag.intent` 全局启发式的直接依赖；characterization/turn_type 测试改为单源对齐；分类失败保守回退 `general_chat` |
+| 2026-05-25 | 完成任务 62：README、docs/maps、PRD 同步 `IntentDecision` 单源权威与 `turn_type` 兼容派生当前事实；意图权威收敛任务 58-62 全部完成 |
