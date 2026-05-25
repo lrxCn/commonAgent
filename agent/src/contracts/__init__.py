@@ -20,6 +20,16 @@ from contracts.llm import (
     ModelUseCase,
     RerankModelPolicy,
 )
+from contracts.memory_store import (
+    MEMORY_STORE_FACTS_SEGMENT,
+    MEMORY_STORE_PROFILE_SEGMENT,
+    MEMORY_STORE_USERS_PREFIX,
+    MemoryStoreNamespace,
+    ProfileMemoryValue,
+    UserMemoryReadResult,
+    facts_namespace,
+    profile_namespace,
+)
 from contracts.memory_write import (
     ExtractionMethod,
     MemorySubject,
@@ -71,9 +81,13 @@ __all__ = [
     "IntentOperation",
     "IntentRisk",
     "IntentRoute",
+    "MemoryStoreNamespace",
     "MemorySubject",
     "MemoryWriteExpectation",
     "MemoryWriteMode",
+    "MEMORY_STORE_FACTS_SEGMENT",
+    "MEMORY_STORE_PROFILE_SEGMENT",
+    "MEMORY_STORE_USERS_PREFIX",
     "ChatModelPolicy",
     "EmbeddingModelPolicy",
     "ModelCallMetadata",
@@ -84,6 +98,7 @@ __all__ = [
     "PathComponentMetrics",
     "PathContractStatus",
     "PathMetrics",
+    "ProfileMemoryValue",
     "RagChunk",
     "RagResult",
     "ReplaceSseEvent",
@@ -96,5 +111,8 @@ __all__ = [
     "TurnReason",
     "TurnType",
     "TurnTypeDecision",
+    "UserMemoryReadResult",
     "validate_sse_event",
+    "facts_namespace",
+    "profile_namespace",
 ]
