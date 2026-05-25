@@ -8,12 +8,12 @@
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 57 |
+| 总任务数 | 62 |
 | 已完成 | 57 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：控制面路线 49-57 已收口。后续新需求应先新增或选择新的 `docs/prompts/` 任务卡。
+**当前建议下一步**：执行 **58 - 意图权威收敛 Phase 0：行为冻结与双轨分歧审计**，为 `IntentDecision` 成为唯一意图权威来源建立测试护栏。
 
 
 ---
@@ -82,6 +82,11 @@
 | 55 | [控制面 Phase 6：Agent 级 Fallback Manager 与降级策略](./prompts/55-control-plane-agent-fallback-manager.md) | ✅ 完成 | 2026-05-24 | 新增 FallbackDecision / Fallback Manager，统一 intent、memory、RAG、tool、schema/LLM、output guard fallback metadata |
 | 56 | [控制面 Phase 7：Intent Feedback 与控制面评测闭环](./prompts/56-control-plane-feedback-eval-loop.md) | ✅ 完成 | 2026-05-24 | 新增 feedback helper、本地 intent eval runner 与 intent seed LangSmith dry-run 同步 |
 | 57 | [控制面 Phase 8：README、代码地图与文档治理最终对齐](./prompts/57-control-plane-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-24 | README、docs/maps、PRD 落地偏差、progress 与文档治理最终对齐 |
+| 58 | [意图权威收敛 Phase 0：行为冻结与双轨分歧审计](./prompts/58-intent-authority-behavior-freeze.md) | ⬜ 待开始 | — | 冻结旧 `turn_type` 与新 `IntentDecision` 双轨行为，明确目标矩阵 |
+| 59 | [意图权威收敛 Phase 1：单一权威派生契约](./prompts/59-intent-authority-derived-turn-contract.md) | ⬜ 待开始 | — | 建立 `IntentDecision` -> `TurnTypeDecision` 派生 helper / adapter 契约 |
+| 60 | [意图权威收敛 Phase 2：Graph 切换到 IntentDecision 单源](./prompts/60-intent-authority-graph-cutover.md) | ⬜ 待开始 | — | `load_memory` 只调用控制面分类并派生兼容 `turn_type` |
+| 61 | [意图权威收敛 Phase 3：旧 turn_type 分类器降级与清理](./prompts/61-intent-authority-legacy-turn-type-cleanup.md) | ⬜ 待开始 | — | `graph.turn_type` 降级为兼容 adapter，不再独立分类 |
+| 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ⬜ 待开始 | — | 最后统一更新 README、docs/maps、PRD 落地偏差、progress |
 
 ---
 
@@ -166,3 +171,4 @@
 | 2026-05-24 | 完成任务 55：新增 Agent 级 fallback 契约、策略矩阵与 `fallback.*` 观测字段；RAG 空/弱命中不再交给 deepagents 兜底，memory missing/tool unavailable/output guard 等场景统一记录 |
 | 2026-05-24 | 完成任务 56：新增 Intent feedback 标准 failure_type、feedback→seed helper、本地 intent/path eval runner；`intent_seed.json` 纳入第一人称疑问误判回归样本，LangSmith 同步脚本支持 intent seed dry-run |
 | 2026-05-24 | 完成任务 57：README 同步控制面当前契约；docs/maps 增补 intent、policy、memory_query、fallback、feedback/eval 入口并新增 control-plane 地图；控制面 PRD 补充落地状态与偏差说明；文档治理顺序保持 AGENTS.md 约定 |
+| 2026-05-25 | 文档：新增 [Agent 意图权威来源收敛 PRD](./prd/agent-intent-authority-consolidation.md)，并拆分任务 **58-62**，目标是将旧 `turn_type` 与新 `IntentDecision` 双轨分类收敛为单一权威来源，最后统一更新 README/maps/progress |
