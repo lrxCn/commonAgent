@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.store.memory import InMemoryStore
 
 from contracts.memory_store import profile_namespace
@@ -14,9 +15,12 @@ from memory.read import fetch_user_memories
 from memory.store import reset_pooled_store, set_store_factory
 from memory.structured_record import build_structured_memory_record, canonical_fact_text
 from memory.write import (
+    extract_and_store,
     reset_write_overrides,
+    set_manager_invoke_fn,
     set_store_put_fn,
     store_structured_record,
+    turn_messages_for_extraction,
 )
 from settings.config import Settings, reset_settings, set_settings_override
 
@@ -163,3 +167,158 @@ def test_store_structured_record_is_readable_via_fetch_user_memories() -> None:
     facts = fetch_user_memories("user-roundtrip", store=store)
 
     assert canonical in facts
+
+
+def test_turn_messages_for_extraction_keeps_user_and_assistant_roles() -> None:
+    turn = [
+        HumanMessage(content="我是素食主义者"),
+        AIMessage(content="已记录您的饮食偏好。"),
+    ]
+    messages = turn_messages_for_extraction(turn)
+    assert len(messages) == 2
+    assert isinstance(messages[0], HumanMessage)
+    assert isinstance(messages[1], AIMessage)
+
+
+def test_extract_and_store_invokes_manager_with_memory_extract_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_settings_override(
+        _settings(
+            MEMORY_STORE_MOCK=False,
+            MEM0_MOCK=False,
+            MEMORY_STORE_SETUP=False,
+            MEMORY_EXTRACT_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
+        )
+    )
+    invoke_mock = MagicMock(
+        return_value=[
+            {
+                "namespace": ("users", "user-99", "facts"),
+                "key": "fact-1",
+                "value": {"kind": "Memory", "content": {"content": "用户是素食主义者"}},
+            }
+        ]
+    )
+    set_manager_invoke_fn(invoke_mock)
+
+    turn = [
+        HumanMessage(content="我是素食主义者"),
+        AIMessage(content="已记录您的饮食偏好。"),
+    ]
+    with patch("memory.write.attach_run_metadata") as attach_mock:
+        result = extract_and_store("user-99", turn)
+
+    assert result.status == "stored"
+    assert list(result.stored_memories) == ["用户是素食主义者"]
+    assert result.stored_count == 1
+    invoke_mock.assert_called_once()
+    args, kwargs = invoke_mock.call_args
+    assert len(args[0]) == 2
+    assert kwargs["user_id"] == "user-99"
+
+    metadata = attach_mock.call_args.args[0]
+    assert metadata["memory_write.mode"] == "inferred"
+    assert metadata["memory_store.status"] == "stored"
+    assert metadata["memory_store.stored_count"] == 1
+    assert metadata["mem0_write.status"] == "stored"
+
+
+def test_extract_and_store_allows_stored_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_settings_override(
+        _settings(
+            MEMORY_STORE_MOCK=False,
+            MEM0_MOCK=False,
+            MEMORY_STORE_SETUP=False,
+        )
+    )
+    set_manager_invoke_fn(MagicMock(return_value=[]))
+
+    with patch("memory.write.attach_run_metadata") as attach_mock:
+        result = extract_and_store(
+            "user-1",
+            [HumanMessage(content="hello"), AIMessage(content="hi")],
+        )
+
+    assert result.status == "stored_empty"
+    assert result.stored_count == 0
+    metadata = attach_mock.call_args.args[0]
+    assert metadata["memory_write.mode"] == "inferred"
+    assert metadata["memory_store.stored_count"] == 0
+
+
+def test_extract_and_store_skips_when_memory_store_mock() -> None:
+    set_settings_override(_settings(MEMORY_STORE_MOCK=True))
+    invoke_mock = MagicMock()
+    set_manager_invoke_fn(invoke_mock)
+
+    result = extract_and_store(
+        "user-1",
+        [HumanMessage(content="hello")],
+    )
+
+    assert result.status == "skipped_mock"
+    invoke_mock.assert_not_called()
+
+
+def test_extract_and_store_returns_failed_reason_on_manager_error() -> None:
+    set_settings_override(
+        _settings(
+            MEMORY_STORE_MOCK=False,
+            MEM0_MOCK=False,
+            MEMORY_STORE_SETUP=False,
+        )
+    )
+    set_manager_invoke_fn(MagicMock(side_effect=RuntimeError("manager down")))
+
+    with patch("memory.write.attach_run_metadata") as attach_mock:
+        result = extract_and_store("user-1", [HumanMessage(content="hello")])
+
+    assert result.status == "failed"
+    assert result.reason == "RuntimeError"
+    metadata = attach_mock.call_args.args[0]
+    assert metadata["memory_write.mode"] == "inferred"
+    assert metadata["memory_store.status"] == "failed"
+
+
+def test_extract_and_store_is_readable_via_fetch_user_memories() -> None:
+    set_settings_override(
+        _settings(
+            MEMORY_STORE_MOCK=False,
+            MEM0_MOCK=False,
+            MEMORY_READ_LIMIT=10,
+            MEMORY_STORE_SETUP=False,
+        )
+    )
+    store = InMemoryStore()
+    set_store_factory(lambda: store)
+    fact_text = "用户喜欢简洁回答"
+
+    def _invoke(
+        messages: list[HumanMessage | AIMessage],
+        *,
+        user_id: str,
+    ) -> list[dict[str, object]]:
+        from contracts.memory_store import facts_namespace
+
+        store.put(
+            facts_namespace(user_id),
+            "pref-1",
+            {"kind": "Memory", "content": {"content": fact_text}, "text": fact_text},
+        )
+        return [
+            {
+                "namespace": facts_namespace(user_id),
+                "key": "pref-1",
+                "value": {"kind": "Memory", "content": {"content": fact_text}},
+            }
+        ]
+
+    set_manager_invoke_fn(_invoke)
+    extract_and_store(
+        "user-inferred-roundtrip",
+        [HumanMessage(content="我喜欢简洁回答"), AIMessage(content="好的")],
+    )
+    facts = fetch_user_memories("user-inferred-roundtrip", store=store)
+
+    assert fact_text in facts

@@ -46,7 +46,7 @@ def build_mem0_config(settings: Settings) -> dict[str, Any]:
     """Build mem0 OSS config: Qdrant vector store + OpenAI-compatible LLM/embedder."""
     if not (settings.MEM0_LLM_MODEL_NAME or "").strip():
         raise ValueError("MEM0_LLM_MODEL_NAME must be configured for mem0 infer writes")
-    llm_policy = chat_policy(ModelUseCase.MEM0_WRITE, settings)
+    llm_policy = chat_policy(ModelUseCase.MEMORY_EXTRACT, settings)
     embed_policy = embedding_policy(settings)
     config: dict[str, Any] = {
         "vector_store": {

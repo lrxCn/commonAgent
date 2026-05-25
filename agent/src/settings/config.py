@@ -225,6 +225,20 @@ class Settings(BaseSettings):
         description="HTTP timeout in seconds applied to the OpenAI client used by mem0 infer writes.",
     )
 
+    # --- LangMem inferred memory extraction (replaces mem0 infer; task 72+) ---
+    MEMORY_EXTRACT_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Dedicated small model for langmem inferred memory extraction; falls back to MEM0_LLM_MODEL_NAME.",
+    )
+    MEMORY_EXTRACT_MAX_TOKENS: int | None = Field(
+        default=None,
+        description="Maximum completion tokens for langmem memory extraction; falls back to MEM0_LLM_MAX_TOKENS.",
+    )
+    MEMORY_EXTRACT_TIMEOUT_SECONDS: float | None = Field(
+        default=None,
+        description="HTTP timeout for langmem memory extraction; falls back to MEM0_LLM_TIMEOUT_SECONDS.",
+    )
+
     # --- LangGraph Store (user memory read path; same DATABASE_URL as checkpointer) ---
     MEMORY_STORE_MOCK: bool = Field(
         default=False,
@@ -332,6 +346,9 @@ class Settings(BaseSettings):
         "RAG_ROUTER_MODEL_NAME",
         "INTENT_CLASSIFIER_MODEL_NAME",
         "MEM0_LLM_MODEL_NAME",
+        "MEMORY_EXTRACT_MODEL_NAME",
+        "MEMORY_EXTRACT_MAX_TOKENS",
+        "MEMORY_EXTRACT_TIMEOUT_SECONDS",
         "RAG_SUBAGENT_TOP_K",
         mode="before",
     )

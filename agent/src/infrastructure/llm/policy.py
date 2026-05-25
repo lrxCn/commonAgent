@@ -53,13 +53,28 @@ def chat_policy(
             max_retries=0,
             streaming=streaming,
         )
-    if use_case is ModelUseCase.MEM0_WRITE:
+    if use_case in {ModelUseCase.MEMORY_EXTRACT, ModelUseCase.MEM0_WRITE}:
+        extract_model = (
+            model_name
+            or settings.MEMORY_EXTRACT_MODEL_NAME
+            or settings.MEM0_LLM_MODEL_NAME
+        )
+        max_tokens = (
+            settings.MEMORY_EXTRACT_MAX_TOKENS
+            if settings.MEMORY_EXTRACT_MAX_TOKENS is not None
+            else settings.MEM0_LLM_MAX_TOKENS
+        )
+        timeout_seconds = (
+            settings.MEMORY_EXTRACT_TIMEOUT_SECONDS
+            if settings.MEMORY_EXTRACT_TIMEOUT_SECONDS is not None
+            else settings.MEM0_LLM_TIMEOUT_SECONDS
+        )
         return ChatModelPolicy(
             use_case=use_case,
-            model_name=_clean_model(model_name or settings.MEM0_LLM_MODEL_NAME, settings.OPENAI_MODEL_NAME),
+            model_name=_clean_model(extract_model, settings.OPENAI_MODEL_NAME),
             temperature=0.1,
-            max_tokens=settings.MEM0_LLM_MAX_TOKENS,
-            timeout_seconds=settings.MEM0_LLM_TIMEOUT_SECONDS,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
             max_retries=0,
             streaming=streaming,
         )

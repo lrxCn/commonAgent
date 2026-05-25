@@ -1,16 +1,19 @@
-"""LangGraph Store write path for structured user memory (task 71+)."""
+"""LangGraph Store write path for structured and inferred user memory (tasks 71+)."""
 
 from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
 from contracts.memory_store import profile_namespace
 from contracts.memory_write import StructuredMemoryRecord
+from memory.langmem_manager import get_memory_store_manager, reset_memory_store_manager
 from memory.store import get_pooled_store
 from observability.tracing import attach_run_metadata
 from settings.config import get_settings
@@ -18,6 +21,7 @@ from settings.config import get_settings
 logger = logging.getLogger(__name__)
 
 _store_put_override: Callable[..., Any] | None = None
+_manager_invoke_override: Callable[..., list[dict[str, Any]]] | None = None
 
 
 class MemoryUserIdError(ValueError):
@@ -47,8 +51,126 @@ def set_store_put_fn(fn: Callable[..., Any] | None) -> None:
     _store_put_override = fn
 
 
+def set_manager_invoke_fn(
+    fn: Callable[..., list[dict[str, Any]]] | None,
+) -> None:
+    """Replace langmem manager ``invoke`` for tests; pass None to clear."""
+    global _manager_invoke_override
+    _manager_invoke_override = fn
+
+
 def reset_write_overrides() -> None:
     set_store_put_fn(None)
+    set_manager_invoke_fn(None)
+    reset_memory_store_manager()
+
+
+def turn_messages_for_extraction(
+    turn_messages: Sequence[BaseMessage],
+) -> list[BaseMessage]:
+    """Keep user/assistant LangChain messages with non-empty content."""
+    messages: list[BaseMessage] = []
+    for message in turn_messages:
+        content = str(message.content).strip() if message.content else ""
+        if not content:
+            continue
+        if isinstance(message, (HumanMessage, AIMessage)):
+            messages.append(message)
+    return messages
+
+
+def _memory_write_mock_enabled() -> bool:
+    settings = get_settings()
+    return settings.MEMORY_STORE_MOCK or settings.MEM0_MOCK
+
+
+def extract_and_store(
+    user_id: str,
+    turn_messages: Sequence[BaseMessage],
+    *,
+    model_name: str | None = None,
+) -> MemoryWriteResult:
+    """Extract inferred facts via langmem store manager and write to collection."""
+    del model_name  # resolved via LLM Gateway / MEMORY_EXTRACT policy
+    uid = _require_user_id(user_id)
+    trace_metadata = {"memory_write.mode": "inferred"}
+
+    if _memory_write_mock_enabled():
+        result = MemoryWriteResult(status="skipped_mock")
+        _attach_write_metadata(result, trace_metadata)
+        return result
+
+    messages = turn_messages_for_extraction(turn_messages)
+    if not messages:
+        result = MemoryWriteResult(status="skipped_empty_payload")
+        _attach_write_metadata(result, trace_metadata)
+        return result
+
+    try:
+        if _manager_invoke_override is not None:
+            puts = _manager_invoke_override(
+                messages,
+                user_id=uid,
+            )
+        else:
+            manager = get_memory_store_manager()
+            puts = manager.invoke(
+                {"messages": messages, "max_steps": 1},
+                config={"configurable": {"user_id": uid}},
+            )
+    except MemoryUserIdError:
+        raise
+    except Exception as exc:
+        result = MemoryWriteResult(status="failed", reason=type(exc).__name__)
+        logger.exception(
+            "memory_store.inferred_store_failed",
+            extra={"user_id": uid, "reason": result.reason},
+        )
+        _attach_write_metadata(result, trace_metadata)
+        return result
+
+    stored = _stored_memories_from_puts(puts)
+    if stored:
+        result = MemoryWriteResult(status="stored", stored_memories=tuple(stored))
+        logger.info(
+            "memory_store.stored_inferred",
+            extra={"user_id": uid, "count": len(stored)},
+        )
+    else:
+        result = MemoryWriteResult(status="stored_empty")
+    _attach_write_metadata(result, trace_metadata)
+    return result
+
+
+def _stored_memories_from_puts(puts: list[dict[str, Any]]) -> list[str]:
+    stored: list[str] = []
+    seen: set[str] = set()
+    for put in puts:
+        value = put.get("value")
+        text = _memory_text_from_store_value(value)
+        if text and text not in seen:
+            stored.append(text)
+            seen.add(text)
+    return stored
+
+
+def _memory_text_from_store_value(value: object) -> str:
+    if isinstance(value, dict):
+        content = value.get("content")
+        if isinstance(content, dict):
+            for key in ("content", "text", "memory"):
+                raw = content.get(key)
+                if raw is not None and str(raw).strip():
+                    return str(raw).strip()
+        if content is not None and str(content).strip():
+            return str(content).strip()
+        for key in ("text", "memory"):
+            raw = value.get(key)
+            if raw is not None and str(raw).strip():
+                return str(raw).strip()
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return ""
 
 
 def store_structured_record(
