@@ -2,18 +2,18 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md)
 
 ## 总览
 
+**当前建议下一步**：LangMem 迁移 — **75**（pgvector）与 **69**（契约/spike）可并行 → **70→71→72→73→74**。总 PRD：[agent-langmem-migration.md](./prd/agent-langmem-migration.md)。
+
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 68 |
+| 总任务数 | 75（规划） |
 | 已完成 | 68 |
 | 进行中 | — |
 | 阻塞 | 0 |
-
-**当前建议下一步**：结构化记忆写入任务 63-68 已全部完成；可按需从 [docs/progress.md](./progress.md) 或新 PRD 规划下一批任务。
 
 
 ---
@@ -93,6 +93,13 @@
 | 66 | [结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md) | ✅ | 2026-05-25 | `memory_write_record` ephemeral + load_memory slot fill + post_turn structured/inferred 互斥路由 |
 | 67 | [结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md) | ✅ | 2026-05-25 | Commit 话术含 record 摘要；path contract `memory_write.mode`/attribute；`run_memory_write_eval.py` + seed 5/5 pass |
 | 68 | [结构化记忆写入 Phase 5：README、代码地图与文档最终对齐](./prompts/68-structured-memory-docs-final.md) | ✅ | 2026-05-25 | README/maps/PRD 双轨写入收口；issue 关联已落地方案；63-68 全部完成 |
+| 69 | [LangMem 迁移 Phase 0：契约、行为冻结与依赖 Spike](./prompts/69-langmem-migration-contract-spike.md) | ⬜ | — | Store 契约 + mem0 基线 characterization；langmem/Store 包 spike |
+| 70 | [LangMem 迁移 Phase 1：Store 工厂与用户记忆读路径](./prompts/70-langmem-store-read-path.md) | ⬜ | — | 依赖 69、75；profile get + collection pgvector search |
+| 71 | [LangMem 迁移 Phase 2：Structured Write 切 Store](./prompts/71-langmem-structured-write.md) | ⬜ | — | fact_update `store.put` profile；eval structured 不得 stored_empty |
+| 72 | [LangMem 迁移 Phase 3：Inferred Write 切 langmem](./prompts/72-langmem-inferred-write.md) | ⬜ | — | `create_memory_store_manager` + MEMORY_EXTRACT |
+| 73 | [LangMem 迁移 Phase 4：删除 mem0 与 Qdrant 用户记忆配置](./prompts/73-langmem-remove-mem0.md) | ⬜ | — | 无 Qdrant 数据迁移；移除 mem0ai |
+| 74 | [LangMem 迁移 Phase 5：README、命名收口与文档最终对齐](./prompts/74-langmem-docs-final.md) | ⬜ | — | `user_memories` 重命名；README/maps/PRD 收口 |
+| 75 | [LangMem Store 前置：Postgres + pgvector 运维配置](./prompts/75-postgres-pgvector-store-setup.md) | ⬜ | — | 与 69 可并行；**70 前须完成**；见 [LangMem 迁移 PRD](./prd/agent-langmem-migration.md) |
 
 ---
 
@@ -190,3 +197,4 @@
 | 2026-05-25 | 完成任务 66：graph 接入 structured write；`load_memory` slot fill 写入 `memory_write_record`；post_turn 双轨路由；path metrics 记录 `memory_write_mode`；policy denied / memory_query 仍 skip mem0 |
 | 2026-05-25 | 完成任务 67：`fact_update_confirm` 话术含 record 摘要（`已记住：{label}={value}`）；path contract 区分 structured/inferred 与 attribute；新增 `run_memory_write_eval.py`；seed 5/5 pass；`stored_empty` regression 被 eval 捕获 |
 | 2026-05-25 | 完成任务 68：README/maps/PRD 同步 structured vs inferred 双轨写入；`agent-structured-memory-write.md` 落地状态与偏差；issue 关联方案；结构化记忆写入 63-68 全部收口 |
+| 2026-05-25 | 文档：新增 [LangMem 迁移 PRD](./prd/agent-langmem-migration.md)；拆分任务 **69-75**（mem0→langmem+Store；75=pgvector 运维；无 Qdrant 数据迁移） |
