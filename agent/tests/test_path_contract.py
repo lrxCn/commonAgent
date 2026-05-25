@@ -111,6 +111,15 @@ def test_fact_update_path_contract_skips_small_llms_and_rag() -> None:
     assert metrics["rag"] == {"should_call": False, "called": False}
     assert metrics["supervisor"] == {"should_call": False, "called": False}
     assert metrics.get("memory_write_mode") == "structured"
+    assert metrics.get("memory_write_record_attribute") == "birthday"
+
+
+def test_chitchat_path_contract_uses_inferred_memory_write_mode() -> None:
+    result = _invoke("你好", thread_id="path-chitchat-inferred")
+
+    metrics = result["path_metrics"]
+    assert metrics.get("memory_write_mode") == "inferred"
+    assert metrics.get("memory_write_record_attribute", "") == ""
 
 
 def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:

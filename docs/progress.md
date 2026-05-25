@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 68 |
-| 已完成 | 66 |
+| 已完成 | 67 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[67 - 结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md)（依赖任务 66 已完成）。
+**当前建议下一步**：[68 - 结构化记忆写入 Phase 5：README、代码地图与文档最终对齐](./prompts/68-structured-memory-docs-final.md)（依赖任务 67 已完成）。
 
 
 ---
@@ -91,7 +91,7 @@
 | 64 | [结构化记忆写入 Phase 1：Slot Fill 抽取器](./prompts/64-structured-memory-slot-fill.md) | ✅ | 2026-05-25 | `memory/structured_record.py` slot fill + canonical 文本；覆盖 name/birthday/city/job/company.address/preference |
 | 65 | [结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md) | ✅ | 2026-05-25 | `store_structured_record` + `infer=False` canonical 写入；`memory_write.mode=structured` trace |
 | 66 | [结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md) | ✅ | 2026-05-25 | `memory_write_record` ephemeral + load_memory slot fill + post_turn structured/inferred 互斥路由 |
-| 67 | [结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md) | ⬜ 待开始 | - | 依赖 66；Commit 话术对齐 record；path contract + memory_write eval |
+| 67 | [结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md) | ✅ | 2026-05-25 | Commit 话术含 record 摘要；path contract `memory_write.mode`/attribute；`run_memory_write_eval.py` + seed 5/5 pass |
 | 68 | [结构化记忆写入 Phase 5：README、代码地图与文档最终对齐](./prompts/68-structured-memory-docs-final.md) | ⬜ 待开始 | - | 依赖 67；README/maps/PRD 落地状态收口 |
 
 ---
@@ -188,3 +188,4 @@
 | 2026-05-25 | 完成任务 64：新增 `memory/structured_record.py`（`build_structured_memory_record` + `canonical_fact_text`）；纯规则 slot fill，birthday 归一为四位年份；无 LLM、无 mem0/graph 接入 |
 | 2026-05-25 | 完成任务 65：新增 `store_structured_record`（`infer=False` + canonical fact + metadata）；`MEM0_MOCK` 返回可预测 stored；seed 正例 mock 下 `stored_count>=1`；`extract_and_store` 行为无回归 |
 | 2026-05-25 | 完成任务 66：graph 接入 structured write；`load_memory` slot fill 写入 `memory_write_record`；post_turn 双轨路由；path metrics 记录 `memory_write_mode`；policy denied / memory_query 仍 skip mem0 |
+| 2026-05-25 | 完成任务 67：`fact_update_confirm` 话术含 record 摘要（`已记住：{label}={value}`）；path contract 区分 structured/inferred 与 attribute；新增 `run_memory_write_eval.py`；seed 5/5 pass；`stored_empty` regression 被 eval 捕获 |

@@ -89,6 +89,11 @@ def post_turn_jobs_node(
     metrics = mark_memory_write_mode(
         metrics,
         mode="structured" if memory_write_record is not None else "inferred",
+        attribute=(
+            memory_write_record.attribute
+            if memory_write_record is not None
+            else ""
+        ),
     )
     emit_event(
         ObservabilityEventType.POST_TURN_SCHEDULED,

@@ -30,7 +30,7 @@
       "expected_record": {
         "subject": "user",
         "attribute": "birthday",
-        "value": "1997年",
+        "value": "1997",
         "raw_utterance": "我出生于1997年",
         "confidence": 0.94,
         "source_turn_id": "thread-1:turn-2",

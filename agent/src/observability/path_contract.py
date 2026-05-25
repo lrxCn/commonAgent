@@ -94,10 +94,13 @@ def mark_memory_write_mode(
     metrics: Mapping[str, Any] | None,
     *,
     mode: str,
+    attribute: str = "",
 ) -> dict[str, Any]:
     """Record structured vs inferred mem0 write mode for path contract traces."""
     updated = ensure_path_metrics(metrics)
     updated["memory_write_mode"] = str(mode)
+    if attribute.strip():
+        updated["memory_write_record_attribute"] = attribute.strip()
     return updated
 
 
@@ -175,6 +178,8 @@ def path_metrics_metadata(metrics: Mapping[str, Any] | None) -> dict[str, Any]:
         "fast_path": finalized.get("fast_path", False),
         "post_turn_scheduled": finalized.get("post_turn_scheduled", False),
         "post_turn_schedule_error": finalized.get("post_turn_schedule_error", ""),
+        "memory_write.mode": finalized.get("memory_write_mode", ""),
+        "memory_write.record.attribute": finalized.get("memory_write_record_attribute", ""),
     }
     for component in COMPONENTS:
         values = finalized.get(component) or {}

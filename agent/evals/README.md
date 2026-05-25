@@ -18,8 +18,8 @@
   - 结构化记忆写入 seed，覆盖 `structured_fact_update`、`inferred_general_chat`、`regression_store_empty`。
   - 每行包含 `input`、`context`、`category` 和 `expected_write`；`expected_write.mode` 区分 `structured`（目标态 `infer=false`）与 `inferred`（`infer=true` 慢路径）。
   - `structured_fact_update` 行可带 `expected_record`，字段与 `contracts.memory_write.StructuredMemoryRecord` 对齐。
-  - `regression_store_empty` 行用 `forbidden_final_status` 声明 Policy 通过的 `fact_update` 不得再出现 `stored_empty`；当前仅写 seed 与契约，运行路径仍走 infer。
-  - 本地 runner 将在任务 67 接入；当前以 seed smoke test 与 characterization 基线为主。
+  - `regression_store_empty` 行用 `forbidden_final_status` 声明 Policy 通过的 `fact_update` 不得再出现 `stored_empty`。
+  - 本地 runner：`scripts/run_memory_write_eval.py`（默认 mock mem0；`--dry-run` 仅校验 seed 结构）。
 
 ## Feedback
 
@@ -47,6 +47,8 @@ cd agent
 uv run pytest tests/test_evals_seed.py -v
 uv run pytest tests/test_intent_eval_seed.py -v
 uv run pytest tests/test_memory_write_eval_seed.py -v
+uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
+uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --dry-run --json
 uv run python scripts/run_rag_eval.py --seed evals/seed.json --json
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-seed --seed evals/seed.json --dry-run

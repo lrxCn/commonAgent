@@ -27,9 +27,14 @@ from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
 from intent.fallback import memory_query_fallback_decision, tool_fallback_decision
 from memory.query import answer_memory_query, memory_query_trace_metadata
+from memory.structured_record import (
+    format_structured_memory_confirmation,
+    legacy_fact_update_confirmation,
+)
 from observability.path_contract import (
     ensure_path_metrics,
     mark_fast_path,
+    mark_memory_write_mode,
     record_fallback_decision,
     update_path_component,
 )
@@ -38,7 +43,7 @@ from settings.config import get_settings
 
 from .common import extract_user_message, merge_carry, text
 
-FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/事实参考。"
+FACT_UPDATE_CONFIRMATION = legacy_fact_update_confirmation()
 NO_RAG_SOURCE_REPLY = "知识库未找到可靠来源，我不能基于内部知识库给出确定答案。你可以补充更多关键词或联系管理员补充资料。"
 
 
@@ -46,19 +51,31 @@ def fact_update_confirm_node(state: AgentState) -> dict[str, object]:
     """Append a deterministic confirmation without rewrite/RAG/Supervisor."""
     if state.get("policy_fast_path_allowed") is not True:
         raise RuntimeError("fact_update_confirm requires policy_fast_path_allowed")
+    record = state.get("memory_write_record")
+    if record is None:
+        raise RuntimeError("fact_update_confirm requires memory_write_record")
+    confirmation = format_structured_memory_confirmation(record)
     path_metrics = mark_fast_path(state.get("path_metrics"), enabled=True)
+    path_metrics = mark_memory_write_mode(
+        path_metrics,
+        mode="structured",
+        attribute=record.attribute,
+    )
     emit_event(
         ObservabilityEventType.EXECUTOR_CHOSEN,
         {
             "executor": "template_executor",
             "executor_reason": "turn_type_fact_update",
-        }
+            "memory_write.mode": "structured",
+            "memory_write.record.attribute": record.attribute,
+            "memory_write.extraction_method": record.extraction_method,
+        },
     )
     return merge_carry(
         state,
         {
-            "messages": [AIMessage(content=FACT_UPDATE_CONFIRMATION)],
-            "supervisor_draft": FACT_UPDATE_CONFIRMATION,
+            "messages": [AIMessage(content=confirmation)],
+            "supervisor_draft": confirmation,
             "executor": "template_executor",
             "executor_reason": "turn_type_fact_update",
             "client_actions": None,

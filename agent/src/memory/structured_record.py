@@ -34,6 +34,17 @@ _COMPANY_ADDRESS_VALUE_RE = re.compile(
 _PREFERENCE_VALUE_RE = re.compile(r"(?:喜欢|偏好|常用|不喜欢|讨厌)\s*([^，。！？?]{1,60})")
 _YEAR_RE = re.compile(r"(\d{4})")
 
+_ATTRIBUTE_LABELS: dict[str, str] = {
+    "name": "姓名",
+    "birthday": "出生年份",
+    "city": "城市",
+    "job": "职业",
+    "company.address": "公司地址",
+    "preference": "偏好",
+}
+
+_LEGACY_FACT_UPDATE_CONFIRMATION = "已收到，我会把这个信息作为你的偏好/事实参考。"
+
 
 def build_structured_memory_record(
     signals: IntentSignals,
@@ -76,6 +87,22 @@ def build_structured_memory_record(
         source_turn_id=source_turn_id,
         extraction_method=ExtractionMethod.SLOT_FILL_V1.value,
     )
+
+
+def memory_attribute_label(attribute: str) -> str:
+    """Return a user-facing label for a structured memory attribute."""
+    return _ATTRIBUTE_LABELS.get(attribute, attribute)
+
+
+def format_structured_memory_confirmation(record: StructuredMemoryRecord) -> str:
+    """Build the fact_update fast-path confirmation from a structured record."""
+    label = memory_attribute_label(record.attribute)
+    return f"已记住：{label}={record.value}。后续我会据此为你提供个性化回答。"
+
+
+def legacy_fact_update_confirmation() -> str:
+    """Return the pre-structured-write confirmation template for regression checks."""
+    return _LEGACY_FACT_UPDATE_CONFIRMATION
 
 
 def canonical_fact_text(record: StructuredMemoryRecord) -> str:

@@ -12,6 +12,7 @@ from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.context import graph_context_from_request
 from graph.nodes import FACT_UPDATE_CONFIRMATION
+from memory.structured_record import format_structured_memory_confirmation
 from graph.supervisor import (
     reset_supervisor_overrides,
     set_answer_invoke,
@@ -95,7 +96,11 @@ def test_fact_update_returns_template_and_skips_llm_rag(
 
     messages = result["messages"]
     assert [type(message) for message in messages] == [HumanMessage, AIMessage]
-    assert messages[-1].content == FACT_UPDATE_CONFIRMATION
+    assert messages[-1].content == format_structured_memory_confirmation(
+        result["memory_write_record"]
+    )
+    assert "已记住：" in str(messages[-1].content)
+    assert FACT_UPDATE_CONFIRMATION not in str(messages[-1].content)
 
     metrics = result["path_metrics"]
     assert metrics["fast_path"] is True
@@ -119,6 +124,35 @@ def test_fact_update_returns_template_and_skips_llm_rag(
     assert kwargs["memory_write_record"].value == "1997"
     assert result.get("memory_write_record") is not None
     assert metrics["memory_write_mode"] == "structured"
+    assert metrics.get("memory_write_record_attribute") == "birthday"
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_fragment"),
+    [
+        ("我叫张三", "已记住：姓名=张三"),
+        ("我出生于1997年", "已记住：出生年份=1997"),
+        ("我生活在哈尔滨", "已记住：城市=哈尔滨"),
+    ],
+)
+def test_fact_update_confirmation_includes_record_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    message: str,
+    expected_fragment: str,
+) -> None:
+    monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
+
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    result = graph.invoke(
+        {"messages": [HumanMessage(content=message)]},
+        context=_context(),
+        config={"configurable": {"thread_id": f"thread-confirm-{message}"}},
+    )
+
+    reply = str(result["messages"][-1].content)
+    assert expected_fragment in reply
+    assert reply.endswith("。后续我会据此为你提供个性化回答。")
+    assert FACT_UPDATE_CONFIRMATION not in reply
 
 
 def test_fact_update_post_turn_uses_structured_store_not_infer(
@@ -238,7 +272,7 @@ def test_fact_update_fast_path_messages_are_checkpointed(
 
     contents = [str(message.content) for message in second["messages"]]
     assert "我生活在哈尔滨" in contents
-    assert FACT_UPDATE_CONFIRMATION in contents
+    assert any("已记住：城市=哈尔滨" in content for content in contents)
 
 
 def test_inbound_blocked_fact_update_does_not_schedule_mem0(
