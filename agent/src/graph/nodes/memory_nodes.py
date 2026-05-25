@@ -11,9 +11,9 @@ from langgraph.types import RunnableConfig
 
 from contracts.events import ObservabilityEventType
 from contracts.intent import IntentDecision
+from contracts.routing import TurnType, TurnTypeDecision
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
-from graph.turn_type import classify_turn_type
 from intent.engine import classify_intent, turn_type_decision_from_intent
 from intent.fallback import intent_fallback_decision, policy_denied_fallback_decision
 from intent.policy import decide_fast_path_policy
@@ -119,7 +119,7 @@ def load_memory_node(
         )
     except Exception as exc:
         error = f"{exc.__class__.__name__}: {exc}"
-        degraded = classify_turn_type(user_message, tools_context=ctx.tools)
+        degraded = TurnTypeDecision(TurnType.GENERAL_CHAT, "intent_classify_error")
         updates["turn_type"] = degraded.turn_type.value
         updates["turn_type_reason"] = degraded.reason
         updates["path_metrics"] = new_path_metrics(

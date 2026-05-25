@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 import pytest
 
@@ -11,7 +11,7 @@ from gateway.schemas import RequestContext
 from graph.build import compile_graph
 from graph.context import graph_context_from_request
 from graph.nodes import load_memory_node
-from graph.supervisor import reset_supervisor_overrides, set_answer_invoke
+from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from observability.events import collect_events
 from settings.config import Settings, reset_settings, set_settings_override
 
@@ -111,13 +111,14 @@ def test_first_person_question_cannot_enter_fact_update_turn_type() -> None:
     assert result["executor"] == "memory_query_executor"
 
 
-def test_intent_classify_error_falls_back_to_legacy_turn_type(
+def test_intent_classify_error_uses_conservative_general_chat_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def _raise(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("classify failed")
 
     monkeypatch.setattr("graph.nodes.memory_nodes.classify_intent", _raise)
+    set_supervisor_invoke(lambda _system, _messages: [AIMessage(content="fallback")])
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
 
     result = graph.invoke(
@@ -126,8 +127,9 @@ def test_intent_classify_error_falls_back_to_legacy_turn_type(
         config={"configurable": {"thread_id": "intent-authority-error"}},
     )
 
-    assert result["turn_type"] == "chitchat"
-    assert result["path_metrics"]["fast_path"] is True
+    assert result["turn_type"] == "general_chat"
+    assert result["turn_type_reason"] == "intent_classify_error"
+    assert result["path_metrics"]["fast_path"] is False
     assert result["path_metrics"]["path_contract"] == "pass"
     assert "RuntimeError: classify failed" in result["intent_shadow_error"]
     assert "intent_decision" not in result
