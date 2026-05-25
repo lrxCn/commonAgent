@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：LangMem 迁移 **73**（删除 mem0）→ **74**。
+**当前建议下一步**：LangMem 迁移 **69-75 已全部完成**；后续按产品需求规划新任务。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 75（规划） |
-| 已完成 | 73 |
+| 已完成 | 75 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -97,8 +97,8 @@
 | 70 | [LangMem 迁移 Phase 1：Store 工厂与用户记忆读路径](./prompts/70-langmem-store-read-path.md) | ✅ | 2026-05-25 | `memory/store.py` + `memory/read.py`；`fetch_user_memories` 默认走 Store；`MEMORY_STORE_*` settings |
 | 71 | [LangMem 迁移 Phase 2：Structured Write 切 Store](./prompts/71-langmem-structured-write.md) | ✅ | 2026-05-25 | `memory/write.py` profile put；trace 增 `memory_store.*`；eval structured 5/5；inferred 仍 mem0 |
 | 72 | [LangMem 迁移 Phase 3：Inferred Write 切 langmem](./prompts/72-langmem-inferred-write.md) | ✅ | 2026-05-25 | `langmem_manager` + `write.extract_and_store`；`MEMORY_EXTRACT`；post_turn 不再 mem0 infer |
-| 73 | [LangMem 迁移 Phase 4：删除 mem0 与 Qdrant 用户记忆配置](./prompts/73-langmem-remove-mem0.md) | ⬜ | — | 无 Qdrant 数据迁移；移除 mem0ai |
-| 74 | [LangMem 迁移 Phase 5：README、命名收口与文档最终对齐](./prompts/74-langmem-docs-final.md) | ⬜ | — | `user_memories` 重命名；README/maps/PRD 收口 |
+| 73 | [LangMem 迁移 Phase 4：删除 mem0 与 Qdrant 用户记忆配置](./prompts/73-langmem-remove-mem0.md) | ✅ | 2026-05-25 | 移除 mem0ai/dead code；仅保留 MEMORY_* + Store/langmem；521 非 integration 测试绿 |
+| 74 | [LangMem 迁移 Phase 5：README、命名收口与文档最终对齐](./prompts/74-langmem-docs-final.md) | ✅ | 2026-05-25 | `user_memories` 重命名；README/maps/PRD/issue/evals 收口；521 非 integration 测试绿 |
 | 75 | [LangMem Store 前置：Postgres + pgvector 运维配置](./prompts/75-postgres-pgvector-store-setup.md) | ✅ | 2026-05-25 | README 同库运维章节；OrbStack `my-postgres` 已启用 pgvector 0.8.2；integration spike 全绿 |
 
 ---
@@ -201,4 +201,5 @@
 | 2026-05-25 | 完成任务 70：`memory/store.py` 池化 PostgresStore（pgvector index=EMBEDDING_MODEL_DIMS）；`memory/read.py` profile+collection 读；`load_memory` 传 user message 作 search query；env 新增 `MEMORY_STORE_*` |
 | 2026-05-25 | 完成任务 75：README 增加 Postgres+pgvector 同库运维（OrbStack/Docker 双路径）；本机 `common_agent` 启用 `vector` 0.8.2；checkpointer + Store semantic index integration 全绿 |
 | 2026-05-25 | 完成任务 69：`contracts/memory_store.py`（namespace/profile/read 契约）；`test_langmem_migration_characterization.py` 冻结 mem0 基线；`test_langmem_store_spike.py` 验证 Store+checkpointer 同库；pin `langmem>=0.0.30`；Store 实现随 `langgraph-checkpoint-postgres>=3.1.0`，无需单独 store 包 |
-| 2026-05-25 | 完成任务 72：`memory/langmem_manager.py` + `write.extract_and_store` 切 langmem `create_memory_store_manager`；`ModelUseCase.MEMORY_EXTRACT`；`memory_extract_instructions.txt`；post_turn inferred 不再 mem0 `Memory.add(infer=True)` |
+| 2026-05-25 | 完成任务 73：删除 mem0ai、`mem0_client`/`mem0_write`、QDRANT_COLLECTION_MEM0 与 MEM0_* settings；`MEMORY_FREE_TEXT_MAX_FACTS`；AGENTS.md 改为 Store/langmem 约束 |
+| 2026-05-25 | 完成任务 74：`mem0_memories` → `user_memories`；README/maps/PRD/issue/evals 同步 Store+langmem 当前事实；LangMem 迁移 69-75 全部收口 |

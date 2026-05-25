@@ -46,7 +46,7 @@ def _settings(**extra: object) -> Settings:
     return Settings(
         **{
             **_REQUIRED_ENV,
-            "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            "MEMORY_EXTRACT_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
             **extra,
         }
     )  # type: ignore[arg-type]
@@ -64,9 +64,10 @@ def _structured_record_for(message: str, *, source_turn_id: str = "thread-1:turn
     return record
 
 
-def test_store_structured_record_puts_profile_payload_without_mem0_add() -> None:
+def test_store_structured_record_puts_profile_payload_without_manager_invoke() -> None:
     set_settings_override(
-        _settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False, MEMORY_STORE_SETUP=False)
+        _settings(MEMORY_STORE_MOCK=False,
+            MEMORY_STORE_SETUP=False)
     )
     store = InMemoryStore()
     set_store_factory(lambda: store)
@@ -88,7 +89,7 @@ def test_store_structured_record_puts_profile_payload_without_mem0_add() -> None
     metadata = attach_mock.call_args.args[0]
     assert metadata["memory_write.mode"] == "structured"
     assert metadata["memory_store.status"] == "stored"
-    assert metadata["mem0_write.status"] == "stored"
+    assert metadata["memory_store.status"] == "stored"
 
 
 @pytest.mark.parametrize(
@@ -103,7 +104,8 @@ def test_store_structured_record_seed_positive_cases_store_at_least_one(
     message: str,
 ) -> None:
     set_settings_override(
-        _settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False, MEMORY_STORE_SETUP=False)
+        _settings(MEMORY_STORE_MOCK=False,
+            MEMORY_STORE_SETUP=False)
     )
     store = InMemoryStore()
     set_store_factory(lambda: store)
@@ -132,7 +134,8 @@ def test_store_structured_record_mock_mode_returns_predictable_stored_result() -
 
 def test_store_structured_record_returns_failed_reason_on_put_error() -> None:
     set_settings_override(
-        _settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False, MEMORY_STORE_SETUP=False)
+        _settings(MEMORY_STORE_MOCK=False,
+            MEMORY_STORE_SETUP=False)
     )
     record = _structured_record_for("我叫张三")
     set_store_put_fn(MagicMock(side_effect=RuntimeError("store down")))
@@ -146,14 +149,13 @@ def test_store_structured_record_returns_failed_reason_on_put_error() -> None:
     metadata = attach_mock.call_args.args[0]
     assert metadata["memory_write.mode"] == "structured"
     assert metadata["memory_store.status"] == "failed"
-    assert metadata["mem0_write.status"] == "failed"
+    assert metadata["memory_store.status"] == "failed"
 
 
 def test_store_structured_record_is_readable_via_fetch_user_memories() -> None:
     set_settings_override(
         _settings(
             MEMORY_STORE_MOCK=False,
-            MEM0_MOCK=False,
             MEMORY_READ_LIMIT=10,
             MEMORY_STORE_SETUP=False,
         )
@@ -186,7 +188,6 @@ def test_extract_and_store_invokes_manager_with_memory_extract_config(
     set_settings_override(
         _settings(
             MEMORY_STORE_MOCK=False,
-            MEM0_MOCK=False,
             MEMORY_STORE_SETUP=False,
             MEMORY_EXTRACT_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
         )
@@ -221,14 +222,13 @@ def test_extract_and_store_invokes_manager_with_memory_extract_config(
     assert metadata["memory_write.mode"] == "inferred"
     assert metadata["memory_store.status"] == "stored"
     assert metadata["memory_store.stored_count"] == 1
-    assert metadata["mem0_write.status"] == "stored"
+    assert metadata["memory_store.status"] == "stored"
 
 
 def test_extract_and_store_allows_stored_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     set_settings_override(
         _settings(
             MEMORY_STORE_MOCK=False,
-            MEM0_MOCK=False,
             MEMORY_STORE_SETUP=False,
         )
     )
@@ -265,7 +265,6 @@ def test_extract_and_store_returns_failed_reason_on_manager_error() -> None:
     set_settings_override(
         _settings(
             MEMORY_STORE_MOCK=False,
-            MEM0_MOCK=False,
             MEMORY_STORE_SETUP=False,
         )
     )
@@ -285,7 +284,6 @@ def test_extract_and_store_is_readable_via_fetch_user_memories() -> None:
     set_settings_override(
         _settings(
             MEMORY_STORE_MOCK=False,
-            MEM0_MOCK=False,
             MEMORY_READ_LIMIT=10,
             MEMORY_STORE_SETUP=False,
         )

@@ -51,7 +51,7 @@ def test_format_recent_messages_human_and_ai() -> None:
 def test_build_rewrite_prompt_includes_context() -> None:
     prompt = build_rewrite_prompt(
         "它",
-        mem0_text="- 偏好简洁回答",
+        user_memories_text="- 偏好简洁回答",
         recent_messages=[HumanMessage(content="报销流程需要先填表")],
     )
     assert "它" in prompt
@@ -70,7 +70,7 @@ def test_rewrite_query_resolves_pronoun_with_mock_llm() -> None:
 
     result = rewrite_query(
         "它",
-        mem0_text="",
+        user_memories_text="",
         recent_messages=[HumanMessage(content="报销流程需要先填表")],
     )
 
@@ -130,7 +130,7 @@ def test_rewrite_node_extracts_message_from_messages() -> None:
     assert "报销" in out["rewritten_query"]
 
 
-def test_rewrite_node_empty_mem0_memories_uses_placeholder() -> None:
+def test_rewrite_node_empty_user_memories_uses_placeholder() -> None:
     captured: dict[str, str] = {}
 
     def mock_llm(prompt: str) -> str:
@@ -139,12 +139,12 @@ def test_rewrite_node_empty_mem0_memories_uses_placeholder() -> None:
 
     set_rewrite_llm(mock_llm)
 
-    rewrite_node({"user_message": "它", "mem0_memories": [], "recent_messages": []})
+    rewrite_node({"user_message": "它", "user_memories": [], "recent_messages": []})
 
     assert "（无）" in captured["prompt"]
 
 
-def test_rewrite_node_formats_mem0_memories() -> None:
+def test_rewrite_node_formats_user_memories() -> None:
     captured: dict[str, str] = {}
 
     def mock_llm(prompt: str) -> str:
@@ -156,7 +156,7 @@ def test_rewrite_node_formats_mem0_memories() -> None:
     rewrite_node(
         {
             "user_message": "继续",
-            "mem0_memories": ["常用差旅报销"],
+            "user_memories": ["常用差旅报销"],
             "recent_messages": [],
         }
     )
@@ -188,7 +188,7 @@ def test_should_rewrite_skips_for_conclusive_turn_types(
     need, actual_reason = should_rewrite(
         "它怎么办",
         recent_messages=[HumanMessage(content="报销流程是什么？")],
-        mem0_memories=["用户偏好简洁回答"],
+        user_memories=["用户偏好简洁回答"],
         turn_type=turn_type,
     )
 
@@ -200,7 +200,7 @@ def test_should_rewrite_invokes_for_ambiguous_turn_type() -> None:
     need, reason = should_rewrite(
         "公司报销流程是什么",
         recent_messages=[],
-        mem0_memories=[],
+        user_memories=[],
         turn_type="ambiguous",
     )
 
@@ -212,7 +212,7 @@ def test_should_rewrite_standalone_faq() -> None:
     need, reason = should_rewrite(
         "公司报销流程是什么",
         recent_messages=[],
-        mem0_memories=[],
+        user_memories=[],
     )
     assert need is False
     assert reason == "standalone_no_context"
@@ -231,7 +231,7 @@ def test_should_rewrite_self_contained_with_mem0() -> None:
     need, reason = should_rewrite(
         "公司报销流程是什么",
         recent_messages=[],
-        mem0_memories=["偏好简洁回答"],
+        user_memories=["偏好简洁回答"],
     )
     assert need is False
     assert reason == "self_contained"
@@ -244,7 +244,7 @@ def test_should_rewrite_personal_fact_statement_with_context() -> None:
             HumanMessage(content="我叫刘日兴"),
             AIMessage(content="记住了。"),
         ],
-        mem0_memories=["用户是前端程序员", "用户叫刘日兴"],
+        user_memories=["用户是前端程序员", "用户叫刘日兴"],
     )
     assert need is False
     assert reason == "personal_fact_statement"
@@ -257,7 +257,7 @@ def test_should_rewrite_company_address_statement_with_context() -> None:
             HumanMessage(content="我叫刘日兴"),
             AIMessage(content="记住了。"),
         ],
-        mem0_memories=["用户是前端程序员"],
+        user_memories=["用户是前端程序员"],
     )
     assert need is False
     assert reason == "personal_fact_statement"
@@ -267,7 +267,7 @@ def test_should_rewrite_living_city_statement_with_context() -> None:
     need, reason = should_rewrite(
         "我生活在哈尔滨",
         recent_messages=[],
-        mem0_memories=["用户是一名前端程序员"],
+        user_memories=["用户是一名前端程序员"],
     )
     assert need is False
     assert reason == "personal_fact_statement"
@@ -328,7 +328,7 @@ def test_rewrite_node_skips_llm_for_standalone_faq() -> None:
     out = rewrite_node(
         {
             "user_message": "公司报销流程是什么",
-            "mem0_memories": [],
+            "user_memories": [],
             "recent_messages": [],
         }
     )
@@ -344,7 +344,7 @@ def test_rewrite_node_skips_llm_for_personal_fact_statement() -> None:
     out = rewrite_node(
         {
             "user_message": "我出生于1997年",
-            "mem0_memories": ["用户是前端程序员", "用户叫刘日兴"],
+            "user_memories": ["用户是前端程序员", "用户叫刘日兴"],
             "recent_messages": [
                 HumanMessage(content="我叫刘日兴"),
                 AIMessage(content="记住了。"),

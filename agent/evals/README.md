@@ -19,7 +19,7 @@
   - 每行包含 `input`、`context`、`category` 和 `expected_write`；`expected_write.mode` 区分 `structured`（目标态 `infer=false`）与 `inferred`（`infer=true` 慢路径）。
   - `structured_fact_update` 行可带 `expected_record`，字段与 `contracts.memory_write.StructuredMemoryRecord` 对齐。
   - `regression_store_empty` 行用 `forbidden_final_status` 声明 Policy 通过的 `fact_update` 不得再出现 `stored_empty`。
-  - 本地 runner：`scripts/run_memory_write_eval.py`（默认 mock mem0；`--dry-run` 仅校验 seed 结构）。
+  - 本地 runner：`scripts/run_memory_write_eval.py`（默认 mock Store/langmem；`--dry-run` 仅校验 seed 结构）。
 
 ## Feedback
 

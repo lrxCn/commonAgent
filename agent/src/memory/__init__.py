@@ -1,6 +1,15 @@
-"""Conversation persistence: LangGraph checkpointer, mem0, and related helpers."""
+"""Conversation persistence: LangGraph checkpointer, Store memory, and related helpers."""
 
+from memory.assembly import (
+    ContextAssemblyError,
+    build_context,
+    build_context_bundle,
+    build_system_prompt,
+    select_turn_index_ranges,
+    split_into_turns,
+)
 from memory.checkpointer import get_checkpointer
+from memory.formatting import format_user_memories_for_system
 from memory.history import (
     ROLLING_SUMMARY_METADATA_KEY,
     ROLLING_SUMMARY_THROUGH_TURN_KEY,
@@ -12,21 +21,6 @@ from memory.history import (
     save_rolling_summary,
 )
 from memory.post_turn import schedule_post_turn_jobs
-from memory.assembly import (
-    ContextAssemblyError,
-    build_context,
-    build_context_bundle,
-    build_system_prompt,
-    select_turn_index_ranges,
-    split_into_turns,
-)
-from memory.mem0_client import (
-    Mem0UserIdError,
-    afetch_user_memories,
-    fetch_user_memories,
-    format_mem0_for_system,
-)
-from memory.store import get_pooled_store, reset_pooled_store
 from memory.profile import (
     MemoryProfile,
     ProfileNormalization,
@@ -39,10 +33,10 @@ from memory.query import (
     MemoryQueryResult,
     answer_memory_query,
 )
+from memory.store import get_pooled_store, reset_pooled_store
 
 __all__ = [
     "ContextAssemblyError",
-    "Mem0UserIdError",
     "MemoryProfile",
     "MemoryQueryEvidence",
     "MemoryQueryResult",
@@ -51,15 +45,13 @@ __all__ = [
     "ROLLING_SUMMARY_METADATA_KEY",
     "ROLLING_SUMMARY_THROUGH_TURN_KEY",
     "ThreadIdError",
-    "afetch_user_memories",
     "answer_memory_query",
     "build_context",
     "build_context_bundle",
     "build_system_prompt",
     "count_turns",
-    "fetch_user_memories",
-    "format_mem0_for_system",
     "format_memory_profile_for_system",
+    "format_user_memories_for_system",
     "get_checkpointer",
     "get_pooled_store",
     "get_rolling_summary",

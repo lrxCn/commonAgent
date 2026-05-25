@@ -17,7 +17,7 @@
 ## RAG 与模型依赖失败
 
 - intent 低置信或 `classify_intent()` 失败：记录 intent fallback，禁用危险快速路径，转入保守执行路径；`intent_conflict` 不再表示双轨分歧。
-- Policy Gate 拒绝 `fact_update`：记录 policy denied fallback，不执行模板确认，不调度 mem0 写入。
+- Policy Gate 拒绝 `fact_update`：记录 policy denied fallback，不执行模板确认，不调度记忆写入。
 - rewrite 小模型失败：回退原文。
 - router 小模型失败：保守走 RAG。
 - embedding 失败：继续 lexical BM25 fallback。
@@ -26,11 +26,11 @@
 
 ## 记忆与异步任务失败
 
-- mem0 读取失败或 mock：返回空记忆，不阻断回合。
+- Store 读取失败或 mock：返回空记忆，不阻断回合。
 - `memory_query` 没有可靠证据：返回诚实缺失回复，并记录 memory fallback。
 - Policy 通过但 slot fill 失败（`structured_fill_failed`）：拒绝 fact_update 快路径，不输出 Commit 话术，不写入 structured record。
 - post_turn structured 路径出现 `stored_empty`：视为缺陷；`memory_write_seed.json` 的 `regression_store_empty` 类别与 eval runner 用于捕获该回归。
-- post_turn summary / mem0 写入失败：只记日志和 observability metadata，不阻断当前响应；structured 路径主图已基于 record 给出 Commit，异步 write 失败需靠 trace 告警（Front pending UI 未实现）。
+- post_turn summary / 记忆写入失败：只记日志和 observability metadata，不阻断当前响应；structured 路径主图已基于 record 给出 Commit，异步 write 失败需靠 trace 告警（Front pending UI 未实现）。
 
 ## 工具与结构化输出失败
 
@@ -50,7 +50,7 @@
 - SSE 错误处理：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
 - RAG 降级：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
 - LLM Gateway fallback：[gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
-- mem0 写入：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py)
+- 记忆写入：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py)
 - 双轨 post_turn：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
 - Fallback manager：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
 - Fallback metrics：[path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:1)

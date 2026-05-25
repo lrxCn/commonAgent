@@ -74,9 +74,9 @@ def test_path_contract_module_keeps_legacy_dict_api() -> None:
 def test_context_budget_alias_preserves_existing_metadata_api() -> None:
     budget = ContextBudgetResult(
         system_prompt_len=12,
-        mem0_count=2,
+        user_memory_count=2,
         memory_profile_count=1,
-        mem0_free_text_count=1,
+        memory_free_text_count=1,
         rag_chunk_count=3,
         message_count=4,
         message_chars=40,
@@ -92,16 +92,16 @@ def test_context_bundle_contract_carries_sources_and_budget() -> None:
     chunk = RetrieverRagChunk(doc_id="doc-1", chunk_id="c-1", text="policy", score=0.9)
     budget = ContextBudget(
         system_prompt_len=6,
-        mem0_count=1,
+        user_memory_count=1,
         memory_profile_count=0,
-        mem0_free_text_count=1,
+        memory_free_text_count=1,
         rag_chunk_count=1,
         message_count=1,
         message_chars=4,
         budget_truncated=False,
     )
     sources = ContextSources(
-        mem0=("偏好短答",),
+        user_memories=("偏好短答",),
         summary="摘要",
         rag_chunks=(chunk,),
         current_human="当前问题",

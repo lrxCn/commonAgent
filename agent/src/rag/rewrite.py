@@ -1,4 +1,4 @@
-"""Query rewrite using mem0 + short-term context (no RAG)."""
+"""Query rewrite using user memories + short-term context (no RAG)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from contracts.events import ObservabilityEventType
 from contracts.llm import ModelUseCase
 from infrastructure.llm.gateway import get_llm_gateway
-from memory.mem0_client import format_mem0_for_system
+from memory.formatting import format_user_memories_for_system
 from observability.tracing import emit_event, rewrite_traceable
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import get_settings
@@ -36,7 +36,7 @@ class RewriteNodeState(TypedDict, total=False):
 
     user_message: str
     turn_type: str
-    mem0_memories: list[str]
+    user_memories: list[str]
     recent_messages: list[BaseMessage]
     messages: list[BaseMessage]
     policy_fast_path_allowed: bool
@@ -74,15 +74,15 @@ def format_recent_messages(messages: Sequence[BaseMessage]) -> str:
 
 def build_rewrite_prompt(
     user_message: str,
-    mem0_text: str,
+    user_memories_text: str,
     recent_messages: Sequence[BaseMessage],
 ) -> str:
-    """Fill the rewrite prompt template (mem0 + short-term only; no RAG)."""
+    """Fill the rewrite prompt template (user memories + short-term only; no RAG)."""
     template = _load_prompt_template()
-    mem0_block = mem0_text.strip() if mem0_text.strip() else "（无）"
+    user_memories_block = user_memories_text.strip() if user_memories_text.strip() else "（无）"
     return template.format(
         user_message=user_message.strip(),
-        mem0_text=mem0_block,
+        user_memories_text=user_memories_block,
         recent_messages_text=format_recent_messages(recent_messages),
     )
 
@@ -106,7 +106,7 @@ def should_rewrite(
     user_message: str,
     *,
     recent_messages: Sequence[BaseMessage],
-    mem0_memories: Sequence[str] | None = None,
+    user_memories: Sequence[str] | None = None,
     turn_type: str | None = None,
     policy_denied_fact_update: bool = False,
 ) -> tuple[bool, str]:
@@ -143,12 +143,12 @@ def should_rewrite(
 
     settings = get_settings()
     min_len = settings.REWRITE_MIN_SELF_CONTAINED_LEN
-    memories = list(mem0_memories or [])
+    memories = list(user_memories or [])
     recent = list(recent_messages or [])
-    has_mem0 = bool(memories)
+    has_user_memories = bool(memories)
     has_recent = bool(recent)
 
-    if not has_recent and not has_mem0:
+    if not has_recent and not has_user_memories:
         if not _has_anaphora(text) and len(text) >= min_len:
             return False, "standalone_no_context"
 
@@ -205,10 +205,10 @@ def rewrite_passthrough(
     rewrite_skip_reason: str,
     rewrite_skipped: bool = True,
     recent_messages: Sequence[BaseMessage] | None = None,
-    mem0_memories: Sequence[str] | None = None,
+    user_memories: Sequence[str] | None = None,
 ) -> str:
     """Record a skipped rewrite span (no LLM) and return trimmed user text."""
-    del recent_messages, mem0_memories
+    del recent_messages, user_memories
     emit_event(
         ObservabilityEventType.REWRITE_SKIPPED,
         {
@@ -223,27 +223,27 @@ def rewrite_passthrough(
 @rewrite_traceable()
 def rewrite_query(
     user_message: str,
-    mem0_text: str = "",
+    user_memories_text: str = "",
     recent_messages: Sequence[BaseMessage] | None = None,
     *,
-    mem0_facts_count: int | None = None,
+    user_memory_facts_count: int | None = None,
     model_name: str | None = None,
     rewrite_skipped: bool = False,
     rewrite_skip_reason: str = "",
 ) -> str:
     """
-    Rewrite ``user_message`` using mem0 and short-term messages only.
+    Rewrite ``user_message`` using user memories and short-term messages only.
 
     Does not read RAG results. On empty input or LLM failure, returns the
     trimmed original message.
     """
-    del mem0_facts_count  # consumed by tracing metadata via process_inputs.
+    del user_memory_facts_count  # consumed by tracing metadata via process_inputs.
     original = user_message.strip()
     if not original:
         return ""
 
     recent = list(recent_messages or [])
-    prompt = build_rewrite_prompt(original, mem0_text, recent)
+    prompt = build_rewrite_prompt(original, user_memories_text, recent)
     emit_event(
         ObservabilityEventType.LLM_CALL_COMPLETED,
         {
@@ -299,10 +299,10 @@ def _extract_user_message(state: RewriteNodeState) -> str:
 
 
 def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
-    """LangGraph node: set ``rewritten_query`` from mem0 + recent context."""
+    """LangGraph node: set ``rewritten_query`` from user memories + recent context."""
     user_message = _extract_user_message(state)
-    mem0_memories = list(state.get("mem0_memories") or [])
-    mem0_block = format_mem0_for_system(mem0_memories)
+    user_memories = list(state.get("user_memories") or [])
+    user_memories_block = format_user_memories_for_system(user_memories)
     recent_messages = state.get("recent_messages")
     if recent_messages is None:
         messages = state.get("messages") or []
@@ -323,13 +323,13 @@ def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
                 rewrite_skip_reason="policy_allowed_fact_update",
                 rewrite_skipped=True,
                 recent_messages=recent_messages,
-                mem0_memories=mem0_memories,
+                user_memories=user_memories,
             )
             return {"rewritten_query": rewritten}
         need_llm, reason = should_rewrite(
             user_message,
             recent_messages=recent_messages,
-            mem0_memories=mem0_memories,
+            user_memories=user_memories,
             turn_type=state.get("turn_type"),
             policy_denied_fact_update=bool(state.get("policy_denied_fact_update", False)),
         )
@@ -339,15 +339,15 @@ def rewrite_node(state: RewriteNodeState) -> dict[str, str]:
                 rewrite_skip_reason=reason,
                 rewrite_skipped=True,
                 recent_messages=recent_messages,
-                mem0_memories=mem0_memories,
+                user_memories=user_memories,
             )
             return {"rewritten_query": rewritten}
 
     rewritten = rewrite_query(
         user_message,
-        mem0_text=mem0_block,
+        user_memories_text=user_memories_block,
         recent_messages=recent_messages,
-        mem0_facts_count=len(mem0_memories),
+        user_memory_facts_count=len(user_memories),
         rewrite_skipped=False,
         rewrite_skip_reason="",
     )

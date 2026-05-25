@@ -101,7 +101,7 @@ def test_build_context_n30_includes_rag_and_excludes_middle() -> None:
 def test_build_system_prompt_uses_profile_and_filters_categorized_mem0() -> None:
     system_str = build_system_prompt(
         instructions="你是企业助手。",
-        mem0=[
+        user_memories=[
             "用户叫刘日兴",
             "用户生活在哈尔滨",
             "用户偏好简洁回答",
@@ -182,7 +182,7 @@ def test_split_into_turns() -> None:
 
 
 def test_build_system_prompt_skips_empty_sections() -> None:
-    assert build_system_prompt(instructions="", mem0=[], summary=None, rag_chunks=[]) == ""
+    assert build_system_prompt(instructions="", user_memories=[], summary=None, rag_chunks=[]) == ""
 
 
 def test_select_turn_ranges_rejects_negative() -> None:
@@ -194,7 +194,7 @@ def test_system_prompt_applies_mem0_summary_and_rag_budgets() -> None:
     settings = Settings(  # type: ignore[arg-type]
         **_REQUIRED_ENV,
         MEMORY_PROFILE_MAX_FACTS=2,
-        MEM0_FREE_TEXT_MAX_FACTS=1,
+        MEMORY_FREE_TEXT_MAX_FACTS=1,
         SUMMARY_MAX_CHARS=20,
         RAG_CHUNK_MAX_CHARS=15,
         RAG_CONTEXT_MAX_CHARS=95,
@@ -202,7 +202,7 @@ def test_system_prompt_applies_mem0_summary_and_rag_budgets() -> None:
     )
     system_str, budget = build_system_prompt_with_budget(
         instructions="指令",
-        mem0=[
+        user_memories=[
             "用户叫刘日兴",
             "用户出生于1997年",
             "用户生活在哈尔滨",
@@ -226,9 +226,9 @@ def test_system_prompt_applies_mem0_summary_and_rag_budgets() -> None:
     assert "a" * 30 not in system_str
     assert "[doc:doc1/chunk:c1]" in system_str
     assert "[doc:doc2/chunk:c2]" not in system_str
-    assert budget.mem0_count == 3
+    assert budget.user_memory_count == 3
     assert budget.memory_profile_count == 2
-    assert budget.mem0_free_text_count == 1
+    assert budget.memory_free_text_count == 1
     assert budget.rag_chunk_count == 1
     assert budget.budget_truncated is True
 
@@ -243,7 +243,7 @@ def test_build_context_caps_model_turns_and_message_chars() -> None:
         )
     )
     _system, lc_messages, budget = build_context_with_budget(
-        mem0=[],
+        user_memories=[],
         summary=None,
         rag_chunks=[],
         instructions="",
@@ -266,7 +266,7 @@ def test_build_context_bundle_is_single_source_for_legacy_tuple() -> None:
     chunk = RagChunk(doc_id="doc-a", chunk_id="c1", text="制度正文", score=0.9)
 
     bundle = build_context_bundle(
-        mem0=["用户偏好简洁回答"],
+        user_memories=["用户偏好简洁回答"],
         summary="历史摘要",
         rag_chunks=[chunk],
         instructions="指令",
@@ -277,7 +277,7 @@ def test_build_context_bundle_is_single_source_for_legacy_tuple() -> None:
         m=2,
     )
     system_str, messages, budget = build_context_with_budget(
-        mem0=["用户偏好简洁回答"],
+        user_memories=["用户偏好简洁回答"],
         summary="历史摘要",
         rag_chunks=[chunk],
         instructions="指令",

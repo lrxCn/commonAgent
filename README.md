@@ -8,8 +8,8 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-68 已完成 |
-| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer + mem0 + RAG |
+| 核心任务 | 01-75 已完成（LangMem 迁移 69-75 收口） |
+| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG |
 | Back | FastAPI 占位服务，注入 demo context，转发 Agent |
 | Front | 静态单页，sessionStorage `thread_id`，SSE 展示，`client_actions` demo |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
@@ -60,7 +60,7 @@ commonAgent/
 │   │   ├── guardrails/    # 入站 / 出站护栏
 │   │   ├── infrastructure/# LLM Gateway、Qdrant store、LangSmith adapter
 │   │   ├── intent/        # 控制面：signals / rules / structured classifier / policy / fallback / feedback
-│   │   ├── memory/        # checkpoint、history、summary、profile、mem0、post_turn
+│   │   ├── memory/        # checkpoint、history、summary、profile、Store/langmem、post_turn
 │   │   ├── observability/ # event collector、path contract、tracing facade
 │   │   ├── rag/           # rewrite / router / ingest / retriever facade
 │   │   └── settings/      # .env -> Settings
@@ -112,7 +112,7 @@ graph.invoke(
 - `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget`、`sources`；执行器和 trace 读同一份 bundle。
 - `IntentDecision` 是运行时唯一意图权威来源，当前由确定性 `classify_intent()`（signals/rules）在 `load_memory` 阶段生成。
 - `turn_type` / `turn_type_reason` 是从 `IntentDecision` 派生的兼容路由字段，供 rewrite/router/executor、path metrics 与 seed 使用；旧 `graph.turn_type.classify_turn_type()` 仅为兼容 adapter，内部委托同一 authority。
-- Policy Gate 只决定事实写入快速路径是否准入；被拒绝的旧 `fact_update` 不会模板确认，也不会调度 mem0 写入。
+- Policy Gate 只决定事实写入快速路径是否准入；被拒绝的旧 `fact_update` 不会模板确认，也不会调度记忆写入。
 - `FallbackDecision` 是 Agent 级降级记录，统一写入 path metrics、LangSmith metadata 和 `FALLBACK_TRIGGERED` 事件。
 
 ## 单轮流水线
@@ -157,11 +157,11 @@ sequenceDiagram
 路径规则：
 
 - `fact_update` 只有通过 Policy Gate 且 slot fill 成功后才走模板确认快速路径，跳过 rewrite、RAG、Supervisor 和 outbound guard；确认话术含已解析字段摘要（如「已记住：姓名=张三」）。
-- `memory_query` 走记忆回答执行器，跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入 mem0。
+- `memory_query` 走记忆回答执行器，跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入用户记忆。
 - `chitchat` 走轻量执行器，默认模板，可选小模型。
 - `knowledge_query` 直接进入 RAG，跳过 router 小模型。
 - `ambiguous` 或旧规则无法确定时，才使用 rewrite/router 小模型与 deepagents。
-- `post_turn` 异步调度 summary 和 mem0 写入，不阻塞当前响应；有 `memory_write_record` 时走 structured（`infer=False`），否则走 inferred（`infer=True`）。
+- `post_turn` 异步调度 summary 与用户记忆写入，不阻塞当前响应；有 `memory_write_record` 时走 structured Store profile put，否则走 langmem inferred 慢路径。
 
 ## 控制面
 
@@ -174,7 +174,7 @@ sequenceDiagram
 - `IntentDecision` 包含 `speech_act`、`domain`、`operation`、`route`、`confidence`、`risk`、`reasons`、`evidence` 和 `needs_clarification`，并通过 `route` 派生兼容 `turn_type`。
 - `INTENT_CLASSIFIER` 小模型结构化分类器已经有模型用途、schema 校验、repair 和冲突 fallback，但当前 graph 热路径不调用它；它服务于低置信控制面评测和后续接入。
 - Policy Gate 当前只准入高置信、低风险、显式属性和值的 `fact_update` 记忆写入快速路径；第一人称疑问会被拒绝并走 `memory_query` 或保守路径。
-- `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / mem0 文本 / 当前 thread 里可靠证据回答，缺失时诚实说明。
+- `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / `user_memories` / 当前 thread 里可靠证据回答，缺失时诚实说明。
 - Fallback Manager 用 `FallbackDecision` 记录 intent 低置信/分类失败、policy denied、memory missing、RAG 空/弱命中、tool unavailable、schema/LLM fallback、output guard 等降级；`intent_conflict` 字段保留兼容但常态为 `false`。
 - Feedback/Eval 闭环使用 `IntentFeedback`、[intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json) 和本地 eval runner，将人工纠错或 fallback conflict 转成可回归 seed。
 
@@ -194,40 +194,44 @@ RAG：
 记忆：
 
 - 完整对话保存在 Postgres checkpointer，键是 `thread_id`。
-- 用户偏好保存在本地 mem0 OSS `Memory` + 本地/内网 Qdrant，键是 `user_id`。
-- `mem0_memories` 在 state 中只保留 list[str]；归一化视图在 `memory_profile`。
-- `rolling_summary`、mem0、RAG、tools schema、messages 都受 `ContextBudget` 约束。
-- `memory_query` 只读可靠记忆证据，不触发 mem0 写入；`post_turn` 会识别该路径并跳过 mem0 write。
+- 用户长期记忆保存在 **LangGraph Postgres Store**（与 checkpointer 同 `DATABASE_URL`），键是 `user_id`；**pgvector 必开**（运维见下文「Postgres + pgvector」）。
+- Store 分两层 namespace（见 [contracts/memory_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_store.py)）：
+  - **Profile** `("users", user_id, "profile")`：结构化字段 upsert（name、birthday、city 等）。
+  - **Collection** `("users", user_id, "facts")`：langmem inferred 自由文本 facts，pgvector 语义检索。
+- `user_memories` 在 state 中只保留 `list[str]`（profile + collection 合并后的 canonical fact 文本）；归一化视图在 `memory_profile`。
+- `rolling_summary`、用户记忆、RAG、tools schema、messages 都受 `ContextBudget` 约束。
+- `memory_query` 只读可靠记忆证据，不触发写入；`post_turn` 会识别该路径并跳过 memory write。
 
 记忆写入采用 **Single Extraction Point + 双轨** 策略（见 [agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)）：
 
-| 路径 | 触发条件 | 抽取 | mem0 调用 |
-|------|----------|------|-----------|
-| **Structured Write** | Policy 通过的 `fact_update` 且 slot fill 成功 | 控制面确定性 slot fill → `StructuredMemoryRecord` | `store_structured_record(..., infer=False)`，写入 canonical fact 文本 |
-| **Inferred Write** | 其他会调度 post_turn 的回合（如 `chitchat`） | mem0 内置 infer LLM | `extract_and_store(..., infer=True)` |
+| 路径 | 触发条件 | 抽取 | 存储 |
+|------|----------|------|------|
+| **Structured Write** | Policy 通过的 `fact_update` 且 slot fill 成功 | 控制面确定性 slot fill → `StructuredMemoryRecord` | `store_structured_record()` → Store profile `put` |
+| **Inferred Write** | 其他会调度 post_turn 的回合（如 `chitchat`） | langmem `create_memory_store_manager` + `MEMORY_EXTRACT` 小模型 | `extract_and_store()` → Store collection |
 
-双轨 **互斥**：同一 turn 若已有 `memory_write_record`，`post_turn` 不得再对该 turn 做 infer。
+双轨 **互斥**：同一 turn 若已有 `memory_write_record`，`post_turn` 不得再对该 turn 做 inferred 抽取。
 
 Structured Write 链路：
 
 1. `load_memory`：Policy Gate 通过后，`build_structured_memory_record()` 从 `IntentSignals` 确定性 slot fill，写入单轮 ephemeral `memory_write_record`；fill 失败则拒绝快路径（`policy_denied_reason=structured_fill_failed`）。
 2. `fact_update_confirm`：要求 `memory_write_record` 存在，输出 `已记住：{label}={value}。后续我会据此为你提供个性化回答。`
-3. `post_turn_jobs`：读取 record，调用 `store_structured_record()`（`infer=False` + canonical fact + metadata）。
+3. `post_turn_jobs`：读取 record，调用 `store_structured_record()`（canonical fact + metadata，无 LLM 二次抽取）。
 
 契约与实现：
 
 - 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
 - Slot fill / canonical 文本：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
-- Deterministic store：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py) 中 `store_structured_record()`
+- Structured / inferred write：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py)
+- Store 工厂 / 读路径：[store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/store.py)、[read.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/read.py)
 - 双轨路由：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
 
-可观测：`memory_write.mode`（`structured` \| `inferred`）、`memory_write.record.attribute` 写入 path metrics；Policy 通过的 `fact_update` 在 structured 路径上 **不应** 出现 `stored_empty`（eval regression 覆盖）。
+可观测：`memory_write.mode`（`structured` \| `inferred`）、`memory_store.*`、`memory_write.record.attribute` 写入 path metrics；Policy 通过的 `fact_update` 在 structured 路径上 **不应** 出现 `stored_empty`（eval regression 覆盖）。
 
-mem0 约束：
+用户记忆约束：
 
-- 只允许本地 OSS `Memory` + 本地/内网 Qdrant。
-- 禁止 mem0 cloud、`MemoryClient`、`MEM0_API_KEY`、`api.mem0.ai`。
-- `MEM0_MOCK=false`、`QDRANT_MOCK=false` 是运行时默认值；测试需显式配置 mock。
+- 仅使用 LangGraph Postgres Store + langmem；禁止第三方托管记忆 SaaS。
+- `MEMORY_STORE_MOCK=false`、`QDRANT_MOCK=false` 是运行时默认值；测试需显式配置 mock。
+- RAG 知识库仍独立使用 Qdrant `QDRANT_COLLECTION_KB`，与用户记忆 Store 分离。
 
 ## LLM Gateway
 
@@ -240,7 +244,7 @@ mem0 约束：
 | `REWRITE` | 指代消解 | `REWRITE_MODEL_NAME` |
 | `ROUTER` | RAG 路由分类 | `RAG_ROUTER_MODEL_NAME` |
 | `CHITCHAT` | 寒暄轻量回复 | `CHITCHAT_MODEL_NAME` |
-| `MEM0_WRITE` | mem0 infer 写入（inferred 慢路径） | `MEM0_LLM_MODEL_NAME` |
+| `MEMORY_EXTRACT` | langmem inferred 抽取（inferred 慢路径） | `MEMORY_EXTRACT_MODEL_NAME` |
 | `SUMMARY` | rolling summary | `OPENAI_MODEL_NAME` |
 | `EMBEDDING` | embedding | `EMBEDDING_MODEL` |
 | `RERANK` | rerank | `RERANK_MODEL` |
@@ -474,8 +478,9 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | Rewrite / Chitchat / Intent | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE`、`CHITCHAT_USE_LLM`、`CHITCHAT_MODEL_NAME`、`CHITCHAT_MAX_TOKENS`、`CHITCHAT_TIMEOUT_SECONDS`、`INTENT_CLASSIFIER_MODEL_NAME`、`INTENT_CLASSIFIER_MAX_TOKENS`、`INTENT_CLASSIFIER_TIMEOUT_SECONDS` | 小任务模型 |
 | Router | `RAG_ROUTER_MODE`、`RAG_ROUTER_MODEL_NAME`、`RAG_ROUTER_MAX_TOKENS`、`RAG_ROUTER_TIMEOUT_SECONDS` | RAG 路由 |
 | Embedding / Rerank | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS`、`RERANK_MODEL`、`RERANK_TOP_K` | 检索基础设施 |
-| Qdrant / mem0 | `QDRANT_*`、`MEM0_*` | KB 与用户记忆 |
-| Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEM0_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 上下文预算 |
+| Qdrant KB | `QDRANT_*` | 知识库向量检索 |
+| User Memory Store | `MEMORY_STORE_*`、`MEMORY_READ_LIMIT`、`MEMORY_EXTRACT_*` | LangGraph Store + langmem |
+| Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEMORY_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 上下文预算 |
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
 
 Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：`AGENT_URL`、`BACK_HOST`、`BACK_PORT`、`DEMO_USER_ID`、`DEMO_ROLE_ID`、`DEMO_TOOLS_FILE`、`AGENT_TIMEOUT_SECONDS`。

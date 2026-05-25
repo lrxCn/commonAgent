@@ -27,7 +27,7 @@ _REQUIRED_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
     "GUARDRAILS_ENABLED": False,
-    "MEM0_MOCK": True,
+    "MEMORY_STORE_MOCK": True,
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
 }
@@ -73,7 +73,7 @@ def _invoke(message: str, *, thread_id: str = "thread-memory-query") -> dict:
 
 
 def test_memory_query_answers_name_from_profile() -> None:
-    result = answer_memory_query("我叫什么", mem0_memories=["用户叫刘日兴"])
+    result = answer_memory_query("我叫什么", user_memories=["用户叫刘日兴"])
 
     assert result.reply == "我记录到你叫刘日兴。"
     assert result.missing_reason == ""
@@ -82,7 +82,7 @@ def test_memory_query_answers_name_from_profile() -> None:
 
 
 def test_memory_query_missing_memory_is_honest() -> None:
-    result = answer_memory_query("我是谁", mem0_memories=[])
+    result = answer_memory_query("我是谁", user_memories=[])
 
     assert result.reply == MISSING_MEMORY_REPLY
     assert result.evidence == ()
@@ -92,21 +92,21 @@ def test_memory_query_missing_memory_is_honest() -> None:
 def test_memory_query_latest_profile_value_wins_for_conflict() -> None:
     result = answer_memory_query(
         "我叫什么",
-        mem0_memories=["用户叫张三", "用户叫李四"],
+        user_memories=["用户叫张三", "用户叫李四"],
     )
 
     assert result.reply == "我记录到你叫李四。"
 
 
 def test_memory_query_answers_company_address() -> None:
-    result = answer_memory_query("我公司在哪", mem0_memories=["我公司在天翔街188号"])
+    result = answer_memory_query("我公司在哪", user_memories=["我公司在天翔街188号"])
 
     assert result.reply == "我记录到你公司的地址是天翔街188号。"
     assert result.evidence[0].field == "company_address"
 
 
 def test_memory_query_answers_preference_from_free_text() -> None:
-    result = answer_memory_query("我喜欢什么", mem0_memories=["用户喜欢周五下午安排复盘"])
+    result = answer_memory_query("我喜欢什么", user_memories=["用户喜欢周五下午安排复盘"])
 
     assert "周五下午安排复盘" in result.reply
     assert result.evidence[0].field == "preference"
@@ -115,7 +115,7 @@ def test_memory_query_answers_preference_from_free_text() -> None:
 def test_memory_query_can_use_prior_thread_user_statement() -> None:
     result = answer_memory_query(
         "我叫什么",
-        mem0_memories=[],
+        user_memories=[],
         messages=[
             HumanMessage(content="我叫王五"),
             AIMessage(content="已收到"),
@@ -127,7 +127,7 @@ def test_memory_query_can_use_prior_thread_user_statement() -> None:
     assert result.evidence[0].source == "thread_memory"
 
 
-def test_memory_query_graph_skips_rag_deepagents_and_mem0_write(
+def test_memory_query_graph_skips_rag_deepagents_and_memory_write(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     rewrite = MagicMock(return_value="rewritten")

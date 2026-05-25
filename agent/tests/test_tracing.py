@@ -179,12 +179,12 @@ def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:
     meta = _rewrite_process_inputs(
         {
             "user_message": "它",
-            "mem0_memories": ["偏好简洁", "在上海工作"],
+            "user_memories": ["偏好简洁", "在上海工作"],
             "recent_messages": [],
         }
     )
-    assert meta["mem0_facts_count"] == 2
-    assert meta["mem0_text_len"] > 0
+    assert meta["user_memory_facts_count"] == 2
+    assert meta["user_memories_text_len"] > 0
 
 
 def test_rewrite_process_inputs_skip_metadata() -> None:
@@ -198,21 +198,21 @@ def test_rewrite_process_inputs_skip_metadata() -> None:
     )
     assert meta["rewrite_skipped"] is True
     assert meta["rewrite_skip_reason"] == "chitchat"
-    assert meta["mem0_facts_count"] == 0
-    assert meta["mem0_text_len"] == 0
+    assert meta["user_memory_facts_count"] == 0
+    assert meta["user_memories_text_len"] == 0
 
 
-def test_rewrite_process_inputs_uses_mem0_text_kwarg_len() -> None:
+def test_rewrite_process_inputs_uses_user_memories_text_kwarg_len() -> None:
     block = "## User preferences (from memory)\n\n- 事实"
     meta = _rewrite_process_inputs(
         {
             "user_message": "问题",
-            "mem0_text": block,
-            "mem0_facts_count": 1,
+            "user_memories_text": block,
+            "user_memory_facts_count": 1,
         }
     )
-    assert meta["mem0_text_len"] == len(block)
-    assert meta["mem0_facts_count"] == 1
+    assert meta["user_memories_text_len"] == len(block)
+    assert meta["user_memory_facts_count"] == 1
 
 
 def test_chitchat_process_inputs_uses_template_executor_by_default() -> None:
@@ -254,7 +254,7 @@ def test_supervisor_process_inputs_records_executor_metadata() -> None:
             "executor_reason": "rag_chunks_available_score_0.92",
             "context_budget": {
                 "system_prompt_len": 123,
-                "mem0_count": 3,
+                "user_memory_count": 3,
                 "rag_chunk_count": 2,
                 "budget_truncated": True,
             },
@@ -264,7 +264,7 @@ def test_supervisor_process_inputs_records_executor_metadata() -> None:
     assert meta["executor"] == "rag_answer_executor"
     assert meta["executor_reason"] == "rag_chunks_available_score_0.92"
     assert meta["system_prompt_len"] == 123
-    assert meta["mem0_count"] == 3
+    assert meta["user_memory_count"] == 3
     assert meta["rag_chunk_count"] == 2
     assert meta["budget_truncated"] is True
 

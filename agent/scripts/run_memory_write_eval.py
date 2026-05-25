@@ -18,13 +18,13 @@ from contracts.memory_write import StructuredMemoryRecord  # noqa: E402
 from intent.engine import classify_intent  # noqa: E402
 from intent.signals import extract_signals  # noqa: E402
 from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
-from memory.mem0_write import (  # noqa: E402
-    extract_and_store,
-    reset_mem0_write_overrides,
-    set_mem0_add_fn,
-)
 from memory.store import reset_pooled_store  # noqa: E402
-from memory.write import store_structured_record  # noqa: E402
+from memory.write import (  # noqa: E402
+    extract_and_store,
+    reset_write_overrides,
+    set_manager_invoke_fn,
+    store_structured_record,
+)
 from memory.structured_record import build_structured_memory_record  # noqa: E402
 from settings.config import Settings, reset_settings, set_settings_override  # noqa: E402
 
@@ -42,7 +42,7 @@ _REQUIRED_ENV = {
 
 
 def evaluate_rows(rows: list[dict[str, Any]], *, dry_run: bool = False) -> list[dict[str, Any]]:
-    """Evaluate memory write seed rows with mock mem0 by default."""
+    """Evaluate memory write seed rows with mocked Store/langmem by default."""
     results: list[dict[str, Any]] = []
     for row in rows:
         if dry_run:
@@ -111,7 +111,7 @@ def _evaluate_structured_row(row: dict[str, Any]) -> dict[str, Any]:
         infer_result = _simulate_infer_store_empty(user_id=user_id, text=text)
         checks["regression.infer_path_store_empty"] = infer_result.status == "stored_empty"
 
-    reset_mem0_write_overrides()
+    reset_write_overrides()
     reset_pooled_store()
     reset_settings()
     return _result(
@@ -135,16 +135,22 @@ def _evaluate_inferred_row(row: dict[str, Any]) -> dict[str, Any]:
         Settings(
             **{
                 **_REQUIRED_ENV,
-                "MEM0_MOCK": False,
+                "MEMORY_STORE_MOCK": False,
                 "QDRANT_MOCK": True,
             }
         )
     )  # type: ignore[arg-type]
-    reset_mem0_write_overrides()
-    add_mock = MagicMock(
-        return_value={"results": [{"memory": "inferred preference", "event": "ADD"}]}
+    reset_write_overrides()
+    invoke_mock = MagicMock(
+        return_value=[
+            {
+                "namespace": ("users", user_id, "facts"),
+                "key": "fact-1",
+                "value": {"kind": "Memory", "content": {"content": "inferred preference"}},
+            }
+        ]
     )
-    set_mem0_add_fn(add_mock)
+    set_manager_invoke_fn(invoke_mock)
     write_result = extract_and_store(
         user_id,
         [
@@ -152,18 +158,17 @@ def _evaluate_inferred_row(row: dict[str, Any]) -> dict[str, Any]:
             AIMessage(content="好的。"),
         ],
     )
-    infer_flag = add_mock.call_args.kwargs.get("infer") if add_mock.call_args else None
 
     checks = {
         "write.mode_inferred": expected.get("mode") == "inferred",
-        "write.infer_true": infer_flag is True,
+        "write.manager_invoked": invoke_mock.call_count == 1,
         "write.stored_count": write_result.stored_count >= 1,
         "write.not_stored_empty": write_result.status != "stored_empty",
     }
     if expected.get("expected_final_status"):
         checks["write.status"] = write_result.status == expected["expected_final_status"]
 
-    reset_mem0_write_overrides()
+    reset_write_overrides()
     reset_pooled_store()
     reset_settings()
     return _result(
@@ -204,12 +209,12 @@ def _simulate_infer_store_empty(*, user_id: str, text: str) -> Any:
         Settings(
             **{
                 **_REQUIRED_ENV,
-                "MEM0_MOCK": False,
+                "MEMORY_STORE_MOCK": False,
                 "QDRANT_MOCK": True,
             }
         )
     )  # type: ignore[arg-type]
-    set_mem0_add_fn(MagicMock(return_value={"results": []}))
+    set_manager_invoke_fn(MagicMock(return_value=[]))
     return extract_and_store(
         user_id,
         [
@@ -225,13 +230,12 @@ def _configure_mock_settings() -> None:
         Settings(
             **{
                 **_REQUIRED_ENV,
-                "MEM0_MOCK": True,
                 "MEMORY_STORE_MOCK": True,
                 "QDRANT_MOCK": True,
             }
         )
     )  # type: ignore[arg-type]
-    reset_mem0_write_overrides()
+    reset_write_overrides()
     reset_pooled_store()
 
 
@@ -263,7 +267,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Validate seed rows without executing mock mem0 writes.",
+        help="Validate seed rows without executing mock memory writes.",
     )
     return parser.parse_args()
 

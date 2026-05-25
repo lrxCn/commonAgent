@@ -52,7 +52,7 @@ def _settings(**extra: object) -> Settings:
     return Settings(
         **{
             **_REQUIRED_ENV,
-            "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+            "MEMORY_EXTRACT_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
             **extra,
         }
     )  # type: ignore[arg-type]
@@ -115,7 +115,7 @@ def test_profile_facts_to_strings_orders_known_attributes() -> None:
 
 def test_fetch_user_memories_merges_profile_before_collection() -> None:
     set_settings_override(
-        _settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False, MEMORY_READ_LIMIT=10)
+        _settings(MEMORY_STORE_MOCK=False, MEMORY_READ_LIMIT=10)
     )
     store = InMemoryStore()
     _seed_profile_and_collection(store, "user-merge")
@@ -131,18 +131,24 @@ def test_fetch_user_memories_mock_mode_returns_empty() -> None:
     store = InMemoryStore()
     _seed_profile_and_collection(store, "user-mock")
     set_store_factory(lambda: store)
-    set_settings_override(_settings(MEMORY_STORE_MOCK=True, MEM0_MOCK=False))
+    set_settings_override(_settings(MEMORY_STORE_MOCK=True))
 
     assert fetch_user_memories("user-mock") == []
 
 
-def test_fetch_user_memories_honors_deprecated_mem0_mock_alias() -> None:
-    store = InMemoryStore()
-    _seed_profile_and_collection(store, "user-mem0-mock")
-    set_store_factory(lambda: store)
-    set_settings_override(_settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=True))
+def test_format_user_memories_for_system_includes_bullets() -> None:
+    from memory.formatting import format_user_memories_for_system
 
-    assert fetch_user_memories("user-mem0-mock") == []
+    text = format_user_memories_for_system(["Fact A", "Fact B"])
+    assert "Fact A" in text
+    assert "Fact B" in text
+    assert text.startswith("## User preferences")
+
+
+def test_format_user_memories_for_system_empty() -> None:
+    from memory.formatting import format_user_memories_for_system
+
+    assert format_user_memories_for_system([]) == ""
 
 
 def test_search_collection_facts_without_query_lists_entries() -> None:
@@ -165,7 +171,7 @@ def test_search_collection_facts_without_query_lists_entries() -> None:
 
 @pytest.mark.parametrize("bad_id", [None, "", "   "])
 def test_fetch_user_memories_missing_user_id_raises(bad_id: str | None) -> None:
-    set_settings_override(_settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False))
+    set_settings_override(_settings(MEMORY_STORE_MOCK=False))
     with pytest.raises(MemoryUserIdError):
         fetch_user_memories(bad_id)  # type: ignore[arg-type]
 

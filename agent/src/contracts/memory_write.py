@@ -26,7 +26,7 @@ class ExtractionMethod(str, Enum):
 
     SLOT_FILL_V1 = "slot_fill_v1"
     STORE_PROFILE = "store_profile"
-    MEM0_INFER = "mem0_infer"
+    LANGMEM_INFER = "langmem_infer"
 
 
 class StructuredMemoryRecord(BaseModel):

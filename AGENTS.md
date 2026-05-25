@@ -94,8 +94,8 @@ If the change modifies AI working rules or the documentation governance itself, 
 - External tools are emitted as `client_actions`; Agent does not execute them, wait for results, or resume.
 - Back owns authentication, role calculation, and external tool whitelist filtering.
 - Front owns `thread_id` storage and client action execution/approval.
-- mem0 is local OSS `Memory` + local/internal Qdrant only. Do not use mem0 cloud, `MemoryClient`, `MEM0_API_KEY`, or `api.mem0.ai`.
-- `MEM0_MOCK` and `QDRANT_MOCK` runtime defaults are `false`; tests should not assume mock defaults unless explicitly configured.
+- User long-term memory uses LangGraph Postgres Store + langmem only. Do not use third-party hosted memory SaaS or mem0 cloud APIs.
+- `MEMORY_STORE_MOCK` and `QDRANT_MOCK` runtime defaults are `false`; tests should not assume mock defaults unless explicitly configured.
 
 ## Frontend Notes
 

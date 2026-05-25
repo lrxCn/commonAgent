@@ -54,33 +54,33 @@ _TRAILING_PUNCT = "。.!！?？,，;； "
 def answer_memory_query(
     question: str,
     *,
-    mem0_memories: Sequence[str] | None = None,
+    user_memories: Sequence[str] | None = None,
     messages: Sequence[BaseMessage] | None = None,
 ) -> MemoryQueryResult:
     """Answer only from memory_profile, related mem0 free text, or prior user statements."""
     query = _clean(question)
-    mem0_facts = [_clean(fact) for fact in mem0_memories or [] if _clean(fact)]
+    user_facts = [_clean(fact) for fact in user_memories or [] if _clean(fact)]
     history_facts = _thread_user_facts(messages or [])
 
-    mem0_profile = normalize_memory_profile(mem0_facts)
+    user_profile = normalize_memory_profile(user_facts)
     thread_profile = normalize_memory_profile(history_facts)
     requested = _requested_fields(query)
 
     evidence: list[MemoryQueryEvidence] = []
     for field in requested:
-        item = _profile_evidence(mem0_profile.profile, field, "memory_profile")
+        item = _profile_evidence(user_profile.profile, field, "memory_profile")
         if item is None:
             item = _profile_evidence(thread_profile.profile, field, "thread_memory")
         if item is not None:
             evidence.append(item)
 
     if not evidence and _wants_preference(query):
-        evidence.extend(_free_text_preference_evidence(mem0_profile.residual_facts, "mem0_free_text"))
+        evidence.extend(_free_text_preference_evidence(user_profile.residual_facts, "memory_free_text"))
         if not evidence:
             evidence.extend(_free_text_preference_evidence(history_facts, "thread_memory"))
 
     if not evidence and _wants_profile(query):
-        evidence.extend(_all_profile_evidence(mem0_profile.profile, "memory_profile"))
+        evidence.extend(_all_profile_evidence(user_profile.profile, "memory_profile"))
         if not evidence:
             evidence.extend(_all_profile_evidence(thread_profile.profile, "thread_memory"))
 

@@ -15,7 +15,7 @@
 - `REWRITE`：指代消解。
 - `ROUTER`：RAG 路由分类。
 - `CHITCHAT`：寒暄回复。
-- `MEM0_WRITE`：mem0 `infer=True` 写入。
+- `MEMORY_EXTRACT`：langmem inferred 慢路径写入。
 - `INTENT_CLASSIFIER`：低置信或冲突 intent 的结构化候选分类器。
 - `SUMMARY`：rolling summary 更新。
 - `EMBEDDING`：query/doc embedding。
@@ -28,7 +28,7 @@
 - Router：[router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/router.py:1)
 - Chitchat：[chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/chitchat_executor.py:1)
 - Intent classifier：[classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/classifier.py:1)
-- mem0 / summary：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py:1)、[summary_job.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/summary_job.py:1)
+- 用户记忆 / summary：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py:1)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py:1)、[summary_job.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/summary_job.py:1)
 - Embedding / rerank：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
 
 ## 降级规则

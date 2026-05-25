@@ -29,7 +29,7 @@ def post_turn_jobs_node(
         return merge_carry(state, {})
 
     finalized_metrics = finalize_path_metrics(state.get("path_metrics"))
-    if _skip_mem0_for_denied_fact_update(state):
+    if _skip_memory_write_for_denied_fact_update(state):
         metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
         emit_event(
             ObservabilityEventType.POST_TURN_SCHEDULED,
@@ -39,7 +39,7 @@ def post_turn_jobs_node(
             },
         )
         return merge_carry(state, {"path_metrics": metrics})
-    if _skip_mem0_for_memory_query(state):
+    if _skip_memory_write_for_memory_query(state):
         metrics = mark_post_turn_schedule(finalized_metrics, scheduled=False)
         emit_event(
             ObservabilityEventType.POST_TURN_SCHEDULED,
@@ -102,7 +102,7 @@ def post_turn_jobs_node(
     return merge_carry(state, {"path_metrics": metrics})
 
 
-def _skip_mem0_for_denied_fact_update(state: AgentState) -> bool:
+def _skip_memory_write_for_denied_fact_update(state: AgentState) -> bool:
     if state.get("turn_type") != "fact_update":
         return False
     if state.get("policy_fast_path_allowed") is True:
@@ -112,7 +112,7 @@ def _skip_mem0_for_denied_fact_update(state: AgentState) -> bool:
     return True
 
 
-def _skip_mem0_for_memory_query(state: AgentState) -> bool:
+def _skip_memory_write_for_memory_query(state: AgentState) -> bool:
     intent_decision = state.get("intent_decision")
     return (
         state.get("turn_type") == "memory_query"

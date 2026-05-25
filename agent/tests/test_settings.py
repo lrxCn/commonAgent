@@ -64,7 +64,7 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.CONTEXT_RECENT_TURNS == 20
     assert settings.CONTEXT_ORIGINAL_HUMAN_METADATA_KEY == "original_human_content"
     assert settings.MEMORY_PROFILE_MAX_FACTS == 6
-    assert settings.MEM0_FREE_TEXT_MAX_FACTS == 10
+    assert settings.MEMORY_FREE_TEXT_MAX_FACTS == 10
     assert settings.SUMMARY_MAX_CHARS == 4000
     assert settings.RAG_CHUNK_MAX_CHARS == 1200
     assert settings.RAG_CONTEXT_MAX_CHARS == 6000
@@ -158,17 +158,14 @@ def test_guardrails_enabled_parses_string(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.GUARDRAILS_ENABLED is False
 
 
-def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_memory_store_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(monkeypatch)
-    assert settings.MEM0_MOCK is False
-    assert settings.QDRANT_COLLECTION_MEM0 == "common_agent_mem0"
-    assert settings.MEM0_READ_LIMIT == 50
-    assert settings.MEM0_LLM_MODEL_NAME is None
-    assert settings.MEM0_LLM_MAX_TOKENS == 128
-    assert settings.MEM0_LLM_TIMEOUT_SECONDS == 10
     assert settings.MEMORY_STORE_MOCK is False
     assert settings.MEMORY_READ_LIMIT == 50
     assert settings.MEMORY_STORE_SETUP is True
+    assert settings.MEMORY_EXTRACT_MODEL_NAME is None
+    assert settings.MEMORY_EXTRACT_MAX_TOKENS == 128
+    assert settings.MEMORY_EXTRACT_TIMEOUT_SECONDS == 10
 
 
 def test_memory_store_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -176,10 +173,6 @@ def test_memory_store_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> Non
     assert settings.MEMORY_STORE_MOCK is True
     assert settings.MEMORY_STORE_SETUP is False
 
-
-def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = _settings(monkeypatch, MEM0_MOCK="false")
-    assert settings.MEM0_MOCK is False
 
 
 def test_qdrant_mock_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,9 +198,9 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
         INTENT_CLASSIFIER_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
         INTENT_CLASSIFIER_MAX_TOKENS="192",
         INTENT_CLASSIFIER_TIMEOUT_SECONDS="3.75",
-        MEM0_LLM_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
-        MEM0_LLM_MAX_TOKENS="96",
-        MEM0_LLM_TIMEOUT_SECONDS="4.5",
+        MEMORY_EXTRACT_MODEL_NAME="Qwen/Qwen2.5-7B-Instruct",
+        MEMORY_EXTRACT_MAX_TOKENS="96",
+        MEMORY_EXTRACT_TIMEOUT_SECONDS="4.5",
     )
     assert settings.REWRITE_MAX_TOKENS == 48
     assert settings.REWRITE_TIMEOUT_SECONDS == 7.5
@@ -219,16 +212,16 @@ def test_small_task_model_limits_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.INTENT_CLASSIFIER_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
     assert settings.INTENT_CLASSIFIER_MAX_TOKENS == 192
     assert settings.INTENT_CLASSIFIER_TIMEOUT_SECONDS == 3.75
-    assert settings.MEM0_LLM_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
-    assert settings.MEM0_LLM_MAX_TOKENS == 96
-    assert settings.MEM0_LLM_TIMEOUT_SECONDS == 4.5
+    assert settings.MEMORY_EXTRACT_MODEL_NAME == "Qwen/Qwen2.5-7B-Instruct"
+    assert settings.MEMORY_EXTRACT_MAX_TOKENS == 96
+    assert settings.MEMORY_EXTRACT_TIMEOUT_SECONDS == 4.5
 
 
 def test_context_budget_settings_parse_env(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = _settings(
         monkeypatch,
         MEMORY_PROFILE_MAX_FACTS="3",
-        MEM0_FREE_TEXT_MAX_FACTS="4",
+        MEMORY_FREE_TEXT_MAX_FACTS="4",
         SUMMARY_MAX_CHARS="800",
         RAG_CHUNK_MAX_CHARS="300",
         RAG_CONTEXT_MAX_CHARS="900",
@@ -237,7 +230,7 @@ def test_context_budget_settings_parse_env(monkeypatch: pytest.MonkeyPatch) -> N
         MODEL_MESSAGE_MAX_CHARS="6000",
     )
     assert settings.MEMORY_PROFILE_MAX_FACTS == 3
-    assert settings.MEM0_FREE_TEXT_MAX_FACTS == 4
+    assert settings.MEMORY_FREE_TEXT_MAX_FACTS == 4
     assert settings.SUMMARY_MAX_CHARS == 800
     assert settings.RAG_CHUNK_MAX_CHARS == 300
     assert settings.RAG_CONTEXT_MAX_CHARS == 900

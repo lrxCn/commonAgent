@@ -91,7 +91,7 @@ def test_intent_conflict_disables_fast_path() -> None:
 
 
 def test_memory_missing_uses_honest_reply_fallback() -> None:
-    result = answer_memory_query("我是谁", mem0_memories=[])
+    result = answer_memory_query("我是谁", user_memories=[])
 
     fallback = memory_query_fallback_decision(result)
 

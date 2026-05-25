@@ -52,19 +52,19 @@ def load_memory_node(
     user_message = extract_user_message_from_messages(prefetch_messages)
 
     with ThreadPoolExecutor(max_workers=3) as pool:
-        mem0_future = pool.submit(
+        user_memories_future = pool.submit(
             fetch_memories,
             ctx.user_id,
             query=user_message or None,
         )
         history_future = pool.submit(load_messages, thread_id)
         summary_future = pool.submit(load_summary, thread_id)
-        mem0_memories = mem0_future.result()
+        user_memories = user_memories_future.result()
         checkpoint_messages = history_future.result()
         rolling_summary = summary_future.result()
 
     updates: dict[str, object] = {
-        "mem0_memories": mem0_memories,
+        "user_memories": user_memories,
         "rolling_summary": rolling_summary,
     }
 

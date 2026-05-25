@@ -1,7 +1,6 @@
-"""Freeze mem0-era memory read/write behavior before langmem migration (task 69).
+"""Freeze langmem Store memory read/write behavior (tasks 69-73).
 
-These tests document the baseline that tasks 70-74 must preserve or improve.
-Production paths still use mem0; do not switch backends in this module.
+These tests document the baseline that later tasks must preserve or improve.
 """
 
 from __future__ import annotations
@@ -22,13 +21,12 @@ from graph.nodes import load_memory_node
 from graph.supervisor import reset_supervisor_overrides, set_answer_invoke, set_supervisor_invoke
 from intent.engine import classify_intent
 from intent.signals import extract_signals
-from memory.mem0_write import (
+from memory.write import (
     extract_and_store,
-    reset_mem0_write_overrides,
-    set_mem0_add_fn,
+    reset_write_overrides,
+    set_manager_invoke_fn,
+    store_structured_record,
 )
-from memory.store import reset_pooled_store
-from memory.write import store_structured_record
 from memory.post_turn import reset_post_turn_executor, schedule_post_turn_jobs
 from memory.store import reset_pooled_store
 from memory.structured_record import build_structured_memory_record
@@ -39,8 +37,8 @@ _REQUIRED_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
     "GUARDRAILS_ENABLED": False,
-    "MEM0_MOCK": True,
-    "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+    "MEMORY_STORE_MOCK": True,
+    "MEMORY_EXTRACT_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
 }
@@ -53,7 +51,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _thread_id: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
     reset_settings()
-    reset_mem0_write_overrides()
+    reset_write_overrides()
     reset_post_turn_executor()
     reset_pooled_store()
     reset_supervisor_overrides()
@@ -67,7 +65,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     yield
     reset_post_turn_executor()
     reset_supervisor_overrides()
-    reset_mem0_write_overrides()
+    reset_write_overrides()
     reset_pooled_store()
     reset_settings()
 
@@ -78,7 +76,7 @@ def _graph_context() -> dict[str, object]:
     )
 
 
-def test_load_memory_node_produces_mem0_memories_and_parallel_checkpoint_reads(
+def test_load_memory_node_produces_user_memories_and_parallel_checkpoint_reads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Baseline: load_memory returns list[str] facts and fetches checkpoint summary."""
@@ -101,9 +99,9 @@ def test_load_memory_node_produces_mem0_memories_and_parallel_checkpoint_reads(
     fetch_memories.assert_called_once_with("user-baseline", query="你好")
     load_messages.assert_called_once_with("thread-baseline-1")
     load_summary.assert_called_once_with("thread-baseline-1")
-    assert out["mem0_memories"] == ["偏好简洁回答", "用户叫张三"]
-    assert isinstance(out["mem0_memories"], list)
-    assert all(isinstance(item, str) for item in out["mem0_memories"])
+    assert out["user_memories"] == ["偏好简洁回答", "用户叫张三"]
+    assert isinstance(out["user_memories"], list)
+    assert all(isinstance(item, str) for item in out["user_memories"])
     assert out["rolling_summary"] == "rolling summary text"
 
 
@@ -156,7 +154,7 @@ def test_post_turn_without_memory_write_record_calls_inferred_write(
     store_structured.assert_not_called()
 
 
-def test_memory_query_does_not_schedule_mem0_write(
+def test_memory_query_does_not_schedule_memory_write(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Baseline: memory_query reads memories but never schedules post_turn writes."""
@@ -208,7 +206,6 @@ def test_fact_update_structured_mock_path_does_not_return_stored_empty() -> None
         Settings(
             **{
                 **_REQUIRED_ENV,
-                "MEM0_MOCK": False,
                 "MEMORY_STORE_MOCK": False,
                 "MEMORY_STORE_SETUP": False,
             }
@@ -218,8 +215,8 @@ def test_fact_update_structured_mock_path_does_not_return_stored_empty() -> None
     from memory.store import set_store_factory
 
     set_store_factory(lambda: store)
-    add_mock = MagicMock()
-    set_mem0_add_fn(add_mock)
+    invoke_mock = MagicMock()
+    set_manager_invoke_fn(invoke_mock)
 
     user_text = "我叫张三"
     signals = extract_signals(user_text)
@@ -236,4 +233,4 @@ def test_fact_update_structured_mock_path_does_not_return_stored_empty() -> None
     assert result.status == "stored"
     assert result.stored_count >= 1
     assert result.status != "stored_empty"
-    add_mock.assert_not_called()
+    invoke_mock.assert_not_called()

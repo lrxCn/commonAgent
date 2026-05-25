@@ -14,9 +14,9 @@ class ContextBudget:
     """Budget metadata for one model context assembly."""
 
     system_prompt_len: int
-    mem0_count: int
+    user_memory_count: int
     memory_profile_count: int
-    mem0_free_text_count: int
+    memory_free_text_count: int
     rag_chunk_count: int
     message_count: int
     message_chars: int
@@ -25,9 +25,9 @@ class ContextBudget:
     def as_metadata(self) -> dict[str, object]:
         return {
             "system_prompt_len": self.system_prompt_len,
-            "mem0_count": self.mem0_count,
+            "user_memory_count": self.user_memory_count,
             "memory_profile_count": self.memory_profile_count,
-            "mem0_free_text_count": self.mem0_free_text_count,
+            "memory_free_text_count": self.memory_free_text_count,
             "rag_chunk_count": self.rag_chunk_count,
             "message_count": self.message_count,
             "message_chars": self.message_chars,
@@ -39,7 +39,7 @@ class ContextBudget:
 class ContextSources:
     """Inputs used to produce a model context bundle."""
 
-    mem0: tuple[str, ...]
+    user_memories: tuple[str, ...]
     summary: str | None
     rag_chunks: tuple[RagChunk, ...]
     current_human: str | None
@@ -47,7 +47,7 @@ class ContextSources:
 
     def as_metadata(self) -> dict[str, object]:
         return {
-            "source_mem0_count": len(self.mem0),
+            "source_user_memory_count": len(self.user_memories),
             "source_summary_len": len(self.summary or ""),
             "source_rag_chunk_count": len(self.rag_chunks),
             "source_current_human_len": len(self.current_human or ""),

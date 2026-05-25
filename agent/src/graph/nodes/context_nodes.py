@@ -23,7 +23,7 @@ def context_assembly_node(
         ctx.tools,
     )
     bundle = build_context_bundle(
-        mem0=list(state.get("mem0_memories") or []),
+        user_memories=list(state.get("user_memories") or []),
         summary=state.get("rolling_summary"),
         rag_chunks=state.get("rag_chunks") or [],
         instructions=instructions,

@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from contracts.context import ContextBudget, ContextBundle, ContextSources
 from contracts.events import ObservabilityEventType
-from memory.mem0_client import format_mem0_for_system
+from memory.formatting import format_user_memories_for_system
 from memory.profile import (
     format_memory_profile_for_system,
     normalize_memory_profile,
@@ -236,7 +236,7 @@ def format_summary_for_system(summary: str | None) -> str:
 def build_system_prompt_with_budget(
     *,
     instructions: str,
-    mem0: Sequence[str],
+    user_memories: Sequence[str],
     summary: str | None,
     rag_chunks: Sequence[RagChunk],
     settings: Settings | None = None,
@@ -248,7 +248,7 @@ def build_system_prompt_with_budget(
     if instr:
         sections.append(instr)
 
-    normalized = normalize_memory_profile(mem0)
+    normalized = normalize_memory_profile(user_memories)
     budget_truncated = False
     profile_block = format_memory_profile_for_system(
         normalized.profile,
@@ -260,11 +260,11 @@ def build_system_prompt_with_budget(
     if profile_block:
         sections.append(profile_block)
 
-    residual_limit = _as_positive_int(cfg.MEM0_FREE_TEXT_MAX_FACTS)
+    residual_limit = _as_positive_int(cfg.MEMORY_FREE_TEXT_MAX_FACTS)
     residual_facts = normalized.residual_facts[:residual_limit]
     if len(residual_facts) < len(normalized.residual_facts):
         budget_truncated = True
-    mem0_block = format_mem0_for_system(residual_facts)
+    mem0_block = format_user_memories_for_system(residual_facts)
     if mem0_block:
         sections.append(mem0_block)
 
@@ -286,9 +286,9 @@ def build_system_prompt_with_budget(
     system_str = "\n\n".join(sections)
     result = ContextBudgetResult(
         system_prompt_len=len(system_str),
-        mem0_count=_profile_fact_count(profile_block) + len(residual_facts),
+        user_memory_count=_profile_fact_count(profile_block) + len(residual_facts),
         memory_profile_count=_profile_fact_count(profile_block),
-        mem0_free_text_count=len(residual_facts),
+        memory_free_text_count=len(residual_facts),
         rag_chunk_count=len(budgeted_chunks),
         message_count=0,
         message_chars=0,
@@ -301,14 +301,14 @@ def build_system_prompt_with_budget(
 def build_system_prompt(
     *,
     instructions: str,
-    mem0: Sequence[str],
+    user_memories: Sequence[str],
     summary: str | None,
     rag_chunks: Sequence[RagChunk],
 ) -> str:
-    """Combine instructions, mem0, summary, and RAG into one system string."""
+    """Combine instructions, user memories, summary, and RAG into one system string."""
     system_str, _budget = build_system_prompt_with_budget(
         instructions=instructions,
-        mem0=mem0,
+        user_memories=user_memories,
         summary=summary,
         rag_chunks=rag_chunks,
     )
@@ -346,7 +346,7 @@ def _split_history_and_current(
 
 
 def build_context_with_budget(
-    mem0: list[str],
+    user_memories: list[str],
     summary: str | None,
     rag_chunks: Sequence[RagChunk],
     instructions: str,
@@ -359,7 +359,7 @@ def build_context_with_budget(
 ) -> tuple[str, list[BaseMessage], ContextBudgetResult]:
     """Compatibility wrapper returning the legacy tuple from a context bundle."""
     bundle = build_context_bundle(
-        mem0=mem0,
+        user_memories=user_memories,
         summary=summary,
         rag_chunks=rag_chunks,
         instructions=instructions,
@@ -374,7 +374,7 @@ def build_context_with_budget(
 
 def build_context_bundle(
     *,
-    mem0: Sequence[str],
+    user_memories: Sequence[str],
     summary: str | None,
     rag_chunks: Sequence[RagChunk],
     instructions: str,
@@ -424,7 +424,7 @@ def build_context_bundle(
 
     system_str, budget = build_system_prompt_with_budget(
         instructions=instructions,
-        mem0=mem0,
+        user_memories=user_memories,
         summary=summary,
         rag_chunks=rag_chunks,
         settings=cfg,
@@ -432,9 +432,9 @@ def build_context_bundle(
     message_chars = sum(len(_message_content_text(message)) for message in lc_messages)
     merged_budget = ContextBudgetResult(
         system_prompt_len=budget.system_prompt_len,
-        mem0_count=budget.mem0_count,
+        user_memory_count=budget.user_memory_count,
         memory_profile_count=budget.memory_profile_count,
-        mem0_free_text_count=budget.mem0_free_text_count,
+        memory_free_text_count=budget.memory_free_text_count,
         rag_chunk_count=budget.rag_chunk_count,
         message_count=len(lc_messages),
         message_chars=message_chars,
@@ -449,7 +449,7 @@ def build_context_bundle(
         model_messages=tuple(lc_messages),
         budget=merged_budget,
         sources=ContextSources(
-            mem0=tuple(mem0),
+            user_memories=tuple(user_memories),
             summary=summary,
             rag_chunks=tuple(rag_chunks),
             current_human=current_text,
@@ -459,7 +459,7 @@ def build_context_bundle(
 
 
 def build_context(
-    mem0: list[str],
+    user_memories: list[str],
     summary: str | None,
     rag_chunks: Sequence[RagChunk],
     instructions: str,
@@ -472,7 +472,7 @@ def build_context(
 ) -> tuple[str, list[BaseMessage]]:
     """Assemble system text and model messages, returning the legacy tuple."""
     system_str, lc_messages, _budget = build_context_with_budget(
-        mem0=mem0,
+        user_memories=user_memories,
         summary=summary,
         rag_chunks=rag_chunks,
         instructions=instructions,

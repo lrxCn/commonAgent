@@ -16,7 +16,7 @@ _GATEWAY_GRAPH_ENV: dict[str, object] = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
     "GUARDRAILS_ENABLED": False,
-    "MEM0_MOCK": True,
+    "MEMORY_STORE_MOCK": True,
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
 }
@@ -41,7 +41,7 @@ def install_gateway_graph_mocks(
     set_settings_override(
         base_settings.model_copy(
             update={
-                "MEM0_MOCK": True,
+                "MEMORY_STORE_MOCK": True,
                 "QDRANT_MOCK": True,
                 "RAG_ROUTER_MODE": "rules",
             }

@@ -31,7 +31,7 @@ _TEST_SETTINGS = Settings(
     OPENAI_API_KEY="sk-test",
     DATABASE_URL=_REQUIRED["DATABASE_URL"],
     GUARDRAILS_ENABLED=True,
-    MEM0_MOCK=True,
+    MEMORY_STORE_MOCK=True,
     QDRANT_MOCK=True,
     RAG_ROUTER_MODE="rules",
 )

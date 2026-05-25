@@ -35,8 +35,8 @@ def _require_user_id(user_id: str | None) -> str:
 
 
 def _memory_store_mock_enabled(settings: Settings) -> bool:
-    """Return True when Store reads should be skipped (mock or deprecated mem0 alias)."""
-    return settings.MEMORY_STORE_MOCK or settings.MEM0_MOCK
+    """Return True when Store reads should be skipped."""
+    return settings.MEMORY_STORE_MOCK
 
 
 def _memory_read_limit(settings: Settings) -> int:

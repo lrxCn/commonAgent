@@ -358,9 +358,23 @@ Structured fast path **不调用** manager 的 LLM 抽取，仅 `store.put` prof
 
 ## 建议下一步
 
-1. 执行任务 **75**（Postgres pgvector 配置）→ **69-74**（langmem 迁移实现）。
-2. Phase 0 spike：`uv add langmem langgraph-store-postgres`，验证 Store `setup()` 与 checkpoint 表共存。
+LangMem 迁移 **69-75 已全部完成**；后续按产品需求从 [docs/progress.md](../progress.md) 规划新任务。
+
+## 落地状态（2026-05-25）
+
+**任务 69-75 已全部完成。** 当前运行契约以 [README.md](../../README.md) 为准。
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| 契约与 spike | 69 | ✅ |
+| Store 读路径 + pgvector | 70、75 | ✅ |
+| Structured Write | 71 | ✅ |
+| Inferred Write (langmem) | 72 | ✅ |
+| 删除 mem0 | 73 | ✅ |
+| 文档与 `user_memories` 收口 | 74 | ✅ |
+
+验收：非 integration 测试全绿；`memory_write_seed.json` 5/5；运行时无 `mem0ai` / `MEM0_*` / `mem0_memories`。
 
 ---
 
-**状态**：决策已锁定（2026-05-25）；任务 69、75 已完成；pgvector 运维见 [75-postgres-pgvector-store-setup.md](../prompts/75-postgres-pgvector-store-setup.md) 与 README；不覆盖 README 当前契约。
+**状态**：LangMem 迁移 **69-75 已全部完成**（2026-05-25）；pgvector 运维见 [75-postgres-pgvector-store-setup.md](../prompts/75-postgres-pgvector-store-setup.md) 与 README；当前运行契约以 README 为准。

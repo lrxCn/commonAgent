@@ -14,7 +14,7 @@ _REQUIRED_ENV = {
     "LANGSMITH_API_KEY": "lsv2_test",
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
-    "MEM0_MOCK": True,
+    "MEMORY_STORE_MOCK": True,
 }
 
 
@@ -26,7 +26,7 @@ def _settings() -> None:
     reset_settings()
 
 
-def test_load_memory_node_does_not_write_mem0_text(
+def test_load_memory_node_does_not_write_user_memories_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -45,5 +45,5 @@ def test_load_memory_node_does_not_write_mem0_text(
         {"configurable": {"thread_id": "thread-1"}},
     )
 
-    assert out["mem0_memories"] == ["偏好简洁回答"]
-    assert "mem0_text" not in out
+    assert out["user_memories"] == ["偏好简洁回答"]
+    assert "user_memories_text" not in out

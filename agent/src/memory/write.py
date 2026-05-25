@@ -80,8 +80,7 @@ def turn_messages_for_extraction(
 
 
 def _memory_write_mock_enabled() -> bool:
-    settings = get_settings()
-    return settings.MEMORY_STORE_MOCK or settings.MEM0_MOCK
+    return get_settings().MEMORY_STORE_MOCK
 
 
 def extract_and_store(
@@ -177,7 +176,7 @@ def store_structured_record(
     user_id: str,
     record: StructuredMemoryRecord,
 ) -> MemoryWriteResult:
-    """Upsert a structured profile field into LangGraph Store (no mem0 API)."""
+    """Upsert a structured profile field into LangGraph Store."""
     from memory.structured_record import canonical_fact_text
 
     uid = _require_user_id(user_id)
@@ -269,8 +268,5 @@ def _attach_write_metadata(
             "memory_store.status": result.status,
             "memory_store.reason": result.reason,
             "memory_store.stored_count": result.stored_count,
-            "mem0_write.status": result.status,
-            "mem0_write.reason": result.reason,
-            "mem0_write.stored_count": result.stored_count,
         }
     )

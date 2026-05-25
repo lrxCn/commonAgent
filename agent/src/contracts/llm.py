@@ -15,7 +15,6 @@ class ModelUseCase(StrEnum):
     ROUTER = "router"
     CHITCHAT = "chitchat"
     MEMORY_EXTRACT = "memory_extract"
-    MEM0_WRITE = "mem0_write"  # deprecated alias; removed in task 74
     INTENT_CLASSIFIER = "intent_classifier"
     EMBEDDING = "embedding"
     RERANK = "rerank"

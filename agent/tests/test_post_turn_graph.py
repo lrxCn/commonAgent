@@ -19,8 +19,8 @@ _REQUIRED_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "DATABASE_URL": "postgresql://postgres:test@localhost:5432/common_agent",
     "GUARDRAILS_ENABLED": False,
-    "MEM0_MOCK": True,
-    "MEM0_LLM_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
+    "MEMORY_STORE_MOCK": True,
+    "MEMORY_EXTRACT_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
 }

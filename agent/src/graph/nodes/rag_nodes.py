@@ -36,7 +36,7 @@ def rewrite_graph_node(state: AgentState) -> dict[str, object]:
     should_call, _reason = facade_attr("should_rewrite", should_rewrite)(
         user_message,
         recent_messages=recent_messages,
-        mem0_memories=list(state.get("mem0_memories") or []),
+        user_memories=list(state.get("user_memories") or []),
         turn_type=_policy_effective_turn_type(state),
         policy_denied_fact_update=_policy_denied_fact_update(state),
     )
@@ -46,7 +46,7 @@ def rewrite_graph_node(state: AgentState) -> dict[str, object]:
         "turn_type": _policy_effective_turn_type(state),
         "policy_fast_path_allowed": state.get("policy_fast_path_allowed") is True,
         "policy_denied_fact_update": _policy_denied_fact_update(state),
-        "mem0_memories": state.get("mem0_memories") or [],
+        "user_memories": state.get("user_memories") or [],
         "messages": messages,
     }
     updates = facade_attr("rewrite_node", rewrite_node)(cast(Any, payload))

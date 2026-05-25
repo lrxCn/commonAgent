@@ -45,10 +45,9 @@ def test_chat_policy_resolves_each_use_case() -> None:
         CHITCHAT_MODEL_NAME="chat-small",
         CHITCHAT_MAX_TOKENS=9,
         CHITCHAT_TIMEOUT_SECONDS=1.5,
-        MEM0_LLM_MODEL_NAME="mem0-small",
-        MEMORY_EXTRACT_MODEL_NAME="mem0-small",
-        MEM0_LLM_MAX_TOKENS=96,
-        MEM0_LLM_TIMEOUT_SECONDS=4.5,
+        MEMORY_EXTRACT_MODEL_NAME="extract-small",
+        MEMORY_EXTRACT_MAX_TOKENS=96,
+        MEMORY_EXTRACT_TIMEOUT_SECONDS=4.5,
         INTENT_CLASSIFIER_MODEL_NAME="intent-small",
         INTENT_CLASSIFIER_MAX_TOKENS=144,
         INTENT_CLASSIFIER_TIMEOUT_SECONDS=2.25,
@@ -58,7 +57,6 @@ def test_chat_policy_resolves_each_use_case() -> None:
     rewrite = gateway.chat_policy(ModelUseCase.REWRITE)
     router = gateway.chat_policy(ModelUseCase.ROUTER)
     chitchat = gateway.chat_policy(ModelUseCase.CHITCHAT)
-    mem0 = gateway.chat_policy(ModelUseCase.MEM0_WRITE)
     memory_extract = gateway.chat_policy(ModelUseCase.MEMORY_EXTRACT)
     intent = gateway.chat_policy(ModelUseCase.INTENT_CLASSIFIER)
     main = gateway.chat_policy(ModelUseCase.MAIN_ANSWER, streaming=True)
@@ -78,13 +76,8 @@ def test_chat_policy_resolves_each_use_case() -> None:
         9,
         1.5,
     )
-    assert (mem0.model_name, mem0.max_tokens, mem0.timeout_seconds) == (
-        "mem0-small",
-        96,
-        4.5,
-    )
     assert (memory_extract.model_name, memory_extract.max_tokens, memory_extract.timeout_seconds) == (
-        "mem0-small",
+        "extract-small",
         96,
         4.5,
     )

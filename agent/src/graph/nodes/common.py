@@ -13,7 +13,7 @@ from graph.state import AgentState
 # EphemeralValue channels only expose the previous step's writes; forward keys still
 # needed downstream within the same invoke.
 _EPHEMERAL_CARRY_KEYS = (
-    "mem0_memories",
+    "user_memories",
     "rolling_summary",
     "turn_type",
     "turn_type_reason",

@@ -21,7 +21,7 @@ def test_memory_write_enums_define_subject_mode_and_extraction() -> None:
     assert MemoryWriteMode.INFERRED.value == "inferred"
     assert ExtractionMethod.SLOT_FILL_V1.value == "slot_fill_v1"
     assert ExtractionMethod.STORE_PROFILE.value == "store_profile"
-    assert ExtractionMethod.MEM0_INFER.value == "mem0_infer"
+    assert ExtractionMethod.LANGMEM_INFER.value == "langmem_infer"
 
 
 def test_structured_memory_record_serializes_to_trace_dict() -> None:

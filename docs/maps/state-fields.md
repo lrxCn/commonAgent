@@ -12,7 +12,7 @@
 
 ## 关键字段
 
-- `mem0_memories`、`rolling_summary`：`load_memory` 写，`context_assembly` 读。
+- `user_memories`、`rolling_summary`：`load_memory` 写，`context_assembly` 读。
 - `turn_type`、`turn_type_reason`：`load_memory` 从 `IntentDecision` 派生后写，rewrite/router/executor routing 读。
 - `intent_decision`：`load_memory` 调用 `classify_intent()` 后写，Policy Gate、routing 和 observability 读；是唯一意图权威来源。
 - `intent_conflict`、`intent_conflict_reason`：兼容字段，常态为 `false` / 空；不再表示旧双轨分歧。
@@ -36,7 +36,7 @@
 - `ContextBundle` 是模型上下文单一来源，避免 `system_prompt`、messages、trace metadata 分叉。
 - `IntentDecision` 是唯一意图权威；`turn_type` 必须从同一决策派生，不能作为独立分类来源跨轮复用。
 - Intent、policy 与 fallback 字段都是单轮治理状态，不进入 checkpoint，也不能作为下一轮权限依据。
-- `memory_query` 回合会把 `executor` 标记为 `memory_query_executor`；`post_turn_jobs` 据此跳过 mem0 写入。
+- `memory_query` 回合会把 `executor` 标记为 `memory_query_executor`；`post_turn_jobs` 据此跳过记忆写入。
 
 ## 实现入口
 

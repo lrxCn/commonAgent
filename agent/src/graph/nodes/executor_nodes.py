@@ -119,7 +119,7 @@ def memory_query_reply_node(state: AgentState) -> dict[str, object]:
     )
     result = answer_memory_query(
         extract_user_message(state),
-        mem0_memories=state.get("mem0_memories") or [],
+        user_memories=state.get("user_memories") or [],
         messages=state.get("messages") or [],
     )
     path_metrics = ensure_path_metrics(state.get("path_metrics"))

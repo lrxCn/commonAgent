@@ -194,49 +194,23 @@ class Settings(BaseSettings):
         default="common_agent_kb",
         description="Qdrant collection name for knowledge-base vectors.",
     )
-    QDRANT_COLLECTION_MEM0: str = Field(
-        default="common_agent_mem0",
-        description="Qdrant collection for mem0 user-preference vectors (separate from KB).",
-    )
     QDRANT_MOCK: bool = Field(
         default=False,
         description="When true, skip live Qdrant retrieval and return fixture chunks.",
     )
 
-    # --- mem0 (local OSS + Qdrant; do not use MEM0_API_KEY / MemoryClient) ---
-    MEM0_MOCK: bool = Field(
-        default=False,
-        description="When true, skip mem0/Qdrant reads and return an empty memory list.",
-    )
-    MEM0_READ_LIMIT: int = Field(
-        default=50,
-        description="Maximum number of mem0 facts to fetch per user via get_all top_k.",
-    )
-    MEM0_LLM_MODEL_NAME: str | None = Field(
-        default=None,
-        description="Dedicated small model for mem0 infer writes; required to avoid falling back to OPENAI_MODEL_NAME.",
-    )
-    MEM0_LLM_MAX_TOKENS: int = Field(
-        default=128,
-        description="Maximum completion tokens for mem0 infer extraction calls.",
-    )
-    MEM0_LLM_TIMEOUT_SECONDS: float = Field(
-        default=10,
-        description="HTTP timeout in seconds applied to the OpenAI client used by mem0 infer writes.",
-    )
-
-    # --- LangMem inferred memory extraction (replaces mem0 infer; task 72+) ---
+    # --- LangMem inferred memory extraction ---
     MEMORY_EXTRACT_MODEL_NAME: str | None = Field(
         default=None,
-        description="Dedicated small model for langmem inferred memory extraction; falls back to MEM0_LLM_MODEL_NAME.",
+        description="Dedicated small model for langmem inferred memory extraction.",
     )
-    MEMORY_EXTRACT_MAX_TOKENS: int | None = Field(
-        default=None,
-        description="Maximum completion tokens for langmem memory extraction; falls back to MEM0_LLM_MAX_TOKENS.",
+    MEMORY_EXTRACT_MAX_TOKENS: int = Field(
+        default=128,
+        description="Maximum completion tokens for langmem memory extraction.",
     )
-    MEMORY_EXTRACT_TIMEOUT_SECONDS: float | None = Field(
-        default=None,
-        description="HTTP timeout for langmem memory extraction; falls back to MEM0_LLM_TIMEOUT_SECONDS.",
+    MEMORY_EXTRACT_TIMEOUT_SECONDS: float = Field(
+        default=10,
+        description="HTTP timeout in seconds for langmem memory extraction.",
     )
 
     # --- LangGraph Store (user memory read path; same DATABASE_URL as checkpointer) ---
@@ -292,9 +266,9 @@ class Settings(BaseSettings):
         default=6,
         description="Maximum normalized memory_profile facts injected into the system prompt.",
     )
-    MEM0_FREE_TEXT_MAX_FACTS: int = Field(
+    MEMORY_FREE_TEXT_MAX_FACTS: int = Field(
         default=10,
-        description="Maximum uncategorized mem0 facts injected into the system prompt.",
+        description="Maximum uncategorized user memory facts injected into the system prompt.",
     )
     SUMMARY_MAX_CHARS: int = Field(
         default=4000,
@@ -326,7 +300,6 @@ class Settings(BaseSettings):
         "REWRITE_SKIP_ENABLED",
         "REWRITE_FORCE",
         "GUARDRAILS_ENABLED",
-        "MEM0_MOCK",
         "MEMORY_STORE_MOCK",
         "MEMORY_STORE_SETUP",
         "QDRANT_MOCK",
@@ -345,10 +318,7 @@ class Settings(BaseSettings):
         "CHITCHAT_MODEL_NAME",
         "RAG_ROUTER_MODEL_NAME",
         "INTENT_CLASSIFIER_MODEL_NAME",
-        "MEM0_LLM_MODEL_NAME",
         "MEMORY_EXTRACT_MODEL_NAME",
-        "MEMORY_EXTRACT_MAX_TOKENS",
-        "MEMORY_EXTRACT_TIMEOUT_SECONDS",
         "RAG_SUBAGENT_TOP_K",
         mode="before",
     )

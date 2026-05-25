@@ -33,7 +33,7 @@ isProject: false
 |----|------|
 | `StructuredMemoryRecord` 契约 | [contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py) |
 | 确定性 slot fill | [memory/structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py) |
-| `infer=False` deterministic store | [memory/mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py) 中 `store_structured_record()` |
+| `infer=False` deterministic store | [memory/write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py) 中 `store_structured_record()` |
 | Graph 双轨 post_turn | [memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py)、[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py) |
 | Commit 话术含字段摘要 | [executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py)、`format_structured_memory_confirmation()` |
 | 可观测 `memory_write.mode` / attribute | [path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py) |
@@ -44,7 +44,8 @@ isProject: false
 - **异步 write + 基于 record 的 Commit**：主图在同轮基于 deterministic record 给出 Commit，不等待 `store_structured_record` 完成；异步 write 失败时用户可能已看到「已记住」，需靠 trace 告警，Front pending/saved/failed UI 未实现（PRD Phase 2）。
 - **单句单属性**：第一批 slot fill 只写主属性一条 record；多 fact 拆分留后续。
 - **`Mem0WriteResult.status`**：structured 成功仍为 `stored`（非 PRD 草案中的 `stored_structured`）；日志事件使用 `mem0_write.stored_structured`。
-- **general_chat infer 慢路径**：仍可能 `stored_empty`（by design）；regression 仅针对 Policy 通过的 `fact_update` structured 路径。
+- **general_chat inferred 慢路径**：仍可能 `stored_empty`（by design）；regression 仅针对 Policy 通过的 `fact_update` structured 路径。
+- **存储面**：2026-05-25 任务 69-74 已将 mem0 API 替换为 LangGraph Store + langmem；详见 [agent-langmem-migration.md](./agent-langmem-migration.md)。
 
 ## 背景与问题陈述
 

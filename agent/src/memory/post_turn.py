@@ -1,4 +1,4 @@
-"""Fire-and-forget post-turn jobs (summary + mem0 write)."""
+"""Fire-and-forget post-turn jobs (summary + memory write)."""
 
 from __future__ import annotations
 
@@ -62,14 +62,14 @@ def _run_post_turn_jobs(
             write_result = extract_and_store(user_id, turn_messages)
     except Exception:
         logger.exception(
-            "post_turn.mem0_write_failed",
+            "post_turn.memory_write_failed",
             extra={"thread_id": thread_id, "user_id": user_id},
         )
         return
 
     if write_result.status == "failed":
         logger.error(
-            "post_turn.mem0_write_failed",
+            "post_turn.memory_write_failed",
             extra={
                 "thread_id": thread_id,
                 "user_id": user_id,
@@ -78,7 +78,7 @@ def _run_post_turn_jobs(
         )
     else:
         logger.info(
-            "post_turn.mem0_write_completed",
+            "post_turn.memory_write_completed",
             extra={
                 "thread_id": thread_id,
                 "user_id": user_id,
@@ -97,7 +97,7 @@ def schedule_post_turn_jobs(
     k: int | None = None,
     m: int | None = None,
 ) -> Future[None]:
-    """Schedule summary + mem0 writes without blocking the chat path."""
+    """Schedule summary + memory writes without blocking the chat path."""
     future = _get_executor().submit(
         _run_post_turn_jobs,
         thread_id=thread_id,
