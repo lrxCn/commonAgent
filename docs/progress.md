@@ -2,18 +2,18 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md)
 
 ## 总览
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 62 |
+| 总任务数 | 68 |
 | 已完成 | 62 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：意图权威收敛（任务 58-62）已全部完成；可按新需求从 `docs/prd/` 或 `docs/prompts/` 规划下一批任务。
+**当前建议下一步**：[63 - 结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md)（Single Extraction Point；依赖任务 62 已完成）。
 
 
 ---
@@ -87,6 +87,12 @@
 | 60 | [意图权威收敛 Phase 2：Graph 切换到 IntentDecision 单源](./prompts/60-intent-authority-graph-cutover.md) | ✅ 完成 | 2026-05-25 | `load_memory_node()` 仅 `classify_intent()` + 派生 `turn_type`；`intent_conflict` 常态为 false；分类失败时降级旧分类器 |
 | 61 | [意图权威收敛 Phase 3：旧 turn_type 分类器降级与清理](./prompts/61-intent-authority-legacy-turn-type-cleanup.md) | ✅ 完成 | 2026-05-25 | `classify_turn_type()` 委托 intent authority；移除 `rag.intent` 独立分类依赖；`test_turn_type.py` 改为 adapter 对齐测试 |
 | 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-25 | README、docs/maps、PRD 落地状态同步单源 intent authority；progress 收口 58-62 |
+| 63 | [结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md) | ⬜ 待开始 | - | `StructuredMemoryRecord` 契约 + memory_write seed；冻结 infer 路径 store_empty 基线 |
+| 64 | [结构化记忆写入 Phase 1：Slot Fill 抽取器](./prompts/64-structured-memory-slot-fill.md) | ⬜ 待开始 | - | 依赖 63；从 IntentSignals 确定性生成 record + canonical 文本 |
+| 65 | [结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md) | ⬜ 待开始 | - | 依赖 64；`store_structured_record` + infer=False |
+| 66 | [结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md) | ⬜ 待开始 | - | 依赖 65；state 承载 record；fact_update 与 infer 互斥 |
+| 67 | [结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md) | ⬜ 待开始 | - | 依赖 66；Commit 话术对齐 record；path contract + memory_write eval |
+| 68 | [结构化记忆写入 Phase 5：README、代码地图与文档最终对齐](./prompts/68-structured-memory-docs-final.md) | ⬜ 待开始 | - | 依赖 67；README/maps/PRD 落地状态收口 |
 
 ---
 
@@ -177,3 +183,4 @@
 | 2026-05-25 | 完成任务 60：主图 `load_memory_node()` 切换为 `classify_intent()` 单源并派生 `turn_type`；第一人称疑问不再因旧分类进入 fact_update；`intent_conflict` 常态 false；分类失败时降级 `classify_turn_type()` |
 | 2026-05-25 | 完成任务 61：`graph.turn_type.classify_turn_type()` 降级为 intent authority 兼容 adapter；移除对 `rag.intent` 全局启发式的直接依赖；characterization/turn_type 测试改为单源对齐；分类失败保守回退 `general_chat` |
 | 2026-05-25 | 完成任务 62：README、docs/maps、PRD 同步 `IntentDecision` 单源权威与 `turn_type` 兼容派生当前事实；意图权威收敛任务 58-62 全部完成 |
+| 2026-05-25 | 文档：新增 [Agent 结构化记忆写入 PRD](./prd/agent-structured-memory-write.md)（Single Extraction Point）；拆分任务 **63-68**，目标为 fact_update 结构化 slot fill + infer=False 落库，保留 general_chat infer 慢路径 |
