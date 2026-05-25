@@ -363,4 +363,4 @@ Structured fast path **不调用** manager 的 LLM 抽取，仅 `store.put` prof
 
 ---
 
-**状态**：决策已锁定（2026-05-25）；未开始实现；不覆盖 README 当前契约。
+**状态**：决策已锁定（2026-05-25）；任务 69、75 已完成；pgvector 运维见 [75-postgres-pgvector-store-setup.md](../prompts/75-postgres-pgvector-store-setup.md) 与 README；不覆盖 README 当前契约。

@@ -377,7 +377,87 @@ cd agent
 uv run langgraph dev
 ```
 
-本地 Postgres 示例：
+本地 Postgres（Checkpointer + LangGraph Store **同库**）：
+
+LangMem 迁移后，**Checkpointer**（thread 对话）与 **LangGraph Store**（用户长期记忆）共用 `agent/.env` 中的 **`DATABASE_URL`**、同一 `common_agent` 库；Store 首次 `setup()` 会新建独立表，不影响已有 checkpoint 表。
+
+| 层 | 内容 | 读取方式 | 需要 pgvector |
+|----|------|----------|---------------|
+| **Profile** | 姓名、城市、公司等结构化字段 | 按 `user_id + attribute` 直接 `get` | 否 |
+| **Collection** | inferred 自由文本事实 | 按当前问题做语义 search | **是** |
+
+#### 路径 A：新建带 pgvector 的容器（推荐）
+
+适用于 OrbStack / Docker 新环境。镜像版本建议与 Postgres 主版本一致（如 PG 18 → `pgvector/pgvector:pg18`）：
+
+```bash
+docker pull pgvector/pgvector:pg18
+
+docker run -d \
+  --name my-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=common_agent \
+  -p 5432:5432 \
+  pgvector/pgvector:pg18
+```
+
+`agent/.env` 示例（与 checkpoint 相同）：
+
+```text
+DATABASE_URL=postgresql://postgres:<password>@localhost:5432/common_agent
+```
+
+#### 路径 B：已有普通 `postgres` 镜像（OrbStack 本地 `my-postgres`）
+
+若已用 `postgres:latest` 跑 checkpoint、不想丢库，可在**同一容器**内安装 pgvector 包后启用扩展（版本号按 `SELECT version();` 调整，如 PG 18 → `postgresql-18-pgvector`）：
+
+```bash
+# 1. 安装 extension 包（容器内）
+docker exec my-postgres bash -c \
+  'DEBIAN_FRONTEND=noninteractive apt-get update -qq && apt-get install -y postgresql-18-pgvector'
+
+# 2. 在 DATABASE_URL 指向的库启用（每个 database 一次）
+docker exec my-postgres psql -U postgres -d common_agent \
+  -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+> **注意**：路径 B 的 apt 安装写在容器文件系统里；若**删除并重建**容器且仍用普通 `postgres` 镜像，需重装 pgvector 包。长期建议换路径 A 镜像并挂载原数据卷，或改用 [pgvector 安装文档](https://github.com/pgvector/pgvector) 在宿主机/DBA 层安装。
+
+已有实例、不能换镜像时：由 DBA 在服务器安装 pgvector 后再执行 `CREATE EXTENSION vector;`。
+
+#### 向量维度须与 Embedding 一致
+
+Store 的 pgvector index 维度必须与 `EMBEDDING_MODEL_DIMS`（见 `agent/.env.example`，默认 `1024`）一致。任务 70 会从 settings 读取该值。
+
+若更换 embedding 模型导致维度变化，需按 LangGraph Store 文档 **重建 index**，或在可接受丢失用户记忆时清空 Store 表后重新 `setup()`（与 Qdrant KB 重建类似）。
+
+#### 验证清单
+
+在仓库根目录或 `agent/` 下，加载 `agent/.env` 后执行：
+
+```bash
+# 1. 连接库
+psql "$DATABASE_URL" -c "SELECT 1"
+
+# 2. pgvector 已启用
+psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+
+# 3. checkpoint 仍可用（单元测试）
+cd agent && uv run pytest tests/test_checkpointer.py -v -k "not integration"
+
+# 4. 有 live Postgres 时：checkpoint + Store 同库 integration
+cd agent && uv run pytest tests/test_checkpointer.py tests/test_langmem_store_spike.py -v -m integration
+```
+
+期望：`extname = vector` 有版本号；integration 中 `test_postgres_store_semantic_index_requires_pgvector` 通过（不再 skip）。
+
+#### 生产简述
+
+- **备份**：Store 表与 checkpoint 表同在 Postgres，沿用现有 DB 备份策略。
+- **连接池**：Store 与 Checkpointer 各用独立 pool（任务 70）；留意 `max_connections`。
+- **索引调优**：数据量增大后再调 HNSW `lists` 等参数；第一期默认值即可。
+
+若库尚未创建：
 
 ```bash
 docker exec -it my-postgres psql -U postgres -c "CREATE DATABASE common_agent;"

@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：LangMem 迁移 — **75**（pgvector）与 **69**（契约/spike）可并行 → **70→71→72→73→74**。总 PRD：[agent-langmem-migration.md](./prd/agent-langmem-migration.md)。
+**当前建议下一步**：LangMem 迁移 **70**（Store 读路径）→ **71→72→73→74**。总 PRD：[agent-langmem-migration.md](./prd/agent-langmem-migration.md)。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 75（规划） |
-| 已完成 | 69 |
+| 已完成 | 70 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -99,7 +99,7 @@
 | 72 | [LangMem 迁移 Phase 3：Inferred Write 切 langmem](./prompts/72-langmem-inferred-write.md) | ⬜ | — | `create_memory_store_manager` + MEMORY_EXTRACT |
 | 73 | [LangMem 迁移 Phase 4：删除 mem0 与 Qdrant 用户记忆配置](./prompts/73-langmem-remove-mem0.md) | ⬜ | — | 无 Qdrant 数据迁移；移除 mem0ai |
 | 74 | [LangMem 迁移 Phase 5：README、命名收口与文档最终对齐](./prompts/74-langmem-docs-final.md) | ⬜ | — | `user_memories` 重命名；README/maps/PRD 收口 |
-| 75 | [LangMem Store 前置：Postgres + pgvector 运维配置](./prompts/75-postgres-pgvector-store-setup.md) | ⬜ | — | 与 69 可并行；**70 前须完成**；见 [LangMem 迁移 PRD](./prd/agent-langmem-migration.md) |
+| 75 | [LangMem Store 前置：Postgres + pgvector 运维配置](./prompts/75-postgres-pgvector-store-setup.md) | ✅ | 2026-05-25 | README 同库运维章节；OrbStack `my-postgres` 已启用 pgvector 0.8.2；integration spike 全绿 |
 
 ---
 
@@ -197,5 +197,6 @@
 | 2026-05-25 | 完成任务 66：graph 接入 structured write；`load_memory` slot fill 写入 `memory_write_record`；post_turn 双轨路由；path metrics 记录 `memory_write_mode`；policy denied / memory_query 仍 skip mem0 |
 | 2026-05-25 | 完成任务 67：`fact_update_confirm` 话术含 record 摘要（`已记住：{label}={value}`）；path contract 区分 structured/inferred 与 attribute；新增 `run_memory_write_eval.py`；seed 5/5 pass；`stored_empty` regression 被 eval 捕获 |
 | 2026-05-25 | 完成任务 68：README/maps/PRD 同步 structured vs inferred 双轨写入；`agent-structured-memory-write.md` 落地状态与偏差；issue 关联方案；结构化记忆写入 63-68 全部收口 |
+| 2026-05-25 | 完成任务 75：README 增加 Postgres+pgvector 同库运维（OrbStack/Docker 双路径）；本机 `common_agent` 启用 `vector` 0.8.2；checkpointer + Store semantic index integration 全绿 |
 | 2026-05-25 | 完成任务 69：`contracts/memory_store.py`（namespace/profile/read 契约）；`test_langmem_migration_characterization.py` 冻结 mem0 基线；`test_langmem_store_spike.py` 验证 Store+checkpointer 同库；pin `langmem>=0.0.30`；Store 实现随 `langgraph-checkpoint-postgres>=3.1.0`，无需单独 store 包 |
 | 2026-05-25 | 文档：新增 [LangMem 迁移 PRD](./prd/agent-langmem-migration.md)；拆分任务 **69-75**（mem0→langmem+Store；75=pgvector 运维；无 Qdrant 数据迁移） |
