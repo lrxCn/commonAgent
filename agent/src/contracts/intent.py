@@ -121,7 +121,11 @@ class IntentDecision(BaseModel):
 
     @property
     def turn_type_reason(self) -> str:
-        """Return the legacy turn_type reason derived from the first reason code."""
+        """Return the legacy turn_type reason derived from the first reason code.
+
+        ``turn_type_decision_from_intent()`` copies this field verbatim; it does
+        not re-run legacy ``classify_turn_type()`` rules.
+        """
         return self.reasons[0] if self.reasons else "intent_decision"
 
     def to_trace_dict(self) -> dict[str, object]:

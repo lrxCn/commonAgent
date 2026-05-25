@@ -6,7 +6,7 @@ from intent.classifier import (
     set_intent_classifier_llm,
     should_call_intent_classifier,
 )
-from intent.engine import classify_intent
+from intent.engine import classify_intent, turn_type_decision_from_intent
 from intent.conflicts import IntentConflictCheck, check_intent_conflicts
 from intent.fallback import (
     checkpoint_fallback_decision,
@@ -40,6 +40,7 @@ __all__ = [
     "PolicyDecision",
     "checkpoint_fallback_decision",
     "classify_intent",
+    "turn_type_decision_from_intent",
     "classify_intent_with_llm",
     "check_intent_conflicts",
     "decide_with_rules",

@@ -1,4 +1,10 @@
-"""Unified per-turn type classification for graph routing metadata."""
+"""Unified per-turn type classification for graph routing metadata.
+
+Legacy independent classifier — still used by the main graph at task 59.
+Task 60 will switch ``load_memory`` to ``classify_intent()`` +
+``turn_type_decision_from_intent()``; this module will become a compatibility
+facade only (see task 61).
+"""
 
 from __future__ import annotations
 
