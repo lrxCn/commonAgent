@@ -26,10 +26,12 @@ from memory.mem0_write import (
     extract_and_store,
     reset_mem0_write_overrides,
     set_mem0_add_fn,
-    store_structured_record,
 )
+from memory.store import reset_pooled_store
+from memory.write import store_structured_record
 from memory.post_turn import reset_post_turn_executor, schedule_post_turn_jobs
-from memory.structured_record import build_structured_memory_record, canonical_fact_text
+from memory.store import reset_pooled_store
+from memory.structured_record import build_structured_memory_record
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -53,6 +55,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_settings()
     reset_mem0_write_overrides()
     reset_post_turn_executor()
+    reset_pooled_store()
     reset_supervisor_overrides()
     set_settings_override(Settings(**_REQUIRED_ENV))  # type: ignore[arg-type]
     set_supervisor_invoke(
@@ -65,6 +68,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_post_turn_executor()
     reset_supervisor_overrides()
     reset_mem0_write_overrides()
+    reset_pooled_store()
     reset_settings()
 
 
@@ -94,7 +98,7 @@ def test_load_memory_node_produces_mem0_memories_and_parallel_checkpoint_reads(
         {"configurable": {"thread_id": "thread-baseline-1"}},
     )
 
-    fetch_memories.assert_called_once_with("user-baseline")
+    fetch_memories.assert_called_once_with("user-baseline", query="你好")
     load_messages.assert_called_once_with("thread-baseline-1")
     load_summary.assert_called_once_with("thread-baseline-1")
     assert out["mem0_memories"] == ["偏好简洁回答", "用户叫张三"]
@@ -157,7 +161,7 @@ def test_memory_query_does_not_schedule_mem0_write(
 ) -> None:
     """Baseline: memory_query reads memories but never schedules post_turn writes."""
     schedule = MagicMock()
-    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _uid: ["用户叫刘日兴"])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _uid, **_kwargs: ["用户叫刘日兴"])
     monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule)
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
@@ -197,15 +201,25 @@ def test_fact_update_structured_seed_forbids_stored_empty() -> None:
 
 
 def test_fact_update_structured_mock_path_does_not_return_stored_empty() -> None:
-    """Baseline target: structured infer=False write stores canonical fact under mock."""
+    """Baseline target: structured Store profile write stores canonical fact."""
+    from langgraph.store.memory import InMemoryStore
+
     set_settings_override(
         Settings(
             **{
                 **_REQUIRED_ENV,
                 "MEM0_MOCK": False,
+                "MEMORY_STORE_MOCK": False,
+                "MEMORY_STORE_SETUP": False,
             }
         )
     )  # type: ignore[arg-type]
+    store = InMemoryStore()
+    from memory.store import set_store_factory
+
+    set_store_factory(lambda: store)
+    add_mock = MagicMock()
+    set_mem0_add_fn(add_mock)
 
     user_text = "我叫张三"
     signals = extract_signals(user_text)
@@ -217,16 +231,9 @@ def test_fact_update_structured_mock_path_does_not_return_stored_empty() -> None
     )
     assert record is not None
 
-    canonical = canonical_fact_text(record)
-    add_mock = MagicMock(
-        return_value={"results": [{"memory": canonical, "event": "ADD"}]}
-    )
-    set_mem0_add_fn(add_mock)
-
     result = store_structured_record("user-fact-update", record)
 
     assert result.status == "stored"
     assert result.stored_count >= 1
     assert result.status != "stored_empty"
-    _, kwargs = add_mock.call_args
-    assert kwargs.get("infer") is False
+    add_mock.assert_not_called()

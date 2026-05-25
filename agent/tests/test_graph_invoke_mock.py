@@ -149,7 +149,7 @@ def test_chitchat_does_not_call_supervisor() -> None:
 
 def test_memory_query_invoke_uses_memory_executor(monkeypatch: pytest.MonkeyPatch) -> None:
     supervisor = MagicMock(return_value=[AIMessage(content="mock-reply:我是谁")])
-    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: ["用户叫刘日兴"])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
     set_supervisor_invoke(supervisor)
 
     graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)

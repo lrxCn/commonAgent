@@ -22,8 +22,9 @@ from memory.mem0_write import (  # noqa: E402
     extract_and_store,
     reset_mem0_write_overrides,
     set_mem0_add_fn,
-    store_structured_record,
 )
+from memory.store import reset_pooled_store  # noqa: E402
+from memory.write import store_structured_record  # noqa: E402
 from memory.structured_record import build_structured_memory_record  # noqa: E402
 from settings.config import Settings, reset_settings, set_settings_override  # noqa: E402
 
@@ -111,6 +112,7 @@ def _evaluate_structured_row(row: dict[str, Any]) -> dict[str, Any]:
         checks["regression.infer_path_store_empty"] = infer_result.status == "stored_empty"
 
     reset_mem0_write_overrides()
+    reset_pooled_store()
     reset_settings()
     return _result(
         row,
@@ -162,6 +164,7 @@ def _evaluate_inferred_row(row: dict[str, Any]) -> dict[str, Any]:
         checks["write.status"] = write_result.status == expected["expected_final_status"]
 
     reset_mem0_write_overrides()
+    reset_pooled_store()
     reset_settings()
     return _result(
         row,
@@ -223,11 +226,13 @@ def _configure_mock_settings() -> None:
             **{
                 **_REQUIRED_ENV,
                 "MEM0_MOCK": True,
+                "MEMORY_STORE_MOCK": True,
                 "QDRANT_MOCK": True,
             }
         )
     )  # type: ignore[arg-type]
     reset_mem0_write_overrides()
+    reset_pooled_store()
 
 
 def _result(

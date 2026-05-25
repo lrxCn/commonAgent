@@ -5,7 +5,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from langgraph.store.memory import InMemoryStore
 
+from contracts.memory_store import profile_namespace
 from memory.mem0_client import (
     Mem0UserIdError,
     _apply_mem0_openai_timeout,
@@ -16,6 +18,7 @@ from memory.mem0_client import (
     reset_mem0_memory,
     set_memory_factory,
 )
+from memory.store import reset_pooled_store, set_store_factory
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -28,9 +31,11 @@ _REQUIRED_ENV = {
 @pytest.fixture(autouse=True)
 def _clean_mem0_and_settings() -> None:
     reset_mem0_memory()
+    reset_pooled_store()
     reset_settings()
     yield
     reset_mem0_memory()
+    reset_pooled_store()
     reset_settings()
 
 
@@ -69,24 +74,28 @@ def test_parse_memories_from_get_all_results() -> None:
     ]
 
 
-def test_fetch_user_memories_with_mock_get_all(monkeypatch: pytest.MonkeyPatch) -> None:
-    set_settings_override(_settings(MEM0_MOCK=False, MEM0_READ_LIMIT=10))
-    mock_memory = MagicMock()
-    mock_memory.get_all.return_value = {
-        "results": [
-            {"memory": "Likes concise answers"},
-            {"memory": "Timezone is Asia/Shanghai"},
-        ]
-    }
-    set_memory_factory(lambda: mock_memory)
+def test_fetch_user_memories_with_store_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_settings_override(
+        _settings(MEM0_MOCK=False, MEMORY_STORE_MOCK=False, MEMORY_READ_LIMIT=10)
+    )
+    store = InMemoryStore()
+    store.put(
+        profile_namespace("user-42"),
+        "name",
+        {
+            "value": "Likes concise answers",
+            "raw_utterance": "Likes concise answers",
+            "source_turn_id": "t1",
+            "extraction_method": "slot_fill_v1",
+            "updated_at": "2026-05-25T00:00:00+00:00",
+        },
+    )
+    set_store_factory(lambda: store)
 
     memories = fetch_user_memories("user-42")
 
-    assert memories == ["Likes concise answers", "Timezone is Asia/Shanghai"]
-    mock_memory.get_all.assert_called_once_with(
-        filters={"user_id": "user-42"},
-        top_k=10,
-    )
+    assert len(memories) == 1
+    assert "Likes concise answers" in memories[0]
 
 
 def test_format_mem0_for_system_includes_bullets() -> None:
@@ -110,21 +119,31 @@ def test_fetch_user_memories_missing_user_id_raises(bad_id: str | None) -> None:
 def test_fetch_user_memories_mock_mode_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_settings_override(_settings(MEM0_MOCK=True))
-    mock_memory = MagicMock()
-    set_memory_factory(lambda: mock_memory)
+    set_settings_override(_settings(MEMORY_STORE_MOCK=True))
+    store = InMemoryStore()
+    set_store_factory(lambda: store)
 
     assert fetch_user_memories("user-1") == []
-    mock_memory.get_all.assert_not_called()
 
 
 @pytest.mark.anyio
 async def test_afetch_user_memories() -> None:
-    set_settings_override(_settings(MEM0_MOCK=False))
-    mock_memory = MagicMock()
-    mock_memory.get_all.return_value = {"results": [{"memory": "Async fact"}]}
-    set_memory_factory(lambda: mock_memory)
+    set_settings_override(_settings(MEMORY_STORE_MOCK=False, MEM0_MOCK=False))
+    store = InMemoryStore()
+    store.put(
+        profile_namespace("user-async"),
+        "name",
+        {
+            "value": "Async fact",
+            "raw_utterance": "Async fact",
+            "source_turn_id": "t1",
+            "extraction_method": "slot_fill_v1",
+            "updated_at": "2026-05-25T00:00:00+00:00",
+        },
+    )
+    set_store_factory(lambda: store)
 
     memories = await afetch_user_memories("user-async")
 
-    assert memories == ["Async fact"]
+    assert len(memories) == 1
+    assert "Async fact" in memories[0]

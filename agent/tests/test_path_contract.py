@@ -139,7 +139,7 @@ def test_chitchat_path_contract_skips_small_llms_and_rag() -> None:
 def test_memory_query_path_contract_skips_rag_and_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: ["用户叫刘日兴"])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
     result = _invoke("我是谁", thread_id="path-memory-query")
 
     metrics = result["path_metrics"]

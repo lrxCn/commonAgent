@@ -26,6 +26,7 @@ from memory.mem0_client import (
     fetch_user_memories,
     format_mem0_for_system,
 )
+from memory.store import get_pooled_store, reset_pooled_store
 from memory.profile import (
     MemoryProfile,
     ProfileNormalization,
@@ -60,10 +61,12 @@ __all__ = [
     "format_mem0_for_system",
     "format_memory_profile_for_system",
     "get_checkpointer",
+    "get_pooled_store",
     "get_rolling_summary",
     "get_rolling_summary_state",
     "load_thread_messages",
     "normalize_memory_profile",
+    "reset_pooled_store",
     "save_rolling_summary",
     "schedule_post_turn_jobs",
     "select_turn_index_ranges",

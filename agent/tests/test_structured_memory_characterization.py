@@ -22,9 +22,11 @@ from memory.mem0_write import (
     extract_and_store,
     reset_mem0_write_overrides,
     set_mem0_add_fn,
-    store_structured_record,
 )
-from memory.structured_record import build_structured_memory_record, canonical_fact_text
+from memory.store import reset_pooled_store, set_store_factory
+from memory.write import store_structured_record
+from langgraph.store.memory import InMemoryStore
+from memory.structured_record import build_structured_memory_record
 from settings.config import Settings, reset_settings, set_settings_override
 
 _REQUIRED_ENV = {
@@ -43,9 +45,11 @@ _FACT_UPDATE_TURNS: tuple[tuple[str, str], ...] = (
 @pytest.fixture(autouse=True)
 def _clean_mem0_write() -> None:
     reset_mem0_write_overrides()
+    reset_pooled_store()
     reset_settings()
     yield
     reset_mem0_write_overrides()
+    reset_pooled_store()
     reset_settings()
 
 
@@ -122,8 +126,22 @@ def test_current_infer_path_stored_empty_is_distinct_from_skipped_mock() -> None
 
 @pytest.mark.parametrize("user_text", [text for text, _ in _FACT_UPDATE_TURNS])
 def test_structured_store_target_path_does_not_return_stored_empty(user_text: str) -> None:
-    """Target path: structured infer=False write stores canonical fact under mock."""
-    _enable_real_mem0_write()
+    """Target path: structured Store profile write stores canonical fact under mock."""
+    set_settings_override(
+        Settings(
+            **{
+                **_REQUIRED_ENV,
+                "MEM0_MOCK": False,
+                "MEMORY_STORE_MOCK": False,
+                "MEMORY_STORE_SETUP": False,
+            }
+        )
+    )  # type: ignore[arg-type]
+    store = InMemoryStore()
+    set_store_factory(lambda: store)
+    add_mock = MagicMock()
+    set_mem0_add_fn(add_mock)
+
     signals = extract_signals(user_text)
     decision = classify_intent(user_text)
     record = build_structured_memory_record(
@@ -133,16 +151,9 @@ def test_structured_store_target_path_does_not_return_stored_empty(user_text: st
     )
     assert record is not None
 
-    canonical = canonical_fact_text(record)
-    add_mock = MagicMock(
-        return_value={"results": [{"memory": canonical, "event": "ADD"}]}
-    )
-    set_mem0_add_fn(add_mock)
-
     result = store_structured_record("user-fact-update", record)
 
     assert result.status == "stored"
     assert result.stored_count >= 1
     assert result.status != "stored_empty"
-    _, kwargs = add_mock.call_args
-    assert kwargs.get("infer") is False
+    add_mock.assert_not_called()

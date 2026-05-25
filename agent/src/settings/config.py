@@ -225,6 +225,20 @@ class Settings(BaseSettings):
         description="HTTP timeout in seconds applied to the OpenAI client used by mem0 infer writes.",
     )
 
+    # --- LangGraph Store (user memory read path; same DATABASE_URL as checkpointer) ---
+    MEMORY_STORE_MOCK: bool = Field(
+        default=False,
+        description="When true, skip Postgres Store reads and return an empty memory list.",
+    )
+    MEMORY_READ_LIMIT: int = Field(
+        default=50,
+        description="Maximum user memory facts returned per read (profile + collection).",
+    )
+    MEMORY_STORE_SETUP: bool = Field(
+        default=True,
+        description="When true, run Store migrations on first pooled store access.",
+    )
+
     # --- Postgres ---
     DATABASE_URL: str = Field(
         ...,
@@ -299,6 +313,8 @@ class Settings(BaseSettings):
         "REWRITE_FORCE",
         "GUARDRAILS_ENABLED",
         "MEM0_MOCK",
+        "MEMORY_STORE_MOCK",
+        "MEMORY_STORE_SETUP",
         "QDRANT_MOCK",
         "CHITCHAT_USE_LLM",
         mode="before",

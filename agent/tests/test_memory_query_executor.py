@@ -37,7 +37,7 @@ _REQUIRED_ENV = {
 def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _thread_id: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _thread_id: None)
-    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: [])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: [])
     monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", lambda **_kwargs: None)
     set_rewrite_llm(MagicMock(return_value="rewritten"))
     set_router_classifier(MagicMock(return_value='{"need_rag": true}'))
@@ -139,7 +139,7 @@ def test_memory_query_graph_skips_rag_deepagents_and_mem0_write(
     set_router_classifier(router)
     set_supervisor_invoke(supervisor)
     retriever_mod.retrieve = retrieve
-    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id: ["用户叫刘日兴"])
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
     monkeypatch.setattr("graph.nodes.schedule_post_turn_jobs", schedule)
 
     result = _invoke("我是谁")

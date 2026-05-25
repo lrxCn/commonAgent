@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from guardrails.outbound import OUTBOUND_SAFE_REPLY, check_outbound
 from memory.history import get_rolling_summary, load_thread_messages
-from memory.mem0_client import fetch_user_memories
+from memory.read import fetch_user_memories
 from memory.post_turn import extract_current_turn_messages, schedule_post_turn_jobs
 from rag.retriever import RagChunk, rag_retrieval_node
 from rag.rewrite import rewrite_node, should_rewrite

@@ -31,7 +31,7 @@ def test_load_memory_node_does_not_write_mem0_text(
 ) -> None:
     monkeypatch.setattr(
         "graph.nodes.fetch_user_memories",
-        lambda _uid: ["偏好简洁回答"],
+        lambda _uid, **_kwargs: ["偏好简洁回答"],
     )
     monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _tid: [])
     monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _tid: None)

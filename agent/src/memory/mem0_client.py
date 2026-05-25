@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
@@ -143,24 +142,25 @@ def parse_memories_from_get_all(raw: Any) -> list[str]:
     return memories
 
 
-def fetch_user_memories(user_id: str) -> list[str]:
-    """Load extracted preference facts for ``user_id`` from local mem0 + Qdrant."""
-    uid = _require_user_id(user_id)
-    settings = get_settings()
-    if settings.MEM0_MOCK:
-        return []
+def fetch_user_memories(user_id: str, *, query: str | None = None) -> list[str]:
+    """Load user memory facts from LangGraph Store (delegates to ``memory.read``)."""
+    from memory.read import MemoryUserIdError, fetch_user_memories as fetch_from_store
 
-    memory = _get_memory()
-    raw = memory.get_all(
-        filters={"user_id": uid},
-        top_k=settings.MEM0_READ_LIMIT,
-    )
-    return parse_memories_from_get_all(raw)
+    try:
+        return fetch_from_store(user_id, query=query)
+    except MemoryUserIdError as exc:
+        raise Mem0UserIdError(str(exc)) from exc
 
 
-async def afetch_user_memories(user_id: str) -> list[str]:
+async def afetch_user_memories(
+    user_id: str,
+    *,
+    query: str | None = None,
+) -> list[str]:
     """Async wrapper around :func:`fetch_user_memories` (thread offload)."""
-    return await asyncio.to_thread(fetch_user_memories, user_id)
+    from memory.read import afetch_user_memories as afetch_from_store
+
+    return await afetch_from_store(user_id, query=query)
 
 
 def format_mem0_for_system(memories: list[str]) -> str:

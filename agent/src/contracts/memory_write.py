@@ -25,6 +25,7 @@ class ExtractionMethod(str, Enum):
     """How the memory payload was produced."""
 
     SLOT_FILL_V1 = "slot_fill_v1"
+    STORE_PROFILE = "store_profile"
     MEM0_INFER = "mem0_infer"
 
 

@@ -166,6 +166,15 @@ def test_mem0_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.MEM0_LLM_MODEL_NAME is None
     assert settings.MEM0_LLM_MAX_TOKENS == 128
     assert settings.MEM0_LLM_TIMEOUT_SECONDS == 10
+    assert settings.MEMORY_STORE_MOCK is False
+    assert settings.MEMORY_READ_LIMIT == 50
+    assert settings.MEMORY_STORE_SETUP is True
+
+
+def test_memory_store_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch, MEMORY_STORE_MOCK="true", MEMORY_STORE_SETUP="false")
+    assert settings.MEMORY_STORE_MOCK is True
+    assert settings.MEMORY_STORE_SETUP is False
 
 
 def test_mem0_mock_parses_string(monkeypatch: pytest.MonkeyPatch) -> None:

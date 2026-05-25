@@ -21,7 +21,7 @@ from intent.fallback import intent_fallback_decision, policy_denied_fallback_dec
 from intent.policy import decide_fast_path_policy
 from intent.signals import extract_signals
 from memory.history import get_rolling_summary, load_thread_messages
-from memory.mem0_client import fetch_user_memories
+from memory.read import fetch_user_memories
 from memory.structured_record import build_structured_memory_record
 from observability.path_contract import new_path_metrics, record_fallback_decision
 from observability.tracing import emit_event
@@ -47,8 +47,16 @@ def load_memory_node(
     load_messages = facade_attr("load_thread_messages", load_thread_messages)
     load_summary = facade_attr("get_rolling_summary", get_rolling_summary)
 
+    incoming = list(state.get("messages") or [])
+    prefetch_messages = incoming
+    user_message = extract_user_message_from_messages(prefetch_messages)
+
     with ThreadPoolExecutor(max_workers=3) as pool:
-        mem0_future = pool.submit(fetch_memories, ctx.user_id)
+        mem0_future = pool.submit(
+            fetch_memories,
+            ctx.user_id,
+            query=user_message or None,
+        )
         history_future = pool.submit(load_messages, thread_id)
         summary_future = pool.submit(load_summary, thread_id)
         mem0_memories = mem0_future.result()
@@ -60,7 +68,6 @@ def load_memory_node(
         "rolling_summary": rolling_summary,
     }
 
-    incoming = list(state.get("messages") or [])
     if not incoming and checkpoint_messages:
         updates["messages"] = checkpoint_messages
     elif checkpoint_messages and incoming:

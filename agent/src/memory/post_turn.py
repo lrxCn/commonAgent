@@ -9,7 +9,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from langchain_core.messages import BaseMessage, HumanMessage
 
 from contracts.memory_write import StructuredMemoryRecord
-from memory.mem0_write import extract_and_store, store_structured_record
+from memory.mem0_write import extract_and_store
+from memory.write import store_structured_record
 from memory.summary_job import update_rolling_summary
 
 logger = logging.getLogger(__name__)
