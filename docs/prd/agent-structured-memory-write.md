@@ -25,7 +25,26 @@ isProject: false
 
 ## 落地状态与偏差说明
 
-截至文档创建时（2026-05-25），本 PRD **尚未落地**。README 仍描述「post_turn 异步 mem0 infer 写入」为当前事实。实现进度见 [docs/progress.md](../progress.md) 任务 **63-68**。
+**已于 2026-05-25 通过任务 63-68 落地。** 当前运行契约以 [README.md](../../README.md) 为准；本 PRD 保留设计意图与历史背景。
+
+### 已落地
+
+| 项 | 实现 |
+|----|------|
+| `StructuredMemoryRecord` 契约 | [contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py) |
+| 确定性 slot fill | [memory/structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py) |
+| `infer=False` deterministic store | [memory/mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py) 中 `store_structured_record()` |
+| Graph 双轨 post_turn | [memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py)、[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py) |
+| Commit 话术含字段摘要 | [executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py)、`format_structured_memory_confirmation()` |
+| 可观测 `memory_write.mode` / attribute | [path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py) |
+| Eval seed + runner | [memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py) |
+
+### 已知偏差 / 未实现
+
+- **异步 write + 基于 record 的 Commit**：主图在同轮基于 deterministic record 给出 Commit，不等待 `store_structured_record` 完成；异步 write 失败时用户可能已看到「已记住」，需靠 trace 告警，Front pending/saved/failed UI 未实现（PRD Phase 2）。
+- **单句单属性**：第一批 slot fill 只写主属性一条 record；多 fact 拆分留后续。
+- **`Mem0WriteResult.status`**：structured 成功仍为 `stored`（非 PRD 草案中的 `stored_structured`）；日志事件使用 `mem0_write.stored_structured`。
+- **general_chat infer 慢路径**：仍可能 `stored_empty`（by design）；regression 仅针对 Policy 通过的 `fact_update` structured 路径。
 
 ## 背景与问题陈述
 
@@ -319,12 +338,12 @@ Path contract：`fact_update` fast path 的 mem0 模式应为 `structured`，且
 
 ## 验收标准（整体）
 
-- [ ] Policy 通过的 `fact_update` 不再对同 turn 调用 mem0 infer。
-- [ ] intent_seed 中 fact_update 正例在 mock mem0 下 `stored_count >= 1`。
-- [ ] 「我叫张三」类 case 不再出现 `stored_empty` + Commit 组合。
-- [ ] general_chat post_turn 仍走 infer=True，行为无回归。
-- [ ] README 与 maps 描述双轨写入当前事实。
-- [ ] Path contract / trace 可区分 `structured` vs `inferred`。
+- [x] Policy 通过的 `fact_update` 不再对同 turn 调用 mem0 infer。
+- [x] memory_write seed 中 structured 正例在 mock mem0 下 `stored_count >= 1`。
+- [x] 「我叫张三」类 case 在 structured 路径不再出现 `stored_empty` + Commit 组合。
+- [x] general_chat post_turn 仍走 infer=True，行为无回归。
+- [x] README 与 maps 描述双轨写入当前事实。
+- [x] Path contract / trace 可区分 `structured` vs `inferred`。
 
 ## 参考
 

@@ -28,7 +28,9 @@
 
 - mem0 读取失败或 mock：返回空记忆，不阻断回合。
 - `memory_query` 没有可靠证据：返回诚实缺失回复，并记录 memory fallback。
-- post_turn summary / mem0 写入失败：只记日志和 observability metadata，不阻断当前响应。
+- Policy 通过但 slot fill 失败（`structured_fill_failed`）：拒绝 fact_update 快路径，不输出 Commit 话术，不写入 structured record。
+- post_turn structured 路径出现 `stored_empty`：视为缺陷；`memory_write_seed.json` 的 `regression_store_empty` 类别与 eval runner 用于捕获该回归。
+- post_turn summary / mem0 写入失败：只记日志和 observability metadata，不阻断当前响应；structured 路径主图已基于 record 给出 Commit，异步 write 失败需靠 trace 告警（Front pending UI 未实现）。
 
 ## 工具与结构化输出失败
 
@@ -48,6 +50,8 @@
 - SSE 错误处理：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
 - RAG 降级：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
 - LLM Gateway fallback：[gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
+- mem0 写入：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py)
+- 双轨 post_turn：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
 - Fallback manager：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
 - Fallback metrics：[path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:1)
 - event collector：[events.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/events.py:1)
@@ -61,5 +65,7 @@
 - Fallback manager：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
 - memory_query 缺失证据：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
 - post_turn 非阻塞：[test_post_turn_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_post_turn_graph.py:1)
+- structured write / stored_empty 回归：[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_structured_memory_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_structured_memory_characterization.py:1)
+- fact_update slot fill 失败：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py:1)
 - intent 分类失败 / 单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
 - LangSmith / event 兼容：[test_tracing.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_tracing.py:1)

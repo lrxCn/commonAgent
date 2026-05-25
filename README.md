@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-57 已完成 |
+| 核心任务 | 01-68 已完成 |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer + mem0 + RAG |
 | Back | FastAPI 占位服务，注入 demo context，转发 Agent |
 | Front | 静态单页，sessionStorage `thread_id`，SSE 展示，`client_actions` demo |
@@ -156,12 +156,12 @@ sequenceDiagram
 
 路径规则：
 
-- `fact_update` 只有通过 Policy Gate 后才走模板确认快速路径，跳过 rewrite、RAG、Supervisor 和 outbound guard。
+- `fact_update` 只有通过 Policy Gate 且 slot fill 成功后才走模板确认快速路径，跳过 rewrite、RAG、Supervisor 和 outbound guard；确认话术含已解析字段摘要（如「已记住：姓名=张三」）。
 - `memory_query` 走记忆回答执行器，跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入 mem0。
 - `chitchat` 走轻量执行器，默认模板，可选小模型。
 - `knowledge_query` 直接进入 RAG，跳过 router 小模型。
 - `ambiguous` 或旧规则无法确定时，才使用 rewrite/router 小模型与 deepagents。
-- `post_turn` 异步调度 summary 和 mem0 写入，不阻塞当前响应。
+- `post_turn` 异步调度 summary 和 mem0 写入，不阻塞当前响应；有 `memory_write_record` 时走 structured（`infer=False`），否则走 inferred（`infer=True`）。
 
 ## 控制面
 
@@ -199,6 +199,30 @@ RAG：
 - `rolling_summary`、mem0、RAG、tools schema、messages 都受 `ContextBudget` 约束。
 - `memory_query` 只读可靠记忆证据，不触发 mem0 写入；`post_turn` 会识别该路径并跳过 mem0 write。
 
+记忆写入采用 **Single Extraction Point + 双轨** 策略（见 [agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)）：
+
+| 路径 | 触发条件 | 抽取 | mem0 调用 |
+|------|----------|------|-----------|
+| **Structured Write** | Policy 通过的 `fact_update` 且 slot fill 成功 | 控制面确定性 slot fill → `StructuredMemoryRecord` | `store_structured_record(..., infer=False)`，写入 canonical fact 文本 |
+| **Inferred Write** | 其他会调度 post_turn 的回合（如 `chitchat`） | mem0 内置 infer LLM | `extract_and_store(..., infer=True)` |
+
+双轨 **互斥**：同一 turn 若已有 `memory_write_record`，`post_turn` 不得再对该 turn 做 infer。
+
+Structured Write 链路：
+
+1. `load_memory`：Policy Gate 通过后，`build_structured_memory_record()` 从 `IntentSignals` 确定性 slot fill，写入单轮 ephemeral `memory_write_record`；fill 失败则拒绝快路径（`policy_denied_reason=structured_fill_failed`）。
+2. `fact_update_confirm`：要求 `memory_write_record` 存在，输出 `已记住：{label}={value}。后续我会据此为你提供个性化回答。`
+3. `post_turn_jobs`：读取 record，调用 `store_structured_record()`（`infer=False` + canonical fact + metadata）。
+
+契约与实现：
+
+- 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
+- Slot fill / canonical 文本：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
+- Deterministic store：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py) 中 `store_structured_record()`
+- 双轨路由：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
+
+可观测：`memory_write.mode`（`structured` \| `inferred`）、`memory_write.record.attribute` 写入 path metrics；Policy 通过的 `fact_update` 在 structured 路径上 **不应** 出现 `stored_empty`（eval regression 覆盖）。
+
 mem0 约束：
 
 - 只允许本地 OSS `Memory` + 本地/内网 Qdrant。
@@ -216,7 +240,7 @@ mem0 约束：
 | `REWRITE` | 指代消解 | `REWRITE_MODEL_NAME` |
 | `ROUTER` | RAG 路由分类 | `RAG_ROUTER_MODEL_NAME` |
 | `CHITCHAT` | 寒暄轻量回复 | `CHITCHAT_MODEL_NAME` |
-| `MEM0_WRITE` | mem0 infer 写入 | `MEM0_LLM_MODEL_NAME` |
+| `MEM0_WRITE` | mem0 infer 写入（inferred 慢路径） | `MEM0_LLM_MODEL_NAME` |
 | `SUMMARY` | rolling summary | `OPENAI_MODEL_NAME` |
 | `EMBEDDING` | embedding | `EMBEDDING_MODEL` |
 | `RERANK` | rerank | `RERANK_MODEL` |
@@ -302,12 +326,13 @@ Front：
 - LangSmith 适配在 [metadata_mapper.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/langsmith/metadata_mapper.py:1)。
 - 业务逻辑优先 emit 事件，再由 LangSmith adapter 映射 metadata；兼容 facade 仍保留。
 - 控制面事件包含 intent classified、policy evaluated、executor chosen、fallback triggered；`intent.conflict` 常态为 `false`。
-- path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`executor`、`llm_call_count` 和各阶段 should/called。
+- path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`memory_write.mode`、`memory_write.record.attribute`、`executor`、`llm_call_count` 和各阶段 should/called。
 
 评测：
 
 - 本地 seed 在 [seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/seed.json)。
 - 控制面 seed 在 [intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json)，覆盖 `fact_update`、`memory_query`、`knowledge_query`、`client_action`、`ambiguous`、`general_chat`、`chitchat`、`safety_refusal`。
+- 结构化记忆写入 seed 在 [memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)，覆盖 `structured_fact_update`、`inferred_general_chat`、`regression_store_empty`；本地 runner：`scripts/run_memory_write_eval.py`。
 - `expected_answer` 与 `expected_path` 分开维护。
 - RAG 样例可带 `kb_fixture`、`expected_doc_ids`、`forbidden_doc_ids` 做 role 过滤评测。
 - `IntentFeedback` 可将用户纠错、人工 trace review、path contract 失败或 fallback conflict 转成 `intent_seed.json` 行。
@@ -377,6 +402,14 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 
 ## 验证入口
 
+任务 68 的文档检查：
+
+```bash
+rg -n "StructuredMemoryRecord|structured.*write|infer=False|Single Extraction|memory_write_record|双轨" README.md docs/maps docs/prd docs/progress.md
+rg -n "infer=True.*fact_update|stored_empty" README.md docs/maps
+rg -n "TODO|待补|尚未落地" README.md docs/maps docs/progress.md
+```
+
 任务 62 的文档检查：
 
 ```bash
@@ -394,7 +427,9 @@ uv run pytest tests/test_intent_authority_contract.py tests/test_intent_authorit
 uv run pytest tests/test_intent_contracts.py tests/test_policy_gate.py tests/test_memory_query_executor.py tests/test_fallback_manager.py -v
 uv run pytest tests/test_intent_shadow_graph.py tests/test_graph_invoke_mock.py tests/test_path_contract.py -v
 uv run pytest tests/test_intent_feedback.py tests/test_intent_eval_seed.py tests/test_intent_eval_runner.py -v
+uv run pytest tests/test_memory_write_eval_seed.py tests/test_memory_write_eval_runner.py tests/test_fact_update_fast_path.py -v
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
+uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
 uv run pytest tests/test_graph_compile.py tests/test_state_lifecycle.py tests/test_context_assembly.py -v
 uv run pytest tests/test_llm_gateway.py tests/test_rag_boundaries.py tests/test_client_actions.py tests/test_chat_sse.py -v
 make test
@@ -410,6 +445,7 @@ cd agent
 ./scripts/fetch_trace.sh --latest
 uv run python scripts/run_rag_eval.py --seed evals/seed.json --json
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
+uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-seed --seed evals/seed.json --dry-run
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-intent-seed --seed evals/intent_seed.json --dry-run
 ```
@@ -418,4 +454,4 @@ uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-inte
 
 ## PRD 说明
 
-[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
+[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。结构化记忆写入（任务 63-68）已落地并同步 README；Front 记忆 pending UI 等 Phase 2 项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。

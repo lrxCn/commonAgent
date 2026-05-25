@@ -13,8 +13,8 @@
 按拓扑顺序：
 
 - `inbound_guard`：入站文本护栏。
-- `load_memory`：并行读取 checkpoint history、rolling summary、mem0；调用 `classify_intent()` 生成 `IntentDecision`，派生兼容 `turn_type`，执行 Policy Gate，并记录 intent/policy/fallback metadata。
-- `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 时执行事实更新快速路径模板确认。
+- `load_memory`：并行读取 checkpoint history、rolling summary、mem0；调用 `classify_intent()` 生成 `IntentDecision`，派生兼容 `turn_type`，执行 Policy Gate；Policy 通过时对 `fact_update` 做确定性 slot fill，写入单轮 ephemeral `memory_write_record`（fill 失败则拒绝快路径）；记录 intent/policy/fallback metadata。
+- `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 且 `memory_write_record` 存在时执行；输出含字段摘要的 Commit 话术（如「已记住：姓名=张三」），跳过 LLM/RAG/Supervisor。
 - `memory_query_reply`：记忆查询一等路径，只读可靠记忆证据，跳过 RAG/deepagents/mem0 写入。
 - `chitchat_reply`：寒暄轻量执行器。
 - `rewrite`：按 `turn_type` 决定跳过或做指代消解。
@@ -25,7 +25,7 @@
 - `supervisor`：选择执行器，必要时进入 deepagents。
 - `client_actions_emit`：解析并落地客户端动作。
 - `outbound_guard`：文本回复出站护栏。
-- `post_turn_jobs`：异步调度 summary 和 mem0 写入。
+- `post_turn_jobs`：异步调度 summary 和 mem0 写入；有 `memory_write_record` 时走 `store_structured_record`（`infer=False`），否则走 `extract_and_store`（`infer=True`）；`memory_query` 路径跳过 mem0 write。
 
 ## 输出路径
 
@@ -34,10 +34,19 @@
 
 ## 快速路径
 
-- `fact_update`：必须通过 Policy Gate；通过后跳过 rewrite、RAG、Supervisor、outbound guard。
+- `fact_update`：必须通过 Policy Gate 且 slot fill 成功；通过后跳过 rewrite、RAG、Supervisor、outbound guard；确认话术与 `StructuredMemoryRecord` 一致。
 - `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过 mem0 写入。
 - `chitchat`：跳过 rewrite、RAG、deepagents。
 - `knowledge_query`：跳过 router 小模型，直接进入 RAG。
+
+## 结构化记忆写入
+
+- 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
+- Slot fill / 确认话术：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
+- Deterministic store：[mem0_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/mem0_write.py) 中 `store_structured_record()`
+- 双轨 post_turn：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
+- post_turn 节点：[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py)
+- Eval seed / runner：[memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py)
 
 ## 控制面决策点
 
@@ -63,4 +72,6 @@
 - 意图单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
 - 权威对齐矩阵：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
 - memory_query 路径：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- fact_update 快路径：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py)
+- 结构化记忆 eval：[test_memory_write_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_seed.py)、[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py)
 - SSE 行为：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)
