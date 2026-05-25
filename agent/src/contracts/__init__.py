@@ -20,6 +20,13 @@ from contracts.llm import (
     ModelUseCase,
     RerankModelPolicy,
 )
+from contracts.memory_write import (
+    ExtractionMethod,
+    MemorySubject,
+    MemoryWriteExpectation,
+    MemoryWriteMode,
+    StructuredMemoryRecord,
+)
 from contracts.path import (
     COMPONENTS,
     LLM_COMPONENTS,
@@ -54,6 +61,7 @@ __all__ = [
     "ExecutorDecision",
     "ExecutorReason",
     "ExecutorType",
+    "ExtractionMethod",
     "FallbackAction",
     "FallbackDecision",
     "FallbackLayer",
@@ -63,6 +71,9 @@ __all__ = [
     "IntentOperation",
     "IntentRisk",
     "IntentRoute",
+    "MemorySubject",
+    "MemoryWriteExpectation",
+    "MemoryWriteMode",
     "ChatModelPolicy",
     "EmbeddingModelPolicy",
     "ModelCallMetadata",
@@ -80,6 +91,7 @@ __all__ = [
     "SseEvent",
     "SseEventType",
     "SpeechAct",
+    "StructuredMemoryRecord",
     "TokenSseEvent",
     "TurnReason",
     "TurnType",

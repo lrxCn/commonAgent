@@ -1,0 +1,93 @@
+[
+  {
+    "id": "memory-write-fact-name-001",
+    "category": "structured_fact_update",
+    "input": "我叫张三",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_write": {
+      "mode": "structured",
+      "infer": false,
+      "expected_record": {
+        "subject": "user",
+        "attribute": "name",
+        "value": "张三",
+        "raw_utterance": "我叫张三",
+        "confidence": 0.94,
+        "source_turn_id": "thread-1:turn-1",
+        "extraction_method": "slot_fill_v1"
+      },
+      "expected_final_status": "stored"
+    }
+  },
+  {
+    "id": "memory-write-fact-birthday-001",
+    "category": "structured_fact_update",
+    "input": "我出生于1997年",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_write": {
+      "mode": "structured",
+      "infer": false,
+      "expected_record": {
+        "subject": "user",
+        "attribute": "birthday",
+        "value": "1997年",
+        "raw_utterance": "我出生于1997年",
+        "confidence": 0.94,
+        "source_turn_id": "thread-1:turn-2",
+        "extraction_method": "slot_fill_v1"
+      },
+      "expected_final_status": "stored"
+    }
+  },
+  {
+    "id": "memory-write-fact-company-address-001",
+    "category": "structured_fact_update",
+    "input": "我公司在天翔街188号",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_write": {
+      "mode": "structured",
+      "infer": false,
+      "expected_record": {
+        "subject": "org",
+        "attribute": "company.address",
+        "value": "天翔街188号",
+        "raw_utterance": "我公司在天翔街188号",
+        "confidence": 0.94,
+        "source_turn_id": "thread-1:turn-3",
+        "extraction_method": "slot_fill_v1"
+      },
+      "expected_final_status": "stored"
+    }
+  },
+  {
+    "id": "memory-write-inferred-preference-001",
+    "category": "inferred_general_chat",
+    "input": "平时写代码我更喜欢简洁一点的回答",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_write": {
+      "mode": "inferred",
+      "infer": true,
+      "expected_final_status": "stored"
+    }
+  },
+  {
+    "id": "memory-write-regression-store-empty-001",
+    "category": "regression_store_empty",
+    "input": "我叫张三",
+    "context": {"user_id": "u1", "role_id": "role-sales", "tools": []},
+    "expected_write": {
+      "mode": "structured",
+      "infer": false,
+      "expected_record": {
+        "subject": "user",
+        "attribute": "name",
+        "value": "张三",
+        "raw_utterance": "我叫张三",
+        "confidence": 0.94,
+        "source_turn_id": "thread-regression:turn-1",
+        "extraction_method": "slot_fill_v1"
+      },
+      "forbidden_final_status": ["stored_empty"]
+    }
+  }
+]

@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 68 |
-| 已完成 | 62 |
+| 已完成 | 63 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[63 - 结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md)（Single Extraction Point；依赖任务 62 已完成）。
+**当前建议下一步**：[64 - 结构化记忆写入 Phase 1：Slot Fill 抽取器](./prompts/64-structured-memory-slot-fill.md)（依赖任务 63 已完成）。
 
 
 ---
@@ -87,7 +87,7 @@
 | 60 | [意图权威收敛 Phase 2：Graph 切换到 IntentDecision 单源](./prompts/60-intent-authority-graph-cutover.md) | ✅ 完成 | 2026-05-25 | `load_memory_node()` 仅 `classify_intent()` + 派生 `turn_type`；`intent_conflict` 常态为 false；分类失败时降级旧分类器 |
 | 61 | [意图权威收敛 Phase 3：旧 turn_type 分类器降级与清理](./prompts/61-intent-authority-legacy-turn-type-cleanup.md) | ✅ 完成 | 2026-05-25 | `classify_turn_type()` 委托 intent authority；移除 `rag.intent` 独立分类依赖；`test_turn_type.py` 改为 adapter 对齐测试 |
 | 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-25 | README、docs/maps、PRD 落地状态同步单源 intent authority；progress 收口 58-62 |
-| 63 | [结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md) | ⬜ 待开始 | - | `StructuredMemoryRecord` 契约 + memory_write seed；冻结 infer 路径 store_empty 基线 |
+| 63 | [结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md) | ✅ | 2026-05-25 | `StructuredMemoryRecord` 契约 + `memory_write_seed.json`；characterization 冻结 infer 路径 `stored_empty` 基线 |
 | 64 | [结构化记忆写入 Phase 1：Slot Fill 抽取器](./prompts/64-structured-memory-slot-fill.md) | ⬜ 待开始 | - | 依赖 63；从 IntentSignals 确定性生成 record + canonical 文本 |
 | 65 | [结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md) | ⬜ 待开始 | - | 依赖 64；`store_structured_record` + infer=False |
 | 66 | [结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md) | ⬜ 待开始 | - | 依赖 65；state 承载 record；fact_update 与 infer 互斥 |
@@ -184,3 +184,4 @@
 | 2026-05-25 | 完成任务 61：`graph.turn_type.classify_turn_type()` 降级为 intent authority 兼容 adapter；移除对 `rag.intent` 全局启发式的直接依赖；characterization/turn_type 测试改为单源对齐；分类失败保守回退 `general_chat` |
 | 2026-05-25 | 完成任务 62：README、docs/maps、PRD 同步 `IntentDecision` 单源权威与 `turn_type` 兼容派生当前事实；意图权威收敛任务 58-62 全部完成 |
 | 2026-05-25 | 文档：新增 [Agent 结构化记忆写入 PRD](./prd/agent-structured-memory-write.md)（Single Extraction Point）；拆分任务 **63-68**，目标为 fact_update 结构化 slot fill + infer=False 落库，保留 general_chat infer 慢路径 |
+| 2026-05-25 | 完成任务 63：新增 `contracts.memory_write`（`StructuredMemoryRecord` / `MemoryWriteMode`）、`memory_write_seed.json` 与 seed/contract/characterization 测试；冻结 fact_update + infer 路径 `stored_empty` 基线；运行路径不变 |
