@@ -151,7 +151,7 @@ def test_fallback_event_maps_to_legacy_metadata_keys() -> None:
     assert meta["fallback.reason"] == "tool_not_allowed"
 
 
-def test_intent_event_maps_shadow_metadata() -> None:
+def test_intent_event_maps_classified_metadata() -> None:
     event = ObservabilityEvent(
         ObservabilityEventType.INTENT_CLASSIFIED,
         {
@@ -163,19 +163,16 @@ def test_intent_event_maps_shadow_metadata() -> None:
             "intent.risk": "low",
             "intent.reasons": ["first_person_question"],
             "intent.needs_clarification": False,
-            "intent.legacy_turn_type": "fact_update",
-            "intent.legacy_turn_type_reason": "fact_statement_rule",
-            "intent.conflict": True,
-            "intent.conflict_reason": "legacy_fact_update_intent_memory_query",
+            "intent.conflict": False,
+            "intent.conflict_reason": "",
         },
     )
 
     meta = event_to_metadata(event)
 
     assert meta["intent.route"] == "memory_query"
-    assert meta["intent.legacy_turn_type"] == "fact_update"
-    assert meta["intent.conflict"] is True
-    assert meta["intent.conflict_reason"] == "legacy_fact_update_intent_memory_query"
+    assert meta["intent.conflict"] is False
+    assert meta["intent.conflict_reason"] == ""
 
 
 def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:

@@ -26,9 +26,11 @@ class AgentState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     mem0_memories: Annotated[list[str], EphemeralValue]
     rolling_summary: Annotated[str | None, EphemeralValue]
+    # ``turn_type`` / ``turn_type_reason`` are derived from ``intent_decision`` in load_memory.
     turn_type: Annotated[str, EphemeralValue]
     turn_type_reason: Annotated[str, EphemeralValue]
     intent_decision: Annotated[IntentDecision, EphemeralValue]
+    # Kept for compatibility; false when IntentDecision is the sole authority (task 60+).
     intent_conflict: Annotated[bool, EphemeralValue]
     intent_conflict_reason: Annotated[str, EphemeralValue]
     intent_shadow_error: Annotated[str, EphemeralValue]

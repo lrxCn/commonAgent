@@ -160,7 +160,7 @@ def test_memory_query_graph_records_missing_memory_fallback() -> None:
     result = _invoke("我是谁", thread_id="thread-memory-missing-fallback")
 
     assert result["messages"][-1].content == MISSING_MEMORY_REPLY
-    assert result["path_metrics"]["fallback_count"] == 2
+    assert result["path_metrics"]["fallback_count"] == 1
     assert result["path_metrics"]["fallback_layer"] == "memory"
     assert result["path_metrics"]["fallback_reason"] == "missing_memory_profile"
     assert result["path_metrics"]["fallback_action"] == "honest_missing_memory"

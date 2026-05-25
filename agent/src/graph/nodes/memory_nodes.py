@@ -14,7 +14,7 @@ from contracts.intent import IntentDecision
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from graph.turn_type import classify_turn_type
-from intent.engine import classify_intent
+from intent.engine import classify_intent, turn_type_decision_from_intent
 from intent.fallback import intent_fallback_decision, policy_denied_fallback_decision
 from intent.policy import decide_fast_path_policy
 from intent.signals import extract_signals
@@ -65,36 +65,28 @@ def load_memory_node(
             updates["messages"] = [*checkpoint_messages, incoming[0]]
 
     classify_messages = cast(list[BaseMessage], updates.get("messages") or incoming)
-    decision = classify_turn_type(
-        extract_user_message_from_messages(classify_messages),
-        tools_context=ctx.tools,
-    )
-    updates["turn_type"] = decision.turn_type.value
-    updates["turn_type_reason"] = decision.reason
-    updates["path_metrics"] = new_path_metrics(
-        turn_type=decision.turn_type.value,
-        turn_type_reason=decision.reason,
-    )
-    emit_event(
-        ObservabilityEventType.TURN_CLASSIFIED,
-        {
-            "turn_type": decision.turn_type.value,
-            "turn_type_reason": decision.reason,
-        }
-    )
-
     user_message = extract_user_message_from_messages(classify_messages)
+
     try:
         intent_decision = classify_intent(user_message, tools_context=ctx.tools)
-        conflict = intent_decision.turn_type.value != decision.turn_type.value
-        conflict_reason = (
-            f"legacy_{decision.turn_type.value}_intent_{intent_decision.route}"
-            if conflict
-            else ""
+        decision = turn_type_decision_from_intent(intent_decision)
+        updates["turn_type"] = decision.turn_type.value
+        updates["turn_type_reason"] = decision.reason
+        updates["path_metrics"] = new_path_metrics(
+            turn_type=decision.turn_type.value,
+            turn_type_reason=decision.reason,
         )
+        emit_event(
+            ObservabilityEventType.TURN_CLASSIFIED,
+            {
+                "turn_type": decision.turn_type.value,
+                "turn_type_reason": decision.reason,
+            },
+        )
+
         updates["intent_decision"] = intent_decision
-        updates["intent_conflict"] = conflict
-        updates["intent_conflict_reason"] = conflict_reason
+        updates["intent_conflict"] = False
+        updates["intent_conflict_reason"] = ""
         policy_decision = decide_fast_path_policy(
             intent_decision,
             signals=extract_signals(user_message, tools_context=ctx.tools),
@@ -103,7 +95,6 @@ def load_memory_node(
         updates["policy_denied_reason"] = policy_decision.denied_reason
         fallback_decision = intent_fallback_decision(
             intent_decision,
-            conflict_reason=conflict_reason,
             original_route=decision.turn_type.value,
         )
         if fallback_decision is None and decision.turn_type.value == "fact_update":
@@ -120,29 +111,37 @@ def load_memory_node(
                 ObservabilityEventType.FALLBACK_TRIGGERED,
                 fallback_decision.to_trace_dict(),
             )
-        intent_metadata = _intent_shadow_metadata(
-            intent_decision,
-            legacy_turn_type=decision.turn_type.value,
-            legacy_turn_type_reason=decision.reason,
-            conflict=conflict,
-            conflict_reason=conflict_reason,
-        )
+        intent_metadata = _intent_trace_metadata(intent_decision)
         emit_event(ObservabilityEventType.INTENT_CLASSIFIED, intent_metadata)
-        if conflict:
-            emit_event(ObservabilityEventType.INTENT_CONFLICT_DETECTED, intent_metadata)
         emit_event(
             ObservabilityEventType.POLICY_EVALUATED,
             policy_decision.to_trace_dict(),
         )
     except Exception as exc:
         error = f"{exc.__class__.__name__}: {exc}"
+        degraded = classify_turn_type(user_message, tools_context=ctx.tools)
+        updates["turn_type"] = degraded.turn_type.value
+        updates["turn_type_reason"] = degraded.reason
+        updates["path_metrics"] = new_path_metrics(
+            turn_type=degraded.turn_type.value,
+            turn_type_reason=degraded.reason,
+        )
+        emit_event(
+            ObservabilityEventType.TURN_CLASSIFIED,
+            {
+                "turn_type": degraded.turn_type.value,
+                "turn_type_reason": degraded.reason,
+            },
+        )
         updates["intent_shadow_error"] = error
+        updates["intent_conflict"] = False
+        updates["intent_conflict_reason"] = ""
         updates["policy_fast_path_allowed"] = False
-        updates["policy_denied_reason"] = "intent_shadow_error"
+        updates["policy_denied_reason"] = "intent_classify_error"
         fallback_decision = intent_fallback_decision(
             None,
-            conflict_reason="intent_shadow_error",
-            original_route=decision.turn_type.value,
+            conflict_reason="intent_classify_error",
+            original_route=degraded.turn_type.value,
         )
         updates["path_metrics"] = record_fallback_decision(
             updates.get("path_metrics"), fallback_decision
@@ -151,8 +150,6 @@ def load_memory_node(
             ObservabilityEventType.INTENT_CLASSIFIED,
             {
                 "intent.shadow_error": error,
-                "intent.legacy_turn_type": decision.turn_type.value,
-                "intent.legacy_turn_type_reason": decision.reason,
                 "intent.conflict": False,
                 "intent.conflict_reason": "",
             },
@@ -161,7 +158,7 @@ def load_memory_node(
             ObservabilityEventType.POLICY_EVALUATED,
             {
                 "policy.fast_path_allowed": False,
-                "policy.denied_reason": "intent_shadow_error",
+                "policy.denied_reason": "intent_classify_error",
             },
         )
         emit_event(
@@ -171,14 +168,7 @@ def load_memory_node(
     return merge_carry(state, updates)
 
 
-def _intent_shadow_metadata(
-    intent_decision: IntentDecision,
-    *,
-    legacy_turn_type: str,
-    legacy_turn_type_reason: str,
-    conflict: bool,
-    conflict_reason: str,
-) -> dict[str, object]:
+def _intent_trace_metadata(intent_decision: IntentDecision) -> dict[str, object]:
     trace = intent_decision.to_trace_dict()
     return {
         "intent.speech_act": trace.get("speech_act", ""),
@@ -189,8 +179,6 @@ def _intent_shadow_metadata(
         "intent.risk": trace.get("risk", ""),
         "intent.reasons": trace.get("reasons", []),
         "intent.needs_clarification": trace.get("needs_clarification", False),
-        "intent.legacy_turn_type": legacy_turn_type,
-        "intent.legacy_turn_type_reason": legacy_turn_type_reason,
-        "intent.conflict": conflict,
-        "intent.conflict_reason": conflict_reason,
+        "intent.conflict": False,
+        "intent.conflict_reason": "",
     }
