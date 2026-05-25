@@ -9,11 +9,11 @@
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 68 |
-| 已完成 | 64 |
+| 已完成 | 65 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**当前建议下一步**：[65 - 结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md)（依赖任务 64 已完成）。
+**当前建议下一步**：[66 - 结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md)（依赖任务 65 已完成）。
 
 
 ---
@@ -89,7 +89,7 @@
 | 62 | [意图权威收敛 Phase 4：README、代码地图与文档最终对齐](./prompts/62-intent-authority-docs-readme-maps-final.md) | ✅ 完成 | 2026-05-25 | README、docs/maps、PRD 落地状态同步单源 intent authority；progress 收口 58-62 |
 | 63 | [结构化记忆写入 Phase 0：契约与评测种子](./prompts/63-structured-memory-contract-eval.md) | ✅ | 2026-05-25 | `StructuredMemoryRecord` 契约 + `memory_write_seed.json`；characterization 冻结 infer 路径 `stored_empty` 基线 |
 | 64 | [结构化记忆写入 Phase 1：Slot Fill 抽取器](./prompts/64-structured-memory-slot-fill.md) | ✅ | 2026-05-25 | `memory/structured_record.py` slot fill + canonical 文本；覆盖 name/birthday/city/job/company.address/preference |
-| 65 | [结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md) | ⬜ 待开始 | - | 依赖 64；`store_structured_record` + infer=False |
+| 65 | [结构化记忆写入 Phase 2：Deterministic mem0 Store](./prompts/65-structured-memory-deterministic-store.md) | ✅ | 2026-05-25 | `store_structured_record` + `infer=False` canonical 写入；`memory_write.mode=structured` trace |
 | 66 | [结构化记忆写入 Phase 3：Graph 接入与 post_turn 双轨路由](./prompts/66-structured-memory-graph-cutover.md) | ⬜ 待开始 | - | 依赖 65；state 承载 record；fact_update 与 infer 互斥 |
 | 67 | [结构化记忆写入 Phase 4：话术、可观测与 eval runner](./prompts/67-structured-memory-observability-eval.md) | ⬜ 待开始 | - | 依赖 66；Commit 话术对齐 record；path contract + memory_write eval |
 | 68 | [结构化记忆写入 Phase 5：README、代码地图与文档最终对齐](./prompts/68-structured-memory-docs-final.md) | ⬜ 待开始 | - | 依赖 67；README/maps/PRD 落地状态收口 |
@@ -186,3 +186,4 @@
 | 2026-05-25 | 文档：新增 [Agent 结构化记忆写入 PRD](./prd/agent-structured-memory-write.md)（Single Extraction Point）；拆分任务 **63-68**，目标为 fact_update 结构化 slot fill + infer=False 落库，保留 general_chat infer 慢路径 |
 | 2026-05-25 | 完成任务 63：新增 `contracts.memory_write`（`StructuredMemoryRecord` / `MemoryWriteMode`）、`memory_write_seed.json` 与 seed/contract/characterization 测试；冻结 fact_update + infer 路径 `stored_empty` 基线；运行路径不变 |
 | 2026-05-25 | 完成任务 64：新增 `memory/structured_record.py`（`build_structured_memory_record` + `canonical_fact_text`）；纯规则 slot fill，birthday 归一为四位年份；无 LLM、无 mem0/graph 接入 |
+| 2026-05-25 | 完成任务 65：新增 `store_structured_record`（`infer=False` + canonical fact + metadata）；`MEM0_MOCK` 返回可预测 stored；seed 正例 mock 下 `stored_count>=1`；`extract_and_store` 行为无回归 |
