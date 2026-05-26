@@ -31,6 +31,27 @@
 - 带 `tools[]` 的回合禁用 live token streaming，避免 JSON 被拆成 token。
 - `client_actions` 回合跳过 outbound 文本护栏，直接走结构化返回。
 
+## Front 执行（jumpPage）
+
+演示平台当前外部工具仅 **`jumpPage`**（早期 `openTicket` 占位已移除，见 [jumpPage-client-action.md](../prd/jumpPage-client-action.md)）。
+
+| 层 | 入口 | 职责 |
+|----|------|------|
+| Back | [tools.demo.json](/Users/liurixing/Documents/codes/ai/commonAgent/back/config/tools.demo.json) | `parameters.page.enum` + 中文 description；按 `role_ids[]` 并集注入白名单 |
+| Agent | [jump_page_catalog.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/jump_page_catalog.py) | 规则路径 slug/中文/path 抽取（非 prompt 权威源） |
+| Front | [page-registry.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/page-registry.ts) | slug → Vue route name；admin 页权限校验 |
+| Front | [stores/chat.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/chat.ts) `handleClientActions` | `requires_approval` → confirm；`router.push`；未知/无权限 toast |
+
+slug catalog（Back enum 与 Front registry 手动同步）：
+
+| `page` slug | 菜单 | route name |
+|-------------|------|------------|
+| `home` | 首页 | `app-home` |
+| `students` | 学生管理 | `app-students` |
+| `admin-roles` | 角色管理（admin） | `app-admin-roles` |
+| `admin-users` | 用户管理（admin） | `app-admin-users` |
+| `admin-kb` | RAG 管理（admin） | `app-admin-kb` |
+
 ## 实现入口
 
 - 契约：[schemas.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas.py:1)
@@ -39,6 +60,7 @@
 - Tool fallback：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
 - Gateway 输出：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
 - Back 白名单与转发：[context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1)、[forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1)
+- Front 执行：[page-registry.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/page-registry.ts:1)、[stores/chat.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/chat.ts:1)
 
 ## 测试入口
 

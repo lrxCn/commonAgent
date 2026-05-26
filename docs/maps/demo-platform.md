@@ -58,7 +58,10 @@ sequenceDiagram
   A->>A: LangGraph + RAG OR filter
   A-->>B: SSE or client_actions JSON
   B-->>F: 透传
+  Note over F: jumpPage → page-registry → router.push
 ```
+
+`client_actions` 执行（任务 104）：Front [stores/chat.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/chat.ts:1) 解析 SSE/JSON；`jumpPage` 经 [page-registry.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/page-registry.ts:1) 映射 slug 并 `router.push`（未知 slug / 无 admin 权限 → toast，不静默跳首页）。跳转后 ChatDrawer 默认保持打开。
 
 Context 组装：[back/src/services/context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) `build_request_context_from_session()` → `role_ids[]` + `filter_tools_for_role_ids()`。
 

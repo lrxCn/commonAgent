@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：[105 - jumpPage 文档收口](./prompts/105-jumppage-docs-final-alignment.md)（jumpPage 批次 **102–105** 末项）。
+**当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) 做 jumpPage 端到端手工验收（脚本 B4）；或从 backlog 选取新需求规划下一批次。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 105 |
-| 已完成 | 104（01–80 Agent 核心 + 81–92 演示平台 + 93–98 KB 多角色 + 99–101 Front/Back 小迭代 + 102–104 jumpPage 全链路） |
+| 已完成 | 105（全部任务卡 ✅） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -19,7 +19,7 @@
 
 **KB 多角色批次（93–98）**：✅ 已完成；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) 落地状态与 [demo-walkthrough.md](./demo-walkthrough.md) 脚本 B。**Front/Back 小迭代（99–101）**：**99–101** ✅。
 
-**jumpPage 批次（102–105）**：**102–104** ✅；**105** 文档收口待完成。
+**jumpPage 批次（102–105）**：✅ 全部完成；PRD [jumpPage-client-action.md](./prd/jumpPage-client-action.md) 含落地状态。
 
 
 ---
@@ -135,7 +135,7 @@
 | 102 | [jumpPage：Back 工具目录与 openTicket 移除](./prompts/102-jumppage-back-tool-catalog.md) | ✅ | 2026-05-26 | `tools.demo.json` 仅 jumpPage + page enum catalog；删 openTicket；`test_demo_chat_context.py` 同步 |
 | 103 | [jumpPage：Agent catalog 对齐与 pageA 迁移](./prompts/103-jumppage-agent-catalog-alignment.md) | ✅ | 2026-05-26 | `jump_page_catalog.py` slug/中文/path 抽取；eval seed 迁移；executor/router/intent 测试同步 |
 | 104 | [jumpPage：Front 路由执行与 page registry](./prompts/104-jumppage-front-execution.md) | ✅ | 2026-05-26 | `page-registry.ts` + `chat.ts` router.push；未知/无权限 toast；ChatDrawer 文案更新；front build 绿 |
-| 105 | [jumpPage：README、演示手册与文档最终对齐](./prompts/105-jumppage-docs-final-alignment.md) | ⬜ 待开始 | - | 依赖 **102–104**；README/demo-walkthrough/maps/PRD/progress 收口 |
+| 105 | [jumpPage：README、演示手册与文档最终对齐](./prompts/105-jumppage-docs-final-alignment.md) | ✅ | 2026-05-26 | README/demo-walkthrough/maps/PRD/progress 收口；jumpPage 批次 102–105 完成 |
 
 ---
 
@@ -267,6 +267,7 @@
 | 2026-05-26 | 完成任务 98：README 同步 KB `role_ids[]` API、Qdrant payload M1 双读、Back junction；demo-walkthrough 多角色共享文档演示；maps `rag-flow`/`demo-platform`；PRD 落地状态与开放问题决议；KB 多角色批次 93–98 全部收口 |
 | 2026-05-26 | 完成任务 101：`is_admin` 由 `role-admin ∈ role_ids` 推导；Front 用户表单移除管理员开关；Back 写 API 不再接受客户端 `is_admin`；种子 admin 不可去掉 `role-admin`；101/101 全部完成 |
 | 2026-05-26 | 完成任务 100：`LoginView` 用户名 Enter 聚焦密码框（`passwordInputRef.focus()`），不再触发校验 toast；密码 Enter/登录按钮行为不变；front build 绿 |
+| 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 完成任务 104：Front `page-registry.ts` slug→route 映射与 admin 权限；`chat.ts` 执行 `jumpPage`（toast 未知/无权限、动态 import router）；跳转后保持 ChatDrawer 打开；front build 绿 |
 | 2026-05-26 | 完成任务 103：新增 `jump_page_catalog.py`（slug/中文别名/`/app` path 规则抽取）；`build_simple_client_action` 产出 `students`/`home` 等；intent/eval seed 迁移；router/signals/rules 对齐；118 项相关 pytest 绿 |
 | 2026-05-26 | 完成任务 102：`tools.demo.json` 仅保留 `jumpPage`，`parameters.page.enum` 对齐 PRD 五档 catalog；删除 `openTicket`；`test_demo_chat_context.py` 并集/多角色断言同步；`back/` 无 openTicket 残留 |

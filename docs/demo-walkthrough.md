@@ -78,11 +78,16 @@ cd front && npm install && npm run dev
 
 - 若存在 **仅绑定 role-admin** 的测试文档（种子外手工上传），alice/bob 对话应 **无法** 命中该文档（用户 `role_ids` 与文档 `role_ids` 无交集）。
 
-### B4 — Admin 工具与 client_actions
+### B4 — jumpPage 页面跳转（client_actions）
 
 1. **admin** 登录 → 对话抽屉。
-2. 发送：「请跳转到 pageA」或 PRD 中配置的跳转话术。
-3. 期望：响应含 `client_actions`；浏览器 **Console** 出现工具日志（Front 演示为 confirm + console，不真跳转生产页）。
+2. 发送：「请打开 RAG 管理页面」或「跳转到 RAG 管理」。
+3. 期望：SSE/JSON 含 `client_actions`，`tool: "jumpPage"`、`args.page: "admin-kb"`；浏览器 URL 变为 `/app/admin/kb`；ChatDrawer **保持打开**。
+4. 退出后以 **alice**（`role-sales`）登录 → 发送：「打开学生管理」。
+5. 期望：进入 `/app/students`。
+6. alice 再发送：「打开用户管理」。
+7. 期望：Agent 可能产出 `admin-users`；Front 拦截（与 `requiresAdmin` guard 一致）→ toast「当前账号无权访问该页面」，**停留当前页**。
+8. Network 仍只打 Back，无直连 Agent。
 
 ### B5 — 边界核对（可选，1 分钟）
 
@@ -99,6 +104,7 @@ cd front && npm install && npm run dev
 | 学生列表空 | `uv run alembic upgrade head && uv run python -m db.seed` |
 | RAG 无命中 | Qdrant 可达；文档 `role_ids[]` 与用户 Session `role_ids[]` **有交集**；存量库可跑 `agent/scripts/migrate_kb_role_ids.py`；Agent `QDRANT_MOCK=false` |
 | 对话无流式 | Agent 已启动；`AGENT_URL` 正确；Back 日志无转发超时 |
+| jumpPage 无跳转 | alice/admin 角色是否在 `tools.demo.json` 白名单；Console 是否有未知 slug toast |
 | admin 无 RAG 菜单 | 当前用户 `is_admin`；种子 admin 绑定 `role-admin` |
 
 更细的 Back/Front 路由与数据流见 [docs/maps/demo-platform.md](./maps/demo-platform.md)。

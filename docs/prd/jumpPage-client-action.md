@@ -252,11 +252,34 @@ export function isPageAllowedForUser(page: PageSlug, isAdmin: boolean): boolean;
 | 104 | [Front jumpPage 执行](./prompts/104-jumppage-front-execution.md) | page-registry、chat store |
 | 105 | [文档收口](./prompts/105-jumppage-docs-final-alignment.md) | README、demo-walkthrough、maps、PRD、progress |
 
-依赖：91（ChatDrawer SSE）✅ 已完成；102 依赖 101 ✅。
+依赖：91（ChatDrawer SSE）✅ 已完成；102 依赖 101 ✅。**jumpPage 批次 102–105** ✅ 已于 2026-05-26 收口。
 
 ---
 
-## 开放问题
+## 落地状态（2026-05-26）
+
+| 任务 | 状态 | 落地要点 |
+|------|------|----------|
+| 102 Back catalog | ✅ | `tools.demo.json` 仅 `jumpPage`；`page` enum 五档；删除 `openTicket` |
+| 103 Agent 对齐 | ✅ | `jump_page_catalog.py` 规则抽取；eval/intent seed 迁移至真实 slug |
+| 104 Front 执行 | ✅ | `page-registry.ts` + `chat.ts` `router.push`；toast 未知/无权限 |
+| 105 文档收口 | ✅ | README、demo-walkthrough、maps、本 PRD、progress |
+
+### 已知偏差
+
+- **catalog 双源**：Back `tools.demo.json` enum 与 Front `page-registry.ts` 手动同步；未引入共享 `nav-pages.json` 生成器（开放问题 #3 延期）。
+- **Agent 结构测试**：部分 schema/SSE 契约测试仍用任意 `page` 字符串作占位，不代表演示跳转目标。
+- **legacy 规则路径**：Agent `extract_jump_page_slug` 仍识别 `pageX` 等 legacy token；Front registry 仅接受 catalog slug。
+
+### 开放问题决议
+
+1. **跳转后是否关闭 ChatDrawer？** → **保持打开**（已实现）。
+2. **sales 是否需要 jumpPage？** → **保留** `role-sales`（与 Back 配置一致）。
+3. **catalog 单源？** → 一期维持 Back enum + Front TS 双维护；页面 >10 时再抽共享 JSON。
+
+---
+
+## 开放问题（历史记录）
 
 1. **跳转后是否关闭 ChatDrawer？** 建议默认保持打开，演示对话连续性。
 2. **sales 是否需要 jumpPage？** 当前 PRD 保留 role-sales；若仅 admin 演示可收窄 `roles`。
@@ -267,7 +290,7 @@ export function isPageAllowedForUser(page: PageSlug, isAdmin: boolean): boolean;
 ## 附录：LLM 参数解析 FAQ
 
 **Q：用户说「打开 pageA」会怎样？**  
-A：`pageA` 不在 enum 内。ACTION 规则路径可能仍抽出 `pageA`；白名单校验通过但 Front registry 无法解析 → 提示未知页面。eval 应迁移，不再教用户说 pageA。
+A：`pageA` 不在 catalog enum 内，演示脚本已迁移。Agent 规则路径可能仍抽出 legacy `pageX` token；Front registry 无法解析 → toast「未知页面」。eval/演示话术应使用「打开学生管理」等真实菜单语。
 
 **Q：用户说「打开学生管理」但没说 slug，模型怎么选？**  
 A：依赖 ToolSpec `description` 中的「students (学生管理)」对照；enum 约束输出必须是五个 slug 之一。

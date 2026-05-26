@@ -8,10 +8,10 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-98 已完成（Agent 核心 01-80 + 演示平台 81-92 + KB 多角色 93-98） |
+| 核心任务 | 01-105 已完成（Agent 核心 01-80 + 演示平台 81-92 + KB 多角色 93-98 + jumpPage 102-105） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
-| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 并转发 Agent |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA（dev `5173`，proxy → Back）；全局 ChatDrawer SSE + `client_actions` |
+| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `jumpPage` 工具 catalog 并转发 Agent |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA（dev `5173`，proxy → Back）；全局 ChatDrawer SSE + `client_actions`（`jumpPage` 经 `page-registry` 执行 `router.push`） |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -81,7 +81,7 @@ commonAgent/
 
 | 层级 | 职责 |
 |------|------|
-| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions` |
+| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router） |
 | Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent |
 | Agent | 记忆装配、RAG（`role_ids[]` 交集过滤 + 迁移期 payload fallback）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
 
@@ -316,19 +316,21 @@ Gateway 负责：
   "client_actions": [
     {
       "tool": "jumpPage",
-      "args": { "page": "pageA" },
+      "args": { "page": "students" },
       "requires_approval": false
     }
   ]
 }
 ```
 
+演示平台当前仅保留 **`jumpPage`** 一个外部工具（`back/config/tools.demo.json`）。`args.page` 必须是 Back 注入 ToolSpec 中 `parameters.page.enum` 的 **slug**（`home`、`students`、`admin-roles`、`admin-users`、`admin-kb`）；`description` 含 slug 与中文菜单对照，供 Agent 每轮 prompt 约束。Front [page-registry.ts](front/src/client-actions/page-registry.ts) 将 slug 映射为 Vue route name 并 `router.push`；未知 slug 或无权限时 Naive UI toast，不静默跳转。
+
 边界规则：
 
 - Agent 只产出结构化动作，不执行工具，也不等待结果。
 - Back 注入 `tools[]` 白名单，并把 `requires_approval` 透传给 Front。
 - Agent 的动作路径同时受 intent route、executor router、工具白名单和解析校验约束；未授权、不可构造或 schema 无效时走 tool fallback。
-- Front 负责确认、执行以及本地 UI 后果。
+- Front 负责确认、执行以及本地 UI 后果（`jumpPage` 已实现路由跳转；`requires_approval=true` 时先 confirm）。
 - 带 `tools[]` 的回合禁用 live token streaming，避免 `client_actions` JSON 被拆成自然语言 token。
 
 ## API
@@ -420,7 +422,7 @@ Back（演示平台，库 `common_agent_back`）：
 Front（Vue SPA）：
 
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
-- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`。
+- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` 在 [stores/chat.ts](front/src/stores/chat.ts) 调用 `page-registry` 执行跳转（跳转后默认保持抽屉打开）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 
 ## 可观测与评测

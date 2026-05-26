@@ -92,7 +92,8 @@ isProject: false
 1. admin → RAG 管理 → role-sales 上传《产品价目表》；role-support 上传《退换货政策》
 2. alice 登录 → 对话抽屉 →「标准版一年多少钱？」→ 引用 sales 文档
 3. bob 登录 →「几天可以退货？」→ 引用 support 文档
-4. admin → 对话抽屉 →「请跳转到 pageA」→ Console 出现 client_actions（role-admin 工具白名单）
+4. admin → 对话抽屉 →「请打开 RAG 管理页面」→ URL 变为 `/app/admin/kb`（`jumpPage` client_action）
+5. alice → 对话抽屉 →「打开学生管理」→ URL 变为 `/app/students`
 ```
 
 ---
@@ -401,7 +402,7 @@ Back → Agent（注入后）：
 ### 5.3 其他
 
 - 历史：Back 代理 `GET /api/threads/{thread_id}/messages`（Phase 4；带归属校验）。
-- `client_actions`：Console 日志 + `requires_approval` 时 `confirm()`。
+- `client_actions`：`jumpPage` 经 [page-registry.ts](../../front/src/client-actions/page-registry.ts) 执行 `router.push`；未知 slug / 无 admin 权限 toast；`requires_approval` 时 `confirm()`。早期 `openTicket` 占位已移除（superseded by [jumpPage-client-action.md](./jumpPage-client-action.md)）。
 - 抽屉内展示当前 `role_ids` 与 `user_id`（来自 `/api/me`）。
 
 ---
@@ -511,12 +512,27 @@ admin 路由非 admin → **403**；未登录 → **401**。
 
 ## 工具白名单（按 role_ids 并集）
 
-扩展 [context.py](../../back/src/services/context.py) 与 `config/tools.demo.json`：
+扩展 [context.py](../../back/src/services/context.py) 与 `config/tools.demo.json`（当前仅 `jumpPage`，含 `page` enum catalog；`openTicket` 已删除，见 [jumpPage-client-action.md](./jumpPage-client-action.md)）：
 
 ```json
 {
   "tools": [
-    { "name": "jumpPage", "roles": ["role-admin", "role-sales"], "requires_approval": false }
+    {
+      "name": "jumpPage",
+      "description": "Navigate… Allowed pages: home (首页), students (学生管理), admin-roles, admin-users, admin-kb…",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": ["home", "students", "admin-roles", "admin-users", "admin-kb"]
+          }
+        },
+        "required": ["page"]
+      },
+      "requires_approval": false,
+      "roles": ["role-admin", "role-sales"]
+    }
   ]
 }
 ```
