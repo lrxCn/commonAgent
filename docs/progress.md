@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：memory_query 小模型话术润色 **76 已完成**；建议执行 **77 契约、配置与小模型客户端**，最后由 **80** 统一更新 README、docs/maps、PRD 与 progress。
+**当前建议下一步**：memory_query 小模型话术润色 **77 已完成**；建议执行 **78 Graph 接入与 fallback**，最后由 **80** 统一更新 README、docs/maps、PRD 与 progress。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 80（规划） |
-| 已完成 | 76 |
+| 已完成 | 77 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -101,7 +101,7 @@
 | 74 | [LangMem 迁移 Phase 5：README、命名收口与文档最终对齐](./prompts/74-langmem-docs-final.md) | ✅ | 2026-05-25 | `user_memories` 重命名；README/maps/PRD/issue/evals 收口；521 非 integration 测试绿 |
 | 75 | [LangMem Store 前置：Postgres + pgvector 运维配置](./prompts/75-postgres-pgvector-store-setup.md) | ✅ | 2026-05-25 | README 同库运维章节；OrbStack `my-postgres` 已启用 pgvector 0.8.2；integration spike 全绿 |
 | 76 | [memory_query 润色 Phase 0：行为冻结与评测种子](./prompts/76-memory-query-polish-behavior-freeze.md) | ✅ | 2026-05-26 | 冻结 `MemoryQueryResult`/graph 路径 characterization；新增 `memory_query_polish_seed.json` 8 条 |
-| 77 | [memory_query 润色 Phase 1：契约、配置与小模型客户端](./prompts/77-memory-query-polish-contract-config.md) | ⬜ 待开始 | — | 依赖 76；新增 `MEMORY_QUERY_POLISH_*` 与小模型输出校验 |
+| 77 | [memory_query 润色 Phase 1：契约、配置与小模型客户端](./prompts/77-memory-query-polish-contract-config.md) | ✅ | 2026-05-26 | `MEMORY_QUERY_POLISH_*` settings/env；`ModelUseCase.MEMORY_QUERY_POLISH`；`query_polish.py` 校验+fallback；14 用例 |
 | 78 | [memory_query 润色 Phase 2：Graph 接入与 fallback](./prompts/78-memory-query-polish-graph-cutover.md) | ⬜ 待开始 | — | 依赖 76-77；新增 `memory_query_polish` 节点 |
 | 79 | [memory_query 润色 Phase 3：可观测、eval 与 trace 验证](./prompts/79-memory-query-polish-observability-eval.md) | ⬜ 待开始 | — | 依赖 76-78；补 `memory_query.polish.*` metadata 与 eval |
 | 80 | [memory_query 润色 Phase 4：README、代码地图与文档最终对齐](./prompts/80-memory-query-polish-docs-final.md) | ⬜ 待开始 | — | 依赖 76-79；最终同步 README、docs/maps、PRD 与 progress |
@@ -208,5 +208,6 @@
 | 2026-05-25 | 完成任务 69：`contracts/memory_store.py`（namespace/profile/read 契约）；`test_langmem_migration_characterization.py` 冻结 mem0 基线；`test_langmem_store_spike.py` 验证 Store+checkpointer 同库；pin `langmem>=0.0.30`；Store 实现随 `langgraph-checkpoint-postgres>=3.1.0`，无需单独 store 包 |
 | 2026-05-25 | 完成任务 73：删除 mem0ai、`mem0_client`/`mem0_write`、QDRANT_COLLECTION_MEM0 与 MEM0_* settings；`MEMORY_FREE_TEXT_MAX_FACTS`；AGENTS.md 改为 Store/langmem 约束 |
 | 2026-05-25 | 完成任务 74：`mem0_memories` → `user_memories`；README/maps/PRD/issue/evals 同步 Store+langmem 当前事实；LangMem 迁移 69-75 全部收口 |
+| 2026-05-26 | 完成任务 77：新增 `contracts/memory_query_polish`、`ModelUseCase.MEMORY_QUERY_POLISH`、`MEMORY_QUERY_POLISH_*` env 契约、`memory/query_polish.py` 小模型润色与输出校验 fallback；`test_memory_query_polish.py` 14 用例；未接 graph |
 | 2026-05-26 | 完成任务 76：补充 memory_query characterization/path contract 测试；新增 `memory_query_polish_seed.json`（姓名/地址/偏好/缺失/thread fallback/禁止篡改）与 seed smoke test；运行行为不变 |
 | 2026-05-26 | 文档：新增 [Agent memory_query 小模型话术润色 PRD](./prd/agent-memory-query-polish.md)，并拆分任务 **76-80**；最后任务负责 README、docs/maps、PRD 与 progress 最终对齐 |

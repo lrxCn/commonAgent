@@ -16,6 +16,7 @@ class ModelUseCase(StrEnum):
     CHITCHAT = "chitchat"
     MEMORY_EXTRACT = "memory_extract"
     INTENT_CLASSIFIER = "intent_classifier"
+    MEMORY_QUERY_POLISH = "memory_query_polish"
     EMBEDDING = "embedding"
     RERANK = "rerank"
     SUMMARY = "summary"

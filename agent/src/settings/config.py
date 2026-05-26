@@ -137,6 +137,24 @@ class Settings(BaseSettings):
         description="Timeout in seconds for structured intent classification.",
     )
 
+    # --- Memory query polish ---
+    MEMORY_QUERY_POLISH_USE_LLM: bool = Field(
+        default=False,
+        description="When true, memory_query replies use a small LLM to polish wording only.",
+    )
+    MEMORY_QUERY_POLISH_MODEL_NAME: str | None = Field(
+        default=None,
+        description="Chat model for memory_query polish; defaults to OPENAI_MODEL_NAME when unset.",
+    )
+    MEMORY_QUERY_POLISH_MAX_TOKENS: int = Field(
+        default=80,
+        description="Maximum completion tokens for memory_query polish calls.",
+    )
+    MEMORY_QUERY_POLISH_TIMEOUT_SECONDS: float = Field(
+        default=5,
+        description="Timeout in seconds for memory_query polish calls.",
+    )
+
     # --- Embedding ---
     EMBEDDING_MODEL: str = Field(
         default="BAAI/bge-large-zh-v1.5",
@@ -304,6 +322,7 @@ class Settings(BaseSettings):
         "MEMORY_STORE_SETUP",
         "QDRANT_MOCK",
         "CHITCHAT_USE_LLM",
+        "MEMORY_QUERY_POLISH_USE_LLM",
         mode="before",
     )
     @classmethod
@@ -318,6 +337,7 @@ class Settings(BaseSettings):
         "CHITCHAT_MODEL_NAME",
         "RAG_ROUTER_MODEL_NAME",
         "INTENT_CLASSIFIER_MODEL_NAME",
+        "MEMORY_QUERY_POLISH_MODEL_NAME",
         "MEMORY_EXTRACT_MODEL_NAME",
         "RAG_SUBAGENT_TOP_K",
         mode="before",

@@ -79,6 +79,19 @@ def chat_policy(
             max_retries=0,
             streaming=streaming,
         )
+    if use_case is ModelUseCase.MEMORY_QUERY_POLISH:
+        return ChatModelPolicy(
+            use_case=use_case,
+            model_name=_clean_model(
+                model_name or settings.MEMORY_QUERY_POLISH_MODEL_NAME,
+                settings.OPENAI_MODEL_NAME,
+            ),
+            temperature=0,
+            max_tokens=settings.MEMORY_QUERY_POLISH_MAX_TOKENS,
+            timeout_seconds=settings.MEMORY_QUERY_POLISH_TIMEOUT_SECONDS,
+            max_retries=0,
+            streaming=streaming,
+        )
     if use_case is ModelUseCase.SUMMARY:
         return ChatModelPolicy(
             use_case=use_case,
