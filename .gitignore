@@ -19,6 +19,9 @@ dist/
 # Node
 node_modules/
 
+# Local dev runner (PIDs + logs)
+.dev/
+
 # OS / IDE
 .DS_Store
 .claude/

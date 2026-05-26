@@ -421,7 +421,42 @@ Front（Vue SPA）：
 - OpenAI 兼容 LLM / Embedding / Rerank provider
 - 可选 LangSmith
 
-启动顺序：
+一键本地启动（OrbStack/Docker + Agent + Back + Front）：
+
+```bash
+chmod +x dev.sh   # 首次
+./dev.sh          # 或 ./dev.sh up
+```
+
+启动顺序：OrbStack/Docker（`my-postgres`、`qdrant_rag`）→ Back 迁移/seed → Agent `:18080` → Back `:8080` → Front `:5173`。  
+前提：已配置 `agent/.env`、`back/.env`（LLM、数据库密码等）。  
+Compose 定义见 [`docker-compose.dev.yml`](docker-compose.dev.yml)；若容器已存在则 `docker start`，不会重建数据库。
+
+| 命令 | 说明 |
+|------|------|
+| `./dev.sh` / `./dev.sh up` | 启动全套 |
+| `./dev.sh status` | 容器、进程 PID、HTTP 健康检查 |
+| `./dev.sh logs agent` | 实时跟踪 Agent 日志 |
+| `./dev.sh logs back` | 实时跟踪 Back 日志 |
+| `./dev.sh logs front` | 实时跟踪 Front 日志 |
+| `./dev.sh logs all` | 同时跟踪三个服务 |
+| `./dev.sh down` | 停止 Agent / Back / Front（Docker 容器保持运行） |
+| `./dev.sh down --all` | 停止应用并停止 Postgres / Qdrant 容器 |
+| `./dev.sh restart` | 先 `down` 再 `up` |
+
+日志文件（根目录 `.dev/`，已 gitignore）：
+
+| 服务 | 路径 |
+|------|------|
+| Agent | `.dev/agent.log` |
+| Back | `.dev/back.log` |
+| Front | `.dev/front.log` |
+
+也可直接查看，例如 `tail -f .dev/back.log` 或 `tail -n 100 .dev/agent.log`。
+
+启动成功后访问：`http://127.0.0.1:5173`（种子账号 admin/123456，alice\|bob/demo123）。
+
+手动分终端启动：
 
 ```bash
 # 终端 1 - Agent

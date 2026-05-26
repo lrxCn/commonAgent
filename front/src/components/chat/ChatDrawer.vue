@@ -37,10 +37,10 @@ function roleLabel(role: string): string {
 
 async function scrollToBottom(): Promise<void> {
   await nextTick();
-  const el = messageListRef.value?.$el?.querySelector(".n-scrollbar-container");
-  if (el instanceof HTMLElement) {
-    el.scrollTop = el.scrollHeight;
-  }
+  messageListRef.value?.scrollTo({
+    top: Number.MAX_SAFE_INTEGER,
+    behavior: "auto",
+  });
 }
 
 watch(
@@ -83,9 +83,20 @@ function handleDrawerUpdate(show: boolean): void {
     mask-closable
     @update:show="handleDrawerUpdate"
   >
-    <n-drawer-content title="智能对话" closable>
+    <n-drawer-content
+      title="智能对话"
+      closable
+      :body-content-style="{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        padding: '0 20px 16px',
+        boxSizing: 'border-box',
+      }"
+    >
       <div class="chat-drawer">
-        <n-space vertical :size="8" class="chat-meta">
+        <div class="chat-drawer__top">
+          <n-space vertical :size="8" class="chat-meta">
           <n-space align="center" wrap :size="8">
             <n-text depth="3">thread_id</n-text>
             <n-text code>{{ chat.threadId }}</n-text>
@@ -113,13 +124,14 @@ function handleDrawerUpdate(show: boolean): void {
           v-if="chat.error"
           type="error"
           closable
-          style="margin-top: 12px"
+          class="chat-error"
           @close="chat.clearError()"
         >
           {{ chat.error }}
         </n-alert>
+        </div>
 
-        <n-spin :show="chat.loadingHistory" style="margin-top: 12px">
+        <n-spin :show="chat.loadingHistory" class="chat-drawer__messages">
           <n-scrollbar ref="messageListRef" class="chat-messages">
             <p v-if="!chat.messages.length && !chat.loadingHistory" class="chat-empty">
               发送消息开始对话。client_actions 将输出到浏览器 Console。
@@ -130,10 +142,12 @@ function handleDrawerUpdate(show: boolean): void {
               class="chat-entry"
               :class="`chat-entry--${msg.role}`"
             >
-              <strong>{{ roleLabel(msg.role) }}</strong>
-              <p>
-                {{ msg.content }}<span v-if="msg.streaming" class="chat-cursor">▍</span>
-              </p>
+              <div class="chat-bubble">
+                <strong class="chat-entry__label">{{ roleLabel(msg.role) }}</strong>
+                <p class="chat-entry__content">
+                  {{ msg.content }}<span v-if="msg.streaming" class="chat-cursor">▍</span>
+                </p>
+              </div>
             </article>
           </n-scrollbar>
         </n-spin>
@@ -165,22 +179,48 @@ function handleDrawerUpdate(show: boolean): void {
 .chat-drawer {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  min-height: 320px;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.chat-drawer__top {
+  flex-shrink: 0;
 }
 
 .chat-meta {
   flex-shrink: 0;
 }
 
-.chat-messages {
+.chat-error {
+  margin-top: 12px;
+}
+
+.chat-drawer__messages {
   flex: 1;
-  min-height: 180px;
-  max-height: calc(100vh - 320px);
+  min-height: 0;
+  margin-top: 12px;
+}
+
+.chat-drawer__messages :deep(.n-spin-container),
+.chat-drawer__messages :deep(.n-spin-content) {
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-messages {
+  height: 100%;
   padding: 8px 4px;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
-  background: var(--n-color-modal);
+  background: #fafafa;
+  --chat-human-bg: #2563eb;
+  --chat-human-text: #ffffff;
+  --chat-human-label: rgba(255, 255, 255, 0.38);
+  --chat-ai-bg: #ffffff;
+  --chat-ai-border: #e5e7eb;
+  --chat-ai-text: #374151;
+  --chat-ai-label: #d8dce3;
 }
 
 .chat-empty {
@@ -190,28 +230,88 @@ function handleDrawerUpdate(show: boolean): void {
 }
 
 .chat-entry {
+  display: flex;
   margin-bottom: 12px;
 }
 
-.chat-entry strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: var(--n-text-color-3);
+.chat-entry--human {
+  justify-content: flex-end;
 }
 
-.chat-entry p {
+.chat-entry--ai {
+  justify-content: flex-start;
+}
+
+.chat-entry--system {
+  justify-content: center;
+}
+
+.chat-bubble {
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.chat-entry__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.chat-entry__content {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
-.chat-entry--human p {
-  color: var(--n-text-color);
+.chat-entry--human .chat-bubble {
+  background: var(--chat-human-bg);
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.18);
 }
 
-.chat-entry--ai p {
-  color: var(--n-text-color);
+.chat-entry--human .chat-entry__label {
+  text-align: right;
+  color: var(--chat-human-label);
+}
+
+.chat-entry--human .chat-entry__content {
+  color: var(--chat-human-text);
+}
+
+.chat-entry--ai .chat-bubble {
+  background: var(--chat-ai-bg);
+  border: 1px solid var(--chat-ai-border);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.chat-entry--ai .chat-entry__label {
+  text-align: left;
+  color: var(--chat-ai-label);
+}
+
+.chat-entry--ai .chat-entry__content {
+  color: var(--chat-ai-text);
+}
+
+.chat-entry--system .chat-bubble {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
+.chat-entry--system .chat-entry__label {
+  text-align: center;
+  color: #e8d4b8;
+}
+
+.chat-entry--system .chat-entry__content {
+  color: #78350f;
 }
 
 .chat-cursor {
@@ -228,7 +328,10 @@ function handleDrawerUpdate(show: boolean): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
   flex-shrink: 0;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--n-border-color);
+  background: var(--n-color-modal);
 }
 </style>

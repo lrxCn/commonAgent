@@ -29,6 +29,14 @@ def _agent_thread_messages_url(settings: Settings, thread_id: str) -> str:
     return f"{base}/internal/threads/{thread_id}/messages"
 
 
+async def _close_agent_response(
+    response: httpx.Response,
+    client: httpx.AsyncClient,
+) -> None:
+    await response.aclose()
+    await client.aclose()
+
+
 async def forward_chat_to_agent(
     payload: dict[str, Any],
     *,
@@ -38,17 +46,18 @@ async def forward_chat_to_agent(
     resolved = settings or get_settings()
     url = _agent_chat_url(resolved)
     timeout = httpx.Timeout(resolved.AGENT_TIMEOUT_SECONDS)
+    client = httpx.AsyncClient(timeout=timeout)
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            request = client.build_request(
-                "POST",
-                url,
-                json=payload,
-                headers=_agent_headers(resolved),
-            )
-            response = await client.send(request, stream=True)
+        request = client.build_request(
+            "POST",
+            url,
+            json=payload,
+            headers=_agent_headers(resolved),
+        )
+        response = await client.send(request, stream=True)
     except httpx.RequestError as exc:
+        await client.aclose()
         raise HTTPException(
             status_code=502,
             detail={"error": "agent_unreachable", "message": str(exc)},
@@ -56,7 +65,7 @@ async def forward_chat_to_agent(
 
     if response.status_code >= 400:
         body = await response.aread()
-        await response.aclose()
+        await _close_agent_response(response, client)
         raise HTTPException(status_code=response.status_code, detail=body.decode("utf-8", "replace"))
 
     content_type = response.headers.get("content-type", "application/octet-stream")
@@ -67,8 +76,11 @@ async def forward_chat_to_agent(
             try:
                 async for chunk in response.aiter_bytes():
                     yield chunk
+            except httpx.ReadError:
+                # Browser disconnected or Agent closed the stream early.
+                return
             finally:
-                await response.aclose()
+                await _close_agent_response(response, client)
 
         return StreamingResponse(
             stream_body(),
@@ -76,8 +88,10 @@ async def forward_chat_to_agent(
             status_code=response.status_code,
         )
 
-    data = await response.aread()
-    await response.aclose()
+    try:
+        data = await response.aread()
+    finally:
+        await _close_agent_response(response, client)
     return Response(content=data, media_type=content_type, status_code=response.status_code)
 
 
