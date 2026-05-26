@@ -7,6 +7,7 @@ from typing import Any, Sequence
 
 from contracts.execution import ExecutorDecision, ExecutorType
 from gateway.schemas import ClientAction, ToolSpec
+from graph.jump_page_catalog import extract_jump_page_slug
 from rag.retriever import RagChunk
 from rag.router import is_pure_client_tool_intent
 
@@ -110,18 +111,7 @@ def build_simple_client_action(
 
 
 def _extract_page_arg(message: str) -> str:
-    text = _text(message)
-    match = re.search(r"(page[a-zA-Z0-9_\-]+)", text, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    match = re.search(r"页面\s*([a-zA-Z0-9_\-]+)", text, re.IGNORECASE)
-    if match:
-        raw = match.group(1)
-        return raw if raw.lower().startswith("page") else f"page{raw}"
-    match = re.search(r"/([a-zA-Z0-9_\-/]+)", text)
-    if match:
-        return f"/{match.group(1)}"
-    return ""
+    return extract_jump_page_slug(message)
 
 
 def executor_trace_metadata(

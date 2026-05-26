@@ -216,7 +216,7 @@ def test_knowledge_query_empty_rag_uses_no_source_fallback(
 
 
 def test_client_action_path_contract_uses_action_executor_without_model() -> None:
-    result = _invoke("打开 pageA", thread_id="path-client-action", tools=[_JUMP_TOOL])
+    result = _invoke("打开学生管理", thread_id="path-client-action", tools=[_JUMP_TOOL])
 
     metrics = result["path_metrics"]
     actions = result.get("client_actions") or []
@@ -224,7 +224,7 @@ def test_client_action_path_contract_uses_action_executor_without_model() -> Non
     assert result["executor"] == "action_executor"
     assert result["executor_reason"] == "simple_client_action"
     assert actions[0].tool == "jumpPage"
-    assert actions[0].args == {"page": "pageA"}
+    assert actions[0].args == {"page": "students"}
     assert metrics["path_contract"] == "pass"
     assert metrics["llm_call_count"] == 0
     assert metrics["rewrite"] == {"should_call": False, "called": False}

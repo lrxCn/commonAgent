@@ -10,6 +10,7 @@ from contracts.intent import (
     IntentRoute,
     SpeechAct,
 )
+from graph.jump_page_catalog import extract_jump_page_slug
 from intent.signals import IntentSignals, extract_signals
 
 
@@ -280,9 +281,11 @@ def _client_action_evidence(signals: IntentSignals) -> list[str]:
 
 
 def _page_evidence(text: str) -> str:
-    for token in ("pageA", "订单页"):
-        if token in text:
-            return token
+    slug = extract_jump_page_slug(text)
+    if slug:
+        return slug
+    if "订单页" in text:
+        return "订单页"
     return text
 
 

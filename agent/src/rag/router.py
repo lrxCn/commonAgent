@@ -18,6 +18,7 @@ from contracts.llm import ModelUseCase
 from infrastructure.llm.gateway import get_llm_gateway
 from gateway.schemas import ToolSpec
 from observability.tracing import emit_event, rag_router_traceable
+from graph.jump_page_catalog import has_jump_page_reference
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 from settings.config import get_settings
 
@@ -29,11 +30,6 @@ _classifier_override: BaseChatModel | Callable[[str], str] | None = None
 
 _NAV_INTENT_RE = re.compile(
     r"(?:打开|跳转|前往|进入|切换到|去|open|goto|go\s+to|navigate)",
-    re.IGNORECASE,
-)
-
-_PAGE_REF_RE = re.compile(
-    r"(?:page[a-zA-Z0-9_\-]+|页面\s*[a-zA-Z0-9_\-]+|/[a-zA-Z0-9_\-/]+)",
     re.IGNORECASE,
 )
 
@@ -107,7 +103,7 @@ def is_pure_client_tool_intent(
     """
     Navigation-only intent with whitelisted client tools and no knowledge ask.
 
-    Example: 「打开 pageA」 + jumpPage → skip RAG.
+    Example: 「打开学生管理」 + jumpPage → skip RAG.
     """
     if not _has_navigation_tool(tools_context):
         return False
@@ -118,7 +114,7 @@ def is_pure_client_tool_intent(
         if not text:
             continue
         if _NAV_INTENT_RE.search(text) and (
-            _PAGE_REF_RE.search(text) or len(text) <= 32
+            has_jump_page_reference(text) or len(text) <= 32
         ):
             return True
     return False

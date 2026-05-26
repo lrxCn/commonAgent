@@ -109,7 +109,7 @@
   },
   {
     "id": "client-action-jumppage-001",
-    "input": "跳转到页面 A",
+    "input": "打开学生管理",
     "context": {
       "user_id": "u1",
       "role_id": "role-sales",

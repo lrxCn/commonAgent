@@ -110,11 +110,30 @@ def test_choose_executor_deepagents_for_complex_task() -> None:
 
 
 def test_build_simple_client_action_extracts_page() -> None:
-    action = build_simple_client_action("打开 pageA", [_JUMP_TOOL])
+    action = build_simple_client_action("打开学生管理", [_JUMP_TOOL])
 
     assert action is not None
     assert action.tool == "jumpPage"
-    assert action.args == {"page": "pageA"}
+    assert action.args == {"page": "students"}
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_page"),
+    [
+        ("打开学生管理", "students"),
+        ("跳转到首页", "home"),
+        ("前往 /app/admin/kb", "admin-kb"),
+        ("打开 pageA", "pageA"),
+    ],
+)
+def test_build_simple_client_action_catalog_and_legacy(
+    message: str,
+    expected_page: str,
+) -> None:
+    action = build_simple_client_action(message, [_JUMP_TOOL])
+
+    assert action is not None
+    assert action.args == {"page": expected_page}
 
 
 def test_rag_answer_executor_does_not_call_deepagents() -> None:
@@ -161,13 +180,13 @@ def test_simple_client_action_executor_skips_deepagents() -> None:
     set_supervisor_invoke(deepagents)
     set_answer_invoke(answer)
 
-    result = _invoke("打开 pageA", thread_id="executor-action", tools=[_JUMP_TOOL])
+    result = _invoke("打开学生管理", thread_id="executor-action", tools=[_JUMP_TOOL])
 
     actions = result.get("client_actions") or []
     assert result.get("executor") == "action_executor"
     assert len(actions) == 1
     assert actions[0].tool == "jumpPage"
-    assert actions[0].args == {"page": "pageA"}
+    assert actions[0].args == {"page": "students"}
     assert result.get("path_metrics", {}).get("supervisor") == {
         "should_call": False,
         "called": False,

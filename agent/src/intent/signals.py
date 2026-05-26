@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from gateway.schemas import ToolSpec
+from graph.jump_page_catalog import has_jump_page_reference
 from rag.intent import has_knowledge_intent, is_chitchat, is_user_fact_statement
 
 _QUESTION_WORD_RE = re.compile(
@@ -31,10 +32,6 @@ _CONTINUATION_RE = re.compile(
 )
 _TOOL_ACTION_RE = re.compile(
     r"(?:打开|跳转|前往|进入|切换到|去|访问|open|goto|go\s+to|navigate)",
-    re.IGNORECASE,
-)
-_PAGE_REF_RE = re.compile(
-    r"(?:page[a-zA-Z0-9_\-]+|页面\s*[a-zA-Z0-9_\-]+|订单页|/[a-zA-Z0-9_\-/]+)",
     re.IGNORECASE,
 )
 _NAV_TOOL_NAMES = frozenset(
@@ -157,7 +154,7 @@ def extract_signals(
         is_chitchat=is_chitchat(text),
         chitchat_kind=chitchat_kind,
         has_tool_action=_TOOL_ACTION_RE.search(text) is not None,
-        has_page_reference=_PAGE_REF_RE.search(text) is not None,
+        has_page_reference=has_jump_page_reference(text),
         allowed_tool_names=allowed_tools,
         has_allowed_client_tool=_has_navigation_tool(allowed_tools),
         has_anaphora=_ANAPHORA_RE.search(text) is not None,

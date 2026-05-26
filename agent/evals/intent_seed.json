@@ -172,18 +172,23 @@
     }
   },
   {
-    "id": "intent-client-action-page-a-001",
-    "input": "打开 pageA",
+    "id": "intent-client-action-students-001",
+    "input": "打开学生管理",
     "context": {
       "user_id": "u1",
       "role_id": "role-sales",
       "tools": [
         {
           "name": "jumpPage",
-          "description": "Navigate to an in-app page.",
+          "description": "Navigate to an in-app page. Allowed pages: home (首页), students (学生管理), admin-roles (角色管理, admin only), admin-users (用户管理, admin only), admin-kb (RAG/知识库管理, admin only). Use the slug exactly as listed.",
           "parameters": {
             "type": "object",
-            "properties": {"page": {"type": "string"}},
+            "properties": {
+              "page": {
+                "type": "string",
+                "enum": ["home", "students", "admin-roles", "admin-users", "admin-kb"]
+              }
+            },
             "required": ["page"]
           },
           "requires_approval": false
@@ -197,13 +202,13 @@
       "route": "client_action",
       "risk": "low",
       "reasons": ["tool_command", "allowed_tool_available"],
-      "evidence": ["打开", "pageA"],
+      "evidence": ["打开", "students"],
       "needs_clarification": false
     }
   },
   {
-    "id": "intent-client-action-orders-001",
-    "input": "跳转到订单页",
+    "id": "intent-client-action-home-001",
+    "input": "跳转到首页",
     "context": {
       "user_id": "u1",
       "role_id": "role-sales",
@@ -227,7 +232,7 @@
       "route": "client_action",
       "risk": "low",
       "reasons": ["tool_command", "allowed_tool_available"],
-      "evidence": ["跳转", "订单页"],
+      "evidence": ["跳转到首页", "home"],
       "needs_clarification": false
     }
   },
