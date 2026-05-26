@@ -1,0 +1,197 @@
+[
+  {
+    "id": "memory-query-polish-name-hit-001",
+    "category": "polish_hit_name",
+    "input": "我叫什么",
+    "context": {
+      "user_memories": ["用户叫刘日兴"]
+    },
+    "deterministic_reply": "我记录到你叫刘日兴。",
+    "evidence": [
+      {"field": "name", "value": "刘日兴", "source": "memory_profile"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "must_preserve_evidence_values",
+      "natural_chinese",
+      "no_new_facts"
+    ],
+    "forbidden_outputs": [
+      "王五",
+      "李四",
+      "可能叫",
+      "大概叫",
+      "我猜"
+    ],
+    "example_polished_reply": "我记得你的名字是刘日兴。"
+  },
+  {
+    "id": "memory-query-polish-company-address-hit-001",
+    "category": "polish_hit_company_address",
+    "input": "我公司在哪",
+    "context": {
+      "user_memories": ["我公司在天翔街188号"]
+    },
+    "deterministic_reply": "我记录到你公司的地址是天翔街188号。",
+    "evidence": [
+      {"field": "company_address", "value": "天翔街188号", "source": "memory_profile"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "must_preserve_evidence_values",
+      "natural_chinese",
+      "no_new_facts"
+    ],
+    "forbidden_outputs": [
+      "天翔街189号",
+      "可能在",
+      "大概是"
+    ],
+    "example_polished_reply": "你公司的地址我这边记录的是天翔街188号。"
+  },
+  {
+    "id": "memory-query-polish-preference-hit-001",
+    "category": "polish_hit_preference",
+    "input": "我喜欢什么",
+    "context": {
+      "user_memories": ["用户喜欢周五下午安排复盘"]
+    },
+    "deterministic_reply": "我记录到：用户喜欢周五下午安排复盘。",
+    "evidence": [
+      {"field": "preference", "value": "用户喜欢周五下午安排复盘", "source": "memory_free_text"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "must_preserve_evidence_values",
+      "natural_chinese",
+      "no_new_facts"
+    ],
+    "forbidden_outputs": [
+      "周一上午",
+      "可能喜欢",
+      "我猜你喜欢"
+    ],
+    "example_polished_reply": "我记录到的相关偏好：用户喜欢周五下午安排复盘。"
+  },
+  {
+    "id": "memory-query-polish-missing-name-001",
+    "category": "polish_missing_name",
+    "input": "我叫什么",
+    "context": {
+      "user_memories": []
+    },
+    "deterministic_reply": "我目前没有可靠记录你的姓名。你可以告诉我你的名字，我之后会按你的授权记住。",
+    "evidence": [],
+    "missing_reason": "missing_name",
+    "expected_polish_constraints": [
+      "must_not_invent_name",
+      "honest_missing_memory",
+      "may_soften_wording_only"
+    ],
+    "forbidden_outputs": [
+      "你叫",
+      "你的名字是",
+      "可能叫",
+      "大概叫"
+    ],
+    "example_polished_reply": "我这边还没有可靠记录你的姓名。你可以告诉我，我之后会按你的授权记住。"
+  },
+  {
+    "id": "memory-query-polish-missing-profile-001",
+    "category": "polish_missing_profile",
+    "input": "我是谁",
+    "context": {
+      "user_memories": []
+    },
+    "deterministic_reply": "我目前没有可靠记录你是谁。你可以告诉我你的名字或身份，我之后会按你的授权记住。",
+    "evidence": [],
+    "missing_reason": "missing_memory_profile",
+    "expected_polish_constraints": [
+      "must_not_invent_identity",
+      "honest_missing_memory",
+      "may_soften_wording_only"
+    ],
+    "forbidden_outputs": [
+      "你是产品经理",
+      "你叫",
+      "可能",
+      "大概",
+      "我猜"
+    ],
+    "example_polished_reply": "我这边还没有可靠记录你的身份。你可以告诉我，我之后会按你的授权记住。"
+  },
+  {
+    "id": "memory-query-polish-thread-fallback-001",
+    "category": "polish_thread_fallback",
+    "input": "我叫什么",
+    "context": {
+      "user_memories": [],
+      "thread_messages": [
+        {"role": "user", "content": "我叫王五"},
+        {"role": "assistant", "content": "已收到"},
+        {"role": "user", "content": "我叫什么"}
+      ]
+    },
+    "deterministic_reply": "我记录到你叫王五。",
+    "evidence": [
+      {"field": "name", "value": "王五", "source": "thread_memory"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "must_preserve_evidence_values",
+      "natural_chinese",
+      "no_new_facts"
+    ],
+    "forbidden_outputs": [
+      "刘日兴",
+      "李四",
+      "可能叫"
+    ],
+    "example_polished_reply": "根据这轮对话，你刚才说过你叫王五。"
+  },
+  {
+    "id": "memory-query-polish-forbidden-fact-tamper-001",
+    "category": "polish_forbidden_fact_tamper",
+    "input": "我叫什么",
+    "context": {
+      "user_memories": ["用户叫刘日兴"]
+    },
+    "deterministic_reply": "我记录到你叫刘日兴。",
+    "evidence": [
+      {"field": "name", "value": "刘日兴", "source": "memory_profile"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "reject_if_evidence_value_missing",
+      "fallback_to_deterministic_reply"
+    ],
+    "forbidden_outputs": [
+      "我记得你的名字是王五。",
+      "你叫王五。",
+      "刘日兴，也可能叫王五。"
+    ]
+  },
+  {
+    "id": "memory-query-polish-forbidden-uncertainty-001",
+    "category": "polish_forbidden_uncertainty",
+    "input": "我公司在哪",
+    "context": {
+      "user_memories": ["我公司在天翔街188号"]
+    },
+    "deterministic_reply": "我记录到你公司的地址是天翔街188号。",
+    "evidence": [
+      {"field": "company_address", "value": "天翔街188号", "source": "memory_profile"}
+    ],
+    "missing_reason": "",
+    "expected_polish_constraints": [
+      "reject_uncertain_fact_phrasing",
+      "fallback_to_deterministic_reply"
+    ],
+    "forbidden_outputs": [
+      "可能是天翔街188号",
+      "大概在天翔街188号",
+      "我猜是",
+      "不确定"
+    ]
+  }
+]

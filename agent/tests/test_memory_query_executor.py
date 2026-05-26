@@ -13,7 +13,13 @@ from graph.build import compile_graph
 from graph.context import graph_context_from_request
 from graph.supervisor import reset_supervisor_overrides, set_supervisor_invoke
 from memory.history import set_history_checkpointer
-from memory.query import MISSING_MEMORY_REPLY, answer_memory_query
+from memory.query import (
+    MISSING_MEMORY_REPLY,
+    MemoryQueryEvidence,
+    MemoryQueryResult,
+    answer_memory_query,
+    memory_query_trace_metadata,
+)
 import rag.retriever as retriever_mod
 from rag.retriever import reset_retriever_overrides
 from rag.rewrite import set_rewrite_llm
@@ -165,3 +171,104 @@ def test_memory_query_graph_records_missing_memory_fallback() -> None:
     assert result["path_metrics"]["fallback_reason"] == "missing_memory_profile"
     assert result["path_metrics"]["fallback_action"] == "honest_missing_memory"
     assert result["path_metrics"]["fallback_user_visible"] is True
+
+
+def test_memory_query_characterization_name_evidence_and_trace() -> None:
+    result = answer_memory_query("我叫什么", user_memories=["用户叫刘日兴"])
+
+    assert result == MemoryQueryResult(
+        reply="我记录到你叫刘日兴。",
+        evidence=(
+            MemoryQueryEvidence(
+                source="memory_profile",
+                field="name",
+                value="刘日兴",
+                text="姓名: 刘日兴",
+            ),
+        ),
+        missing_reason="",
+    )
+    assert memory_query_trace_metadata(result) == {
+        "memory_query.evidence_count": 1,
+        "memory_query.evidence_sources": ["memory_profile"],
+        "memory_query.evidence_fields": ["name"],
+        "memory_query.missing_reason": "",
+    }
+
+
+def test_memory_query_characterization_company_address() -> None:
+    result = answer_memory_query("我公司在哪", user_memories=["我公司在天翔街188号"])
+
+    assert result.reply == "我记录到你公司的地址是天翔街188号。"
+    assert result.missing_reason == ""
+    assert result.evidence == (
+        MemoryQueryEvidence(
+            source="memory_profile",
+            field="company_address",
+            value="天翔街188号",
+            text="公司地址: 天翔街188号",
+        ),
+    )
+
+
+def test_memory_query_characterization_preference_free_text() -> None:
+    result = answer_memory_query("我喜欢什么", user_memories=["用户喜欢周五下午安排复盘"])
+
+    assert result.reply == "我记录到：用户喜欢周五下午安排复盘。"
+    assert result.missing_reason == ""
+    assert result.evidence[0].field == "preference"
+    assert result.evidence[0].source == "memory_free_text"
+    assert result.evidence[0].value == "用户喜欢周五下午安排复盘"
+
+
+def test_memory_query_characterization_missing_name_reply_and_reason() -> None:
+    result = answer_memory_query("我叫什么", user_memories=[])
+
+    assert result.reply == (
+        "我目前没有可靠记录你的姓名。你可以告诉我你的名字，我之后会按你的授权记住。"
+    )
+    assert result.evidence == ()
+    assert result.missing_reason == "missing_name"
+
+
+def test_memory_query_characterization_missing_profile_reply_and_reason() -> None:
+    result = answer_memory_query("我是谁", user_memories=[])
+
+    assert result.reply == MISSING_MEMORY_REPLY
+    assert result.evidence == ()
+    assert result.missing_reason == "missing_memory_profile"
+
+
+def test_memory_query_characterization_thread_fallback_source() -> None:
+    result = answer_memory_query(
+        "我叫什么",
+        user_memories=[],
+        messages=[
+            HumanMessage(content="我叫王五"),
+            AIMessage(content="已收到"),
+            HumanMessage(content="我叫什么"),
+        ],
+    )
+
+    assert result.reply == "我记录到你叫王五。"
+    assert result.evidence == (
+        MemoryQueryEvidence(
+            source="thread_memory",
+            field="name",
+            value="王五",
+            text="姓名: 王五",
+        ),
+    )
+    assert result.missing_reason == ""
+
+
+def test_memory_query_characterization_full_profile_multi_evidence() -> None:
+    result = answer_memory_query(
+        "我是谁",
+        user_memories=["用户叫刘日兴", "用户是产品经理", "用户在北京"],
+    )
+
+    assert result.reply == "根据可靠记忆，我记录到：你叫刘日兴；你是产品经理。"
+    assert [item.field for item in result.evidence] == ["name", "job"]
+    assert all(item.source == "memory_profile" for item in result.evidence)
+    assert result.missing_reason == ""

@@ -143,6 +143,26 @@ def test_memory_query_path_contract_skips_rag_and_models(
     result = _invoke("我是谁", thread_id="path-memory-query")
 
     metrics = result["path_metrics"]
+    assert result["intent_decision"].route == "memory_query"
+    assert result["turn_type"] == "memory_query"
+    assert result["executor"] == "memory_query_executor"
+    assert result["executor"] != "deepagents_executor"
+    assert metrics["path_contract"] == "pass"
+    assert metrics["fast_path"] is True
+    assert metrics["post_turn_scheduled"] is False
+    assert metrics["llm_call_count"] == 0
+    assert metrics["rewrite"] == {"should_call": False, "called": False}
+    assert metrics["rag_router"] == {"should_call": False, "called": False}
+    assert metrics["rag"] == {"should_call": False, "called": False}
+    assert metrics["supervisor"] == {"should_call": False, "called": False}
+
+
+def test_memory_query_path_contract_skips_rewrite_rag_supervisor_on_missing_memory() -> None:
+    result = _invoke("我叫什么", thread_id="path-memory-query-missing-name")
+
+    metrics = result["path_metrics"]
+    assert result["intent_decision"].route == "memory_query"
+    assert result["turn_type"] == "memory_query"
     assert result["executor"] == "memory_query_executor"
     assert metrics["path_contract"] == "pass"
     assert metrics["fast_path"] is True
@@ -152,6 +172,8 @@ def test_memory_query_path_contract_skips_rag_and_models(
     assert metrics["rag_router"] == {"should_call": False, "called": False}
     assert metrics["rag"] == {"should_call": False, "called": False}
     assert metrics["supervisor"] == {"should_call": False, "called": False}
+    assert metrics["fallback_layer"] == "memory"
+    assert metrics["fallback_reason"] == "missing_name"
 
 
 def test_knowledge_query_path_contract_runs_rag_without_router_llm() -> None:
