@@ -49,7 +49,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 commonAgent/
 ├── AGENTS.md
 ├── README.md
-├── front/                 # 静态单页：thread_id、SSE、client_actions demo
+├── front/                 # Vue 3 SPA（演示平台）；legacy 静态页见 legacy.html
 ├── back/                  # Front 入口：demo context、工具白名单、转发 Agent
 ├── agent/
 │   ├── src/
@@ -416,10 +416,10 @@ uv sync
 cp .env.example .env
 uv run uvicorn src.main:app --host 127.0.0.1 --port 8080
 
-# 终端 3 - Front
+# 终端 3 - Front（Vue SPA，dev 默认 5173，proxy → Back :8080）
 cd front
 npm install
-npm run start
+npm run dev
 ```
 
 LangGraph 开发入口：

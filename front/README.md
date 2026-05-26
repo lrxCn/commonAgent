@@ -1,11 +1,11 @@
-# Front（占位）
+# Front（Vue 3 SPA）
 
-最小对话页：`thread_id` 存在 **sessionStorage**；仅请求 **Back**（不直连 Agent）；展示 SSE 文本流；`client_actions` 输出到浏览器 **Console**（`requires_approval=true` 时先 `confirm()`）。
+演示平台前端：Vue 3 + TypeScript + Vite + Pinia + Naive UI + Vue Router。浏览器只请求 **Back**（`withCredentials` + dev proxy），不直连 Agent。
 
 ## 启动顺序
 
-1. **Agent**（内网 Gateway）  
-2. **Back**（须开启 CORS，见 `back/src/api/app.py`）  
+1. **Agent**（内网 Gateway）
+2. **Back**（CORS 放行 `5173`，见 `back/.env` `CORS_ORIGINS`）
 3. **Front**（本目录）
 
 ```bash
@@ -15,37 +15,41 @@ cd agent && uv sync && uv run uvicorn main:app --host 127.0.0.1 --port 18080
 # 终端 2 — Back
 cd back && uv sync && uv run uvicorn main:app --host 127.0.0.1 --port 8080
 
-# 终端 3 — Front
-cd front && npm run start
-# 浏览器打开 http://127.0.0.1:3000
+# 终端 3 — Front（Vue SPA）
+cd front && npm install && npm run dev
+# 浏览器打开 http://127.0.0.1:5173
 ```
 
-页面上的 **Back URL** 默认 `http://127.0.0.1:8080`，可按环境修改。
+生产构建：
 
-## 手动测试步骤
+```bash
+cd front && npm run build
+# 产物在 front/dist/
+```
 
-1. 打开 http://127.0.0.1:3000 ，确认页头显示 `thread_id`（首次访问会自动 `crypto.randomUUID()` 并写入 sessionStorage）。
-2. 打开 DevTools → **Network** 与 **Console**。
-3. 发送「你好」：
-   - Network：`POST /api/chat` 状态 200，`Content-Type` 为 `text/event-stream`；
-   - 页面助手区逐字出现回复。
-4. 发送「请跳转到 pageA」或类似意图（触发 `jumpPage`）：
-   - 若 Back 返回 JSON（含 `client_actions`），Console 出现 `[client_actions]` 日志；
-   - 若工具 `requires_approval: true`，应先弹出确认框再 log。
-5. 点击「新开 thread」：生成新 `thread_id`、清空对话区；改权限/上传文档场景请用此操作（文案提示，逻辑后期实现）。
+## Legacy 静态占位
 
-刷新页面后 `thread_id` 应保持不变（sessionStorage）。
-
-## 历史消息
-
-任务 22 Back **未**代理 Agent 历史 API，故本占位 **无**「拉取历史」按钮。后续 Back 增加 `GET /api/threads/{id}/messages` 代理后可再接。
-
-## 文件
+任务 **92** 前保留旧静态页文件：
 
 | 文件 | 说明 |
 |------|------|
-| `index.html` | 单页结构 |
+| `legacy.html` | 原占位单页（原 `index.html` 内容） |
 | `app.js` | chat / SSE / client_actions |
 | `styles.css` | 最小样式 |
 
-任务卡：[docs/prompts/23-front-stub.md](../docs/prompts/23-front-stub.md)
+本地仍可手动打开 `legacy.html`，或 `npm run start:legacy`（端口 3000）。
+
+## 目录
+
+```text
+front/src/
+├── api/          # axios 实例（http.ts）
+├── stores/       # Pinia
+├── views/        # 路由页面
+├── components/   # 可复用组件
+├── router/
+├── types/
+└── main.ts
+```
+
+任务卡：[83-demo-front-vue-scaffold](../docs/prompts/83-demo-front-vue-scaffold.md)

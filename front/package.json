@@ -2,8 +2,25 @@
   "name": "common-agent-front",
   "private": true,
   "version": "0.1.0",
-  "description": "Front stub for commonAgent (static HTML, no build step)",
+  "type": "module",
+  "description": "Vue 3 SPA for commonAgent demo admin console",
   "scripts": {
-    "start": "npx --yes serve . -p 3000"
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "start:legacy": "npx --yes serve . -p 3000"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "naive-ui": "^2.41.0",
+    "pinia": "^3.0.2",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
   }
 }

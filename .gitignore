@@ -16,6 +16,9 @@ dist/
 # LangGraph 本地 API
 .langgraph_api/
 
+# Node
+node_modules/
+
 # OS / IDE
 .DS_Store
 .claude/
