@@ -337,7 +337,21 @@ GET /health
 POST /internal/chat
 GET /internal/threads/{thread_id}/messages?cursor=&limit=20
 POST /internal/kb/ingest
+GET /internal/kb/documents?role_id=
+GET /internal/kb/documents/{doc_id}?role_id=
+DELETE /internal/kb/documents/{doc_id}?role_id=
 ```
+
+KB 管理分工（演示平台）：
+
+- **向量 + chunk 预览**：Qdrant（Agent list/get/delete）；`GET .../documents/{doc_id}` 仅返回 chunk 列表，**不**拼原文。
+- **原文 + 列表 meta**：Back `kb_document_meta`；ingest **成功后双写**；详情/编辑 **正文读 meta.raw_content**。
+
+Back 演示平台（admin）：
+
+- `POST /api/admin/kb/documents`：校验 admin → 转发 Agent ingest → 成功 upsert meta（含 `raw_content`、`chunks_written`、`tokens_estimated`）。
+- `GET/PATCH/DELETE /api/admin/kb/documents`：读/写 meta；详情 chunk 概览代理 Agent；删除同时清 Qdrant 与 meta。
+- 上传限制：≤2MB；`.txt`/`.md`；UTF-8（JSON `content` 字段同样校验）。
 
 `POST /internal/chat` 请求体：
 
@@ -362,6 +376,7 @@ Back：
 
 - `POST /api/chat`：接收 Front `{thread_id, message}`，注入 demo context，转发 Agent。
 - `GET /health`：存活检查。
+- admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`（KB 见上）。
 
 Front：
 

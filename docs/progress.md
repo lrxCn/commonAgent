@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：演示平台 **89** [Agent KB API + Back kb_document_meta 双写](./prompts/89-demo-kb-meta-agent-apis.md) 或 **91** [ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md)（91 依赖 88）。
+**当前建议下一步**：演示平台 **90** [Front RAG 管理页](./prompts/90-demo-front-rag-admin-ui.md) 或 **91** [ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md)（91 依赖 88）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 92（规划） |
-| 已完成 | 88（01–80 Agent 核心 + 81–88 演示平台） |
+| 已完成 | 89（01–80 Agent 核心 + 81–89 演示平台） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -115,7 +115,7 @@
 | 86 | [演示平台：账号管理（角色与用户 CRUD）](./prompts/86-demo-admin-accounts-crud.md) | ✅ | 2026-05-26 | `/api/admin/roles|users`；403/409/admin 保护；`RolesView`/`UsersView`；`test_demo_admin.py` 14 用例 |
 | 87 | [演示平台：Agent role_ids[] 与 RAG OR 检索](./prompts/87-demo-agent-role-ids-rag-or.md) | ✅ | 2026-05-26 | `RequestContext.role_ids` + deprecated `role_id` alias；Qdrant `should` OR filter；`test_role_ids_filter.py` |
 | 88 | [演示平台：Back context 注入与 chat_threads](./prompts/88-demo-back-context-chat-threads.md) | ✅ | 2026-05-26 | Session 注入 `role_ids[]`+tools 并集；`chat_threads` 归属 403；`test_demo_chat_context.py` |
-| 89 | [演示平台：Agent KB API + Back kb_document_meta 双写](./prompts/89-demo-kb-meta-agent-apis.md) | ⬜ | — | 依赖 81、86、87 |
+| 89 | [演示平台：Agent KB API + Back kb_document_meta 双写](./prompts/89-demo-kb-meta-agent-apis.md) | ✅ | 2026-05-26 | Agent list/get/delete；Back 双写+代理；`test_kb_admin_api.py` 6 + `test_demo_kb.py` 7 用例 |
 | 90 | [演示平台：Front RAG 管理页](./prompts/90-demo-front-rag-admin-ui.md) | ⬜ | — | 依赖 89、84、86 |
 | 91 | [演示平台：ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md) | ⬜ | — | 依赖 88、84 |
 | 92 | [演示平台：文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md) | ⬜ | — | 依赖 81–91；README、demo-walkthrough、maps |
@@ -236,4 +236,4 @@
 | 2026-05-26 | 完成任务 84：Front 登录页（`/login`）、`AppLayout`+侧边栏+顶栏退出、`HomeView` 展示 `/api/me` 与角色标签；路由守卫 `requiresAuth`/`requiresAdmin`；`ChatFab`+`ChatDrawer`（420px 空壳）；Pinia `auth`/`chat` store；401 全局跳转登录 |
 | 2026-05-26 | 完成任务 82：Back HttpOnly Cookie Session（`SessionMiddleware`+signed cookie）；`POST /api/auth/login|logout`、`GET /api/me`；bcrypt 校验；PRD 统一错误体；`SESSION_SECRET`/`CORS_ORIGINS` env；`test_demo_auth.py` 8 用例 |
 | 2026-05-26 | 完成任务 81：Back `db/` ORM（roles/users/user_roles/students/kb_document_meta/chat_threads）、Alembic 初始迁移、`db.seed` CLI、`domain/role_id` 格式校验；`DATABASE_URL`/`ADMIN_SEED_PASSWORD` env 契约；`test_demo_database.py` 4 用例（SQLite fixture） |
-| 2026-05-26 | 文档：基于 [演示平台 PRD](./prd/demo-admin-console.md) 拆分任务 **81-92**（12 张任务卡）；**92** 负责 README、`role_ids[]` 契约、demo-walkthrough、maps、移除 legacy static front 与 progress 收口 |
+| 2026-05-26 | 完成任务 89：Agent `GET/DELETE /internal/kb/documents` + chunk 预览；Back `/api/admin/kb/documents` ingest 成功后 upsert `kb_document_meta`（含 `raw_content`）；GET/PATCH/DELETE 代理 Agent + meta；≤2MB UTF-8 校验 |
