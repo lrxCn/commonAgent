@@ -46,30 +46,37 @@ cd front && npm install && npm run dev
 
 ---
 
-## 脚本 B — RAG 多角色 + 对话（约 10 分钟）
+## 脚本 B — RAG 多角色 + 对话（约 10–12 分钟）
 
-**目标**：展示 `role_ids[]` 注入、Qdrant OR 检索隔离、`client_actions` 与换账号对比。
+**目标**：展示文档级 `role_ids[]`、用户 Session `role_ids[]` 注入、payload 交集检索隔离、多角色同文档共享，以及 `client_actions`。
 
-### B1 — 上传分角色知识库（admin）
+### B1 — 上传单角色与多角色知识库（admin）
 
 1. **admin** 登录 → 侧边栏 **RAG 管理**（`/app/admin/kb`）。
-2. 为 **role-sales** 上传文本（如 `产品价目表.md`，内容含「标准版一年 3999 元」等可检索事实）。
-3. 为 **role-support** 上传另一文档（如 `退换货政策.md`，内容含「7 天内可退货」等）。
-4. 列表中确认两条记录 `role_id` 不同；点开详情可见 chunk 概览（原文在 Back `kb_document_meta`）。
+2. **仅 sales**：新建文档，角色多选勾选 **role-sales**，上传 `产品价目表.md`（含「标准版一年 3999 元」等可检索事实）。
+3. **仅 support**：再建一条，仅勾选 **role-support**，上传 `退换货政策.md`（含「7 天内可退货」等）。
+4. **sales + support 共享**：再建一条，**同时勾选 role-sales 与 role-support**，上传 `公司通用 FAQ.md`（含双方都关心的通用条款，如「客服热线 400-xxx」）。
+5. 列表中每条记录以 **Tag 展示 `role_ids[]`**（非单 `role_id`）；点开详情可见 chunk 概览；正文存 Back `kb_document_meta.raw_content`，向量在 Qdrant。
 
 ### B2 — 销售角色对话（alice）
 
-1. 退出后以 **alice** 登录（仅 `role-sales`）。
+1. 退出后以 **alice** 登录（Session 仅 `role-sales`）。
 2. 任意页点击右下角 FAB → **对话抽屉**（约 420px）。
 3. 提问：「标准版一年多少钱？」
-4. 期望：回答引用 sales 文档；**不应**出现 support 文档内容。
-5. （可选）新开 thread（抽屉内或刷新 session）避免旧上下文干扰。
+4. 期望：命中 **sales 价目表** 或 **共享 FAQ**；**不应**引用仅 support 的退换货政策。
+5. 再问共享 FAQ 中的事实（如客服热线），期望能命中 **B1 步骤 4** 的多角色文档。
+6. （可选）新开 thread（清空 sessionStorage `thread_id` 或刷新）避免旧上下文干扰。
 
 ### B3 — 支持角色对话（bob）
 
-1. **bob** 登录 → 打开对话抽屉。
+1. **bob** 登录（仅 `role-support`）→ 打开对话抽屉。
 2. 提问：「买错了可以退吗？」或「几天可以退货？」
-3. 期望：引用 support 文档；与 alice 结果隔离。
+3. 期望：命中 **support 政策** 或 **共享 FAQ**；**不应**出现仅 sales 的价目表细节。
+4. 用与 alice 相同的话术问共享 FAQ，期望 **同一 doc_id** 内容对 bob 也可检索（文档 `role_ids` 与用户角色有交集）。
+
+### B3b — 多角色文档边界（可选，1 分钟）
+
+- 若存在 **仅绑定 role-admin** 的测试文档（种子外手工上传），alice/bob 对话应 **无法** 命中该文档（用户 `role_ids` 与文档 `role_ids` 无交集）。
 
 ### B4 — Admin 工具与 client_actions
 
@@ -90,7 +97,7 @@ cd front && npm install && npm run dev
 |------|------|
 | 登录 401 / CORS | `back/.env` `CORS_ORIGINS` 含 `http://127.0.0.1:5173`；Front `withCredentials` |
 | 学生列表空 | `uv run alembic upgrade head && uv run python -m db.seed` |
-| RAG 无命中 | Qdrant 可达；文档 `role_id` 与用户 `role_ids[]` 一致；Agent `QDRANT_MOCK=false` |
+| RAG 无命中 | Qdrant 可达；文档 `role_ids[]` 与用户 Session `role_ids[]` **有交集**；存量库可跑 `agent/scripts/migrate_kb_role_ids.py`；Agent `QDRANT_MOCK=false` |
 | 对话无流式 | Agent 已启动；`AGENT_URL` 正确；Back 日志无转发超时 |
 | admin 无 RAG 菜单 | 当前用户 `is_admin`；种子 admin 绑定 `role-admin` |
 

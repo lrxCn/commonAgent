@@ -6,18 +6,18 @@
 
 ## 总览
 
-**当前建议下一步**：**98** [README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md)（依赖 **93–97**）；或并行 **99–101** 小迭代。
+**当前建议下一步**：**99** [换用户登录后重置 thread_id](./prompts/99-front-thread-reset-on-user-switch.md)、**100** [登录页 Enter 聚焦密码](./prompts/100-front-login-enter-focus-password.md) 或 **101** [role-admin 推导 is_admin](./prompts/101-admin-role-derived-is-admin.md)（三者无依赖，可任选）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 101 |
-| 已完成 | 97（01–80 Agent 核心 + 81–92 演示平台 + 93–97 KB 多角色） |
+| 已完成 | 98（01–80 Agent 核心 + 81–92 演示平台 + 93–98 KB 多角色） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
 **演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
 
-**KB 多角色批次（93–98）**：🔄 进行中（**93–97** ✅）；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
+**KB 多角色批次（93–98）**：✅ 已完成；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) 落地状态与 [demo-walkthrough.md](./demo-walkthrough.md) 脚本 B。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
 
 
 ---
@@ -126,7 +126,7 @@
 | 95 | [KB 多角色：Back 库表迁移与 Admin KB API](./prompts/95-kb-multi-role-back-schema-api.md) | ✅ | 2026-05-26 | `002_kb_multi_role`；`kb_document_roles`；Admin API `role_ids[]`；`test_demo_kb.py` 9 用例 |
 | 96 | [KB 多角色：Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md) | ✅ | 2026-05-26 | `KbDocumentsView` 多选 `role_ids[]`；types/api 对齐 Back |
 | 97 | [KB 多角色：Postgres 与 Qdrant 数据迁移](./prompts/97-kb-multi-role-data-migration.md) | ✅ | 2026-05-26 | `kb_migration.py` + CLI；Qdrant `migrate_kb_role_ids.py`；`test_kb_migration` 4 用例 |
-| 98 | [KB 多角色：README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md) | ⬜ 待开始 | - | 依赖 **93–97**；批次收口 |
+| 98 | [KB 多角色：README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md) | ✅ | 2026-05-26 | README KB API/payload、demo-walkthrough 多角色脚本、maps、PRD 落地状态；smoke 测试通过 |
 | 99 | [Front：换用户登录后重置 thread_id](./prompts/99-front-thread-reset-on-user-switch.md) | ⬜ 待开始 | - | 独立；auth/chat store |
 | 100 | [Front：登录页用户名 Enter 聚焦密码](./prompts/100-front-login-enter-focus-password.md) | ⬜ 待开始 | - | 独立；`LoginView.vue` |
 | 101 | [管理员身份由 role-admin 推导，移除重复开关](./prompts/101-admin-role-derived-is-admin.md) | ⬜ 待开始 | - | 独立；UsersView + Back users API |
@@ -257,3 +257,4 @@
 | 2026-05-26 | 完成任务 95：Alembic `002_kb_multi_role`（meta `doc_id` PK + junction）；Admin KB `role_ids[]` CRUD；`agent_kb` 转发；角色文档数改 junction 去重；`test_demo_kb.py` 9 用例 |
 | 2026-05-26 | 文档：基于 [KB 多角色 RAG PRD](./prd/kb-multi-role-rag.md) 拆分任务 **93–101**（主链路 93–98 + 独立小迭代 99–101）；**98** 负责 README/demo-walkthrough/maps/PRD/progress 最终对齐 |
 | 2026-05-26 | 完成任务 97：Back `services/kb_migration.py` 合并逻辑 + `scripts/migrate_kb_multi_role.py`（dry-run/apply，Postgres 委托 Alembic 002）；Agent `rag/kb_payload_migration.py` + `scripts/migrate_kb_role_ids.py`；`test_kb_migration` 4 + `test_kb_payload_migration` 3 用例 |
+| 2026-05-26 | 完成任务 98：README 同步 KB `role_ids[]` API、Qdrant payload M1 双读、Back junction；demo-walkthrough 多角色共享文档演示；maps `rag-flow`/`demo-platform`；PRD 落地状态与开放问题决议；KB 多角色批次 93–98 全部收口 |

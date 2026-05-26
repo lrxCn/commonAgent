@@ -20,24 +20,26 @@
 步骤：
 
 1. 用 LLM Gateway 生成 query embedding。
-2. Qdrant dense search 按 `role_ids[]` 做 **should OR** 过滤（`roles_filter()`）；单角色时与旧单 `role_id` 行为一致。
-3. 本地 lexical/BM25 fallback 对同一 `role_ids` 候选集合做词法召回。
+2. Qdrant dense search 经 `roles_filter(context.role_ids[])`：payload `role_ids` 与用户集合 **MatchAny 交集**；迁移期 **M1 双读** 仍匹配仅含 legacy `role_id` 的 point（见 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)）。
+3. 本地 lexical/BM25 fallback 对同一 filter 候选做词法召回。
 4. 在 [merge.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/merge.py:1) 合并 dense + sparse 候选。
 5. 用 rerank provider 重排。
 6. 在 [formatting.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/formatting.py:1) 组装带 citation 的 RAG chunks。
 
 ## 权限与二查
 
-- Qdrant 搜索阶段按 `context.role_ids[]` OR 过滤；每个 chunk payload 仍带单个 `role_id`，须落在允许集合内。
-- payload 解析与 chunk 组装阶段仍做 `role_id` 校验，避免越权 payload 混入。
-- 演示平台：Back 从 Session 注入用户绑定的全部 `role_id`；多角色用户可见多库文档并集，单角色用户仍隔离。
+- **文档可见性**：payload `role_ids[]` 与用户 `context.role_ids[]` 须 **有交集**（ingest 在 [ingest.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/ingest.py:1) 写入完整数组；新 point 另写 `role_id=role_ids[0]` 供 M1 fallback）。
+- [payload.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/payload.py:1) 在候选组装后再次按 `role_ids` 集合做交集过滤，防止越权 chunk 混入。
+- 演示平台：Back Session 注入用户绑定的全部 `role_ids[]`；用户多角色时可见「任一角色的文档 ∪ 多角色文档中有交集者」。
 - RagSubAgent 在 [rag_subagent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/rag_subagent.py:1)；只在主检索为空或弱命中时做第二次检索。
 - 二查后仍为空或弱命中会记录 RAG fallback；`knowledge_query` 最终返回无可靠来源模板，不让 deepagents 伪造来源。
 
 ## Ingest
 
 - Ingest 入口在 [ingest.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/ingest.py:1) 与 [schemas_ingest.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas_ingest.py:1)。
-- 以 `doc_id + version` 写入，并按 `doc_name` 删除旧版本。
+- 请求体 `role_ids[]`（≥1）；同一 `doc_id` 只 ingest 一次，每个 point 携带相同 `role_ids[]`。
+- 以 `doc_id + version` 写入，并按 `doc_name` 删除旧 version points（与角色无关）。
+- Back admin：`kb_document_meta` + `kb_document_roles` 双写；PATCH 改角色或正文均 re-ingest（[kb.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/admin/kb.py:1)）。
 
 ## 实现入口
 

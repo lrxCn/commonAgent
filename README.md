@@ -8,7 +8,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-92 已完成（Agent 核心 01-80 + 演示平台 81-92） |
+| 核心任务 | 01-98 已完成（Agent 核心 01-80 + 演示平台 81-92 + KB 多角色 93-98） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 并转发 Agent |
 | Front | Vue 3 + TS + Pinia + Naive UI SPA（dev `5173`，proxy → Back）；全局 ChatDrawer SSE + `client_actions` |
@@ -83,7 +83,7 @@ commonAgent/
 |------|------|
 | Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions` |
 | Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent |
-| Agent | 记忆装配、RAG（多 `role_id` OR）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
+| Agent | 记忆装配、RAG（`role_ids[]` 交集过滤 + 迁移期 payload fallback）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
 
 硬约束：
 
@@ -233,7 +233,8 @@ sequenceDiagram
 RAG：
 
 - 兼容入口在 [retriever.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/retriever.py:1)，真实编排在 [service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)。
-- Qdrant 适配在 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)，按 `role_ids[]` **should OR** 过滤（单角色与旧行为一致）。
+- Qdrant 适配在 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)：检索按用户 `context.role_ids[]` 与 payload **`role_ids[]` 有交集** 命中（`roles_filter` should OR）；迁移期仍可读 payload 单字段 `role_id`（见下文 KB payload）。
+- Ingest 每个 point 写入完整 `role_ids[]`；同一 `doc_id` 只 ingest 一次，不按角色复制向量。
 - RAG 是否进入检索由控制面派生的有效 `turn_type`、Policy Gate 结果和 RAG router 共同决定；旧 [rag/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/intent.py:1) 只保留局部启发式兼容，不是全局意图权威。
 - dense 检索失败时继续本地 BM25 fallback，不把整段 RAG 置空。
 - dense + lexical 候选先 merge，再 rerank，再格式化为带 `[doc:.../chunk:...]` 标记的知识片段。
@@ -339,21 +340,55 @@ GET /health
 POST /internal/chat
 GET /internal/threads/{thread_id}/messages?cursor=&limit=20
 POST /internal/kb/ingest
-GET /internal/kb/documents?role_id=
-GET /internal/kb/documents/{doc_id}?role_id=
-DELETE /internal/kb/documents/{doc_id}?role_id=
+GET /internal/kb/documents?role_id=role-sales&role_id=role-support
+GET /internal/kb/documents/{doc_id}
+DELETE /internal/kb/documents/{doc_id}
 ```
+
+Agent KB 契约（`role_ids[]` 为主）：
+
+| 端点 | 入参 | 出参 / 行为 |
+|------|------|-------------|
+| `POST /internal/kb/ingest` | JSON：`role_ids[]`（≥1）、`doc_id`、`doc_name`、`content`、`version` | 写入 Qdrant；payload 含 `role_ids[]`；迁移期另写 `role_id=role_ids[0]` 供旧 filter 双读 |
+| `GET /internal/kb/documents` | Query：可重复 `role_id`（至少一个）；列表为 payload `role_ids` 与查询集合 **有交集** 的文档 | `items[].role_ids[]` |
+| `GET /internal/kb/documents/{doc_id}` | 路径 `doc_id` only | `role_ids[]` + chunk 预览；**无** query `role_id` |
+| `DELETE /internal/kb/documents/{doc_id}` | 路径 `doc_id` only | 按 `doc_id` 删 Qdrant points |
+
+Qdrant KB payload（当前事实）：
+
+```json
+{
+  "role_ids": ["role-sales", "role-support"],
+  "role_id": "role-sales",
+  "doc_id": "doc-abc",
+  "doc_name": "产品 FAQ",
+  "version": "1",
+  "chunk_id": "doc-abc:1:0000",
+  "text": "..."
+}
+```
+
+- **权威可见性**：`role_ids[]`；检索 filter 与 [payload.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/payload.py:1) 后过滤均按与用户 `role_ids[]` 的 **集合交集** 判定。
+- **迁移期双读（M1，未做 M3）**：新 ingest 仍写入 `role_id`（取 `role_ids[0]`）；仅含旧 `role_id` 的存量 point 仍可通过 `roles_filter` fallback 命中。去兼容（停写/停读 `role_id`）见 [kb-multi-role-rag.md](docs/prd/kb-multi-role-rag.md) M3，**未**在本批次实施。
+- **存量迁移**：`back/scripts/migrate_kb_multi_role.py`（Postgres meta + junction）；`agent/scripts/migrate_kb_role_ids.py`（Qdrant payload 补 `role_ids[]`）。
 
 KB 管理分工（演示平台）：
 
 - **向量 + chunk 预览**：Qdrant（Agent list/get/delete）；`GET .../documents/{doc_id}` 仅返回 chunk 列表，**不**拼原文。
-- **原文 + 列表 meta**：Back `kb_document_meta`；ingest **成功后双写**；详情/编辑 **正文读 meta.raw_content**。
+- **原文 + 列表 meta**：Back `kb_document_meta`（`doc_id` PK）+ `kb_document_roles`（`doc_id`↔`role_id` 联结表）；ingest **成功后双写**；详情/编辑 **正文读 meta.raw_content**；列表/详情响应 `role_ids[]`。
 
-Back 演示平台（admin）：
+Back 演示平台（admin KB）：
 
-- `POST /api/admin/kb/documents`：校验 admin → 转发 Agent ingest → 成功 upsert meta（含 `raw_content`、`chunks_written`、`tokens_estimated`）。
-- `GET/PATCH/DELETE /api/admin/kb/documents`：读/写 meta；详情 chunk 概览代理 Agent；删除同时清 Qdrant 与 meta。
+| 方法 | 路径 | 契约要点 |
+|------|------|----------|
+| `POST` | `/api/admin/kb/documents` | Body：`role_ids[]`、`doc_name`、`content`；转发 Agent ingest → upsert meta + junction |
+| `GET` | `/api/admin/kb/documents` | 可选 query `role_id`（筛选「绑定包含该角色」）；响应 `items[].role_ids[]` |
+| `GET` | `/api/admin/kb/documents/{doc_id}` | 仅 `doc_id`；chunk 概览代理 Agent |
+| `PATCH` | `/api/admin/kb/documents/{doc_id}` | 可改 `role_ids[]` / 正文 / `version`；**保存即 re-ingest**（与改正文相同路径） |
+| `DELETE` | `/api/admin/kb/documents/{doc_id}` | 仅 `doc_id`；清 Qdrant + meta + junction |
+
 - 上传限制：≤2MB；`.txt`/`.md`；UTF-8（JSON `content` 字段同样校验）。
+- 管理员：`require_admin`（种子用户 `is_admin` + `role-admin`）；**101** 任务将把 `is_admin` 改为仅由 `role-admin` 推导，当前仍以 DB `users.is_admin` 为准。
 
 `POST /internal/chat` 请求体：
 

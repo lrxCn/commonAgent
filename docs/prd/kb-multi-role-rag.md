@@ -490,14 +490,46 @@ flowchart LR
 
 ## 验收标准
 
-- [ ] 新建文档可选 ≥1 个角色，Qdrant 每个 point 含相同 `role_ids[]`。
-- [ ] 编辑可增删角色；保存后对话检索权限与 UI 一致。
-- [ ] Front / Back / Agent 请求响应字段均为 `role_ids[]`，无单值 `role_id` 业务入参（迁移期检索 fallback 除外）。
-- [ ] 用户多角色对话时，RAG 命中「任一角色的文档 ∪ 多角色文档中有交集者」。
-- [ ] README 与 API 文档已更新；相关 pytest 通过。
-- [ ] （小迭代 T8）换账号登录后 thread_id 更新，且不加载上一用户对话历史。
-- [ ] （小迭代 T9）登录页用户名 Enter 聚焦密码，不误触提交。
-- [ ] （小迭代 T10）用户表单无管理员开关；含 `role-admin` 即管理员，否则不是。
+- [x] 新建文档可选 ≥1 个角色，Qdrant 每个 point 含相同 `role_ids[]`。（任务 93）
+- [x] 编辑可增删角色；保存后对话检索权限与 UI 一致（PATCH re-ingest）。（任务 95–96）
+- [x] Front / Back / Agent 请求响应字段均为 `role_ids[]`；GET/DELETE 按 `doc_id`，列表可选单 `role_id` 筛选「包含该角色」。（任务 93–96）
+- [x] 用户多角色对话时，RAG 命中「任一角色的文档 ∪ 多角色文档中有交集者」。（任务 94、87）
+- [x] README、demo-walkthrough、maps、progress 已更新；相关 pytest 通过。（任务 98）
+- [ ] （小迭代 T8）换账号登录后 thread_id 更新，且不加载上一用户对话历史。→ 任务 **99**
+- [ ] （小迭代 T9）登录页用户名 Enter 聚焦密码，不误触提交。→ 任务 **100**
+- [ ] （小迭代 T10）用户表单无管理员开关；含 `role-admin` 即管理员。→ 任务 **101**
+
+---
+
+## 落地状态与偏差（2026-05-26）
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| Agent ingest / documents API `role_ids[]` | ✅ | 任务 93；list 用可重复 query `role_id`；get/delete 仅 `doc_id` |
+| RAG `roles_filter` + payload 交集 + M1 fallback | ✅ | 任务 94；新 ingest 仍写 `role_id=role_ids[0]` |
+| Back `002_kb_multi_role` + junction + Admin API | ✅ | 任务 95；`kb_document_meta.doc_id` PK |
+| Front 多选 `role_ids[]` | ✅ | 任务 96 |
+| Postgres / Qdrant 迁移 CLI | ✅ | 任务 97 |
+| 文档收口（README / demo / maps / progress） | ✅ | 任务 98 |
+| **M3 去兼容**（停写/停读 payload `role_id`） | ⏸ 未做 | 刻意保留 **迁移期双读**；见 [README.md](../../README.md) KB payload 小节 |
+| Agent internal list query 命名 | ⏸ 偏差 | HTTP query 仍为 `role_id`（可重复），非 `role_ids`；语义为筛选交集，与 Back admin 列表一致 |
+| `RequestContext.role_id` alias | ⏸ 兼容 | Chat context 仍接受 deprecated 单字段，派生为 `role_ids[]` |
+| `users.is_admin` 与 `role-admin` | ⏸ 待 101 | 当前 DB `is_admin` + 种子；101 将改为仅 `role-admin` 推导 |
+
+### 开放问题决议
+
+1. **PATCH 只改角色是否必须 re-ingest？** → **是**。Back `update_document` 与改正文同路径，始终调用 Agent ingest 刷新 Qdrant payload（任务 95 实现）。
+2. **同一 `doc_name` 不同 `doc_id` 是否仍按 doc_name 删 stale？** → **维持现状**，与角色无关（ingest 行为未改）。
+3. **角色管理页「文档数」统计** → **已改**：`KbDocumentRole` junction 上对 `doc_id` **去重计数**（任务 95）。
+
+### 验证入口
+
+```bash
+rg -n "role_ids" README.md back agent/src front/src/api/kb.ts
+cd agent && uv run pytest tests/test_kb_ingest.py tests/test_role_ids_filter.py -v
+cd back && uv run pytest tests/test_demo_kb.py -v
+cd front && npm run build
+```
 
 ---
 
