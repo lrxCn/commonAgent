@@ -26,22 +26,34 @@ def _settings(**extra: object) -> Settings:
     return Settings(**{**_REQUIRED_ENV, **extra})  # type: ignore[arg-type]
 
 
+def _field_matches(payload: dict[str, Any], cond: qmodels.FieldCondition) -> bool:
+    key = cond.key
+    match = cond.match
+    if isinstance(match, qmodels.MatchValue):
+        value = match.value
+        payload_val = payload.get(key)
+        if isinstance(payload_val, list):
+            return value in payload_val
+        return payload_val == value
+    if isinstance(match, qmodels.MatchText):
+        needle = match.text.strip().lower()
+        haystack = str(payload.get(key) or "").lower()
+        return needle in haystack
+    return True
+
+
 def _matches_filter(payload: dict[str, Any], flt: qmodels.Filter | None) -> bool:
     if flt is None:
         return True
     if flt.should:
-        return any(_matches_filter(payload, qmodels.Filter(must=[cond])) for cond in flt.should)
+        return any(_field_matches(payload, cond) for cond in flt.should)
     if flt.must:
-        for cond in flt.must:
-            key = cond.key
-            match = cond.match
-            if isinstance(match, qmodels.MatchValue) and payload.get(key) != match.value:
-                return False
-            if isinstance(match, qmodels.MatchText):
-                needle = match.text.strip().lower()
-                haystack = str(payload.get(key) or "").lower()
-                if needle not in haystack:
+        for item in flt.must:
+            if isinstance(item, qmodels.FieldCondition):
+                if not _field_matches(payload, item):
                     return False
+            elif isinstance(item, qmodels.Filter) and not _matches_filter(payload, item):
+                return False
     return True
 
 

@@ -321,6 +321,27 @@ def test_gateway_rejects_missing_content_and_file() -> None:
     assert response.status_code == 422
 
 
+def test_ingest_multi_role_retrieve_intersection_and_block(
+    fake_qdrant: FakeQdrantClient,
+) -> None:
+    set_settings_override(
+        _settings(QDRANT_MOCK=False, QDRANT_COLLECTION_KB="kb_test")
+    )
+    marker = "跨角色知识库条款ZETA"
+    ingest_document(
+        role_ids=["role-sales", "role-support"],
+        doc_id="doc-zeta",
+        doc_name="跨角色手册",
+        version="v1",
+        content=f"说明：{marker} 销售与支持角色可见。",
+    )
+    support_hits = retrieve("role-support", marker)
+    hr_hits = retrieve("role-hr", marker)
+    assert support_hits
+    assert any(marker in chunk.text for chunk in support_hits)
+    assert hr_hits == []
+
+
 def test_ingest_multi_role_writes_same_role_ids_on_all_points(
     fake_qdrant: FakeQdrantClient,
 ) -> None:

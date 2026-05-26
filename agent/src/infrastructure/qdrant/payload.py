@@ -16,6 +16,18 @@ def payload_text(payload: dict[str, Any]) -> str:
     return ""
 
 
+def _payload_role_ids(payload: dict[str, Any]) -> set[str]:
+    raw = payload.get("role_ids")
+    if isinstance(raw, list):
+        roles = {str(item).strip() for item in raw if item and str(item).strip()}
+        if roles:
+            return roles
+    legacy = str(payload.get("role_id") or "").strip()
+    if legacy:
+        return {legacy}
+    return set()
+
+
 def candidate_from_payload(
     payload: dict[str, Any],
     *,
@@ -25,8 +37,8 @@ def candidate_from_payload(
     role_ids: set[str] | None = None,
 ) -> RagCandidate | None:
     if role_ids is not None:
-        doc_role = str(payload.get("role_id") or "").strip()
-        if doc_role not in role_ids:
+        doc_roles = _payload_role_ids(payload)
+        if not doc_roles or not doc_roles.intersection(role_ids):
             return None
     doc_id = str(payload.get("doc_id") or "").strip()
     chunk_id = str(payload.get("chunk_id") or fallback_id or "").strip()

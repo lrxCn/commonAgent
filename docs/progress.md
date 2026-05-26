@@ -6,18 +6,18 @@
 
 ## 总览
 
-**当前建议下一步**：**94** [Agent RAG payload `role_ids[]` 过滤](./prompts/94-kb-multi-role-agent-rag-filter.md)（依赖 **93** 已完成）。小迭代 **99–101** 可与 94 并行。
+**当前建议下一步**：**95** [Back 库表迁移与 Admin KB API](./prompts/95-kb-multi-role-back-schema-api.md)（依赖 **93** 已完成）。小迭代 **99–101** 可与 95 并行。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 101 |
-| 已完成 | 93（01–80 Agent 核心 + 81–92 演示平台 + 93 KB ingest） |
+| 已完成 | 94（01–80 Agent 核心 + 81–92 演示平台 + 93–94 KB 多角色 Agent） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
 **演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
 
-**KB 多角色批次（93–98）**：🔄 进行中（**93** ✅）；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
+**KB 多角色批次（93–98）**：🔄 进行中（**93–94** ✅）；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
 
 
 ---
@@ -122,7 +122,7 @@
 | 91 | [演示平台：ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md) | ✅ | 2026-05-26 | `ChatDrawer` SSE/token/retract/replace/client_actions；`stores/chat.ts`+`api/chat.ts`；Back `GET /api/threads/{id}/messages` 代理+403；`test_demo_chat_history.py` 4 用例 |
 | 92 | [演示平台：文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md) | ✅ | 2026-05-26 | README、demo-walkthrough、maps、PRD 落地状态；移除 legacy static；演示平台 81–92 收口 |
 | 93 | [KB 多角色：Agent ingest 与 documents API `role_ids[]`](./prompts/93-kb-multi-role-agent-ingest.md) | ✅ | 2026-05-26 | ingest payload `role_ids[]`；list 交集筛选；get/delete 仅 `doc_id` |
-| 94 | [KB 多角色：Agent RAG payload `role_ids[]` 过滤](./prompts/94-kb-multi-role-agent-rag-filter.md) | ⬜ 待开始 | - | 依赖 **93**；Qdrant 交集 + 旧 `role_id` fallback |
+| 94 | [KB 多角色：Agent RAG payload `role_ids[]` 过滤](./prompts/94-kb-multi-role-agent-rag-filter.md) | ✅ | 2026-05-26 | `roles_filter` 交集 + `role_id` M1 fallback；payload 后过滤；`test_role_ids_filter` + ingest→retrieve |
 | 95 | [KB 多角色：Back 库表迁移与 Admin KB API](./prompts/95-kb-multi-role-back-schema-api.md) | ⬜ 待开始 | - | 依赖 **93**；junction + meta PK + `agent_kb` |
 | 96 | [KB 多角色：Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md) | ⬜ 待开始 | - | 依赖 **95** |
 | 97 | [KB 多角色：Postgres 与 Qdrant 数据迁移](./prompts/97-kb-multi-role-data-migration.md) | ⬜ 待开始 | - | 依赖 **93**、**95** |
@@ -252,4 +252,5 @@
 | 2026-05-26 | 完成任务 92：README 同步 `role_ids[]` 与演示启动；新增 `docs/demo-walkthrough.md`、`docs/maps/demo-platform.md`；更新 rag-flow/chat-turn-pipeline；PRD 落地状态；移除 `front/app.js`、`legacy.html`、`styles.css`；progress 92/92 |
 | 2026-05-26 | 完成任务 89：Agent `GET/DELETE /internal/kb/documents` + chunk 预览；Back `/api/admin/kb/documents` ingest 成功后 upsert `kb_document_meta`（含 `raw_content`）；GET/PATCH/DELETE 代理 Agent + meta；≤2MB UTF-8 校验 |
 | 2026-05-26 | 完成任务 93：Agent `KbIngestRequest.role_ids[]`；ingest payload 双写 `role_ids`+`role_id` fallback；`kb_documents` list 交集/get/delete 按 `doc_id`；`test_kb_ingest` 8 + `test_kb_admin_api` 6 用例 |
+| 2026-05-26 | 完成任务 94：`roles_filter` 对 payload `role_ids[]` 交集 + `role_id` M1 fallback；`text_search`/BM25/dense 统一；`payload.py` 后过滤；`test_role_ids_filter` 11 + `test_kb_ingest` ingest→retrieve 交集用例 |
 | 2026-05-26 | 文档：基于 [KB 多角色 RAG PRD](./prd/kb-multi-role-rag.md) 拆分任务 **93–101**（主链路 93–98 + 独立小迭代 99–101）；**98** 负责 README/demo-walkthrough/maps/PRD/progress 最终对齐 |

@@ -210,7 +210,7 @@ def _payload(
     ids = _normalize_role_ids(role_ids)
     return {
         "role_ids": ids,
-        # Migration fallback for RAG still filtering payload.role_id until task 94.
+        # M1 migration fallback: RAG filter also matches legacy payload.role_id.
         "role_id": ids[0],
         "doc_id": doc_id,
         "doc_name": doc_name,

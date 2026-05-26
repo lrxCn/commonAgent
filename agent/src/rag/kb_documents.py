@@ -10,7 +10,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from settings.config import Settings, get_settings
 
-from infrastructure.qdrant.kb_store import get_qdrant_client
+from infrastructure.qdrant.kb_store import get_qdrant_client, roles_filter
 
 logger = logging.getLogger(__name__)
 
@@ -77,27 +77,6 @@ def _normalize_role_ids_from_payload(role_ids: Sequence[object]) -> list[str]:
     return normalized
 
 
-def _role_ids_intersection_filter(query_role_ids: Sequence[str]) -> qmodels.Filter:
-    """Points whose payload role_ids intersect the query role set."""
-    ids = _normalize_query_role_ids(query_role_ids)
-    return qmodels.Filter(
-        should=[
-            qmodels.FieldCondition(
-                key="role_ids",
-                match=qmodels.MatchValue(value=rid),
-            )
-            for rid in ids
-        ]
-        + [
-            qmodels.FieldCondition(
-                key="role_id",
-                match=qmodels.MatchValue(value=rid),
-            )
-            for rid in ids
-        ]
-    )
-
-
 def _doc_id_filter(doc_id: str) -> qmodels.Filter:
     return qmodels.Filter(
         must=[
@@ -150,7 +129,7 @@ def list_documents(
         records = _scroll_points(
             client,
             collection=collection,
-            scroll_filter=_role_ids_intersection_filter(role_ids),
+            scroll_filter=roles_filter(role_ids),
         )
     except Exception as exc:
         msg = "failed to list kb documents"

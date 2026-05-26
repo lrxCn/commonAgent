@@ -350,7 +350,7 @@ def retrieve(
     """
     Retrieve KB chunks for bound ``role_ids`` using hybrid search + rerank.
 
-    Any document whose payload ``role_id`` matches one of the bound roles is eligible (OR).
+    Documents whose payload ``role_ids[]`` intersect bound roles are eligible (M1 ``role_id`` fallback).
     Returns ``[]`` for empty query, unknown roles (mock), empty collection, or errors.
     When ``QDRANT_MOCK`` is true, returns in-memory fixtures without network I/O.
     """

@@ -33,7 +33,7 @@ def get_qdrant_client(settings: Settings) -> QdrantClient:
 
 
 def roles_filter(role_ids: Sequence[str]) -> qmodels.Filter:
-    """OR filter: payload ``role_id`` may match any bound role."""
+    """Intersection filter: payload ``role_ids[]`` meets user roles; M1 fallback ``role_id``."""
     ids = [rid.strip() for rid in role_ids if rid and str(rid).strip()]
     if not ids:
         return qmodels.Filter(
@@ -44,17 +44,15 @@ def roles_filter(role_ids: Sequence[str]) -> qmodels.Filter:
                 )
             ]
         )
-    if len(ids) == 1:
-        return qmodels.Filter(
-            must=[
-                qmodels.FieldCondition(
-                    key="role_id",
-                    match=qmodels.MatchValue(value=ids[0]),
-                )
-            ]
-        )
     return qmodels.Filter(
         should=[
+            qmodels.FieldCondition(
+                key="role_ids",
+                match=qmodels.MatchValue(value=rid),
+            )
+            for rid in ids
+        ]
+        + [
             qmodels.FieldCondition(
                 key="role_id",
                 match=qmodels.MatchValue(value=rid),
@@ -130,37 +128,15 @@ class QdrantKbStore:
         ids = [rid.strip() for rid in role_ids if rid and str(rid).strip()]
         if not query or not ids:
             return []
-        if len(ids) == 1:
-            scroll_filter = qmodels.Filter(
-                must=[
-                    qmodels.FieldCondition(
-                        key="role_id",
-                        match=qmodels.MatchValue(value=ids[0]),
-                    ),
-                    qmodels.FieldCondition(
-                        key="text",
-                        match=qmodels.MatchText(text=query),
-                    ),
-                ]
-            )
-        else:
-            scroll_filter = qmodels.Filter(
-                should=[
-                    qmodels.Filter(
-                        must=[
-                            qmodels.FieldCondition(
-                                key="role_id",
-                                match=qmodels.MatchValue(value=rid),
-                            ),
-                            qmodels.FieldCondition(
-                                key="text",
-                                match=qmodels.MatchText(text=query),
-                            ),
-                        ]
-                    )
-                    for rid in ids
-                ]
-            )
+        scroll_filter = qmodels.Filter(
+            must=[
+                roles_filter(role_ids),
+                qmodels.FieldCondition(
+                    key="text",
+                    match=qmodels.MatchText(text=query),
+                ),
+            ]
+        )
         try:
             records, _ = self._client.scroll(
                 collection_name=self._collection,
