@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from admin.users import ADMIN_SEED_USER_ID
 from api.app import create_app
-from db.models import KbDocumentMeta
+from db.models import KbDocumentMeta, KbDocumentRole
 from db.seed import run_seed
 from db.session import clear_engine_cache, create_engine_from_url, get_session_factory
 from settings.config import Settings, get_settings, set_settings_override
@@ -139,12 +139,12 @@ def test_delete_role_with_documents_returns_409(admin_client: TestClient) -> Non
         session.add(
             KbDocumentMeta(
                 doc_id="doc-001",
-                role_id="role-marketing",
                 doc_name="价目表",
                 version="1",
                 raw_content="demo",
             )
         )
+        session.add(KbDocumentRole(doc_id="doc-001", role_id="role-marketing"))
         session.commit()
     engine.dispose()
 

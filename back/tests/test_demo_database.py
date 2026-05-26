@@ -70,6 +70,7 @@ def test_initial_migration_creates_expected_tables(
         "user_roles",
         "students",
         "kb_document_meta",
+        "kb_document_roles",
         "chat_threads",
     }
 

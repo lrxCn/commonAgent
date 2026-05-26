@@ -25,7 +25,7 @@ class KbChunkOut(BaseModel):
 
 class KbDocumentOut(BaseModel):
     doc_id: str
-    role_id: str
+    role_ids: list[str] = Field(default_factory=list)
     doc_name: str
     version: str
     raw_content: str
@@ -48,7 +48,7 @@ class KbDocumentListResponse(BaseModel):
 
 
 class KbDocumentCreateRequest(BaseModel):
-    role_id: str = Field(..., min_length=1)
+    role_ids: list[str] = Field(..., min_length=1)
     doc_name: str = Field(..., min_length=1, max_length=255)
     content: str = Field(..., min_length=1)
     doc_id: str | None = Field(default=None, max_length=128)
@@ -56,7 +56,7 @@ class KbDocumentCreateRequest(BaseModel):
 
 
 class KbDocumentUpdateRequest(BaseModel):
-    role_id: str = Field(..., min_length=1)
+    role_ids: list[str] | None = Field(default=None, min_length=1)
     doc_name: str | None = Field(default=None, min_length=1, max_length=255)
     raw_content: str | None = None
     version: str | None = Field(default=None, min_length=1, max_length=64)
@@ -84,12 +84,11 @@ def list_kb_documents(
 @router.get("/documents/{doc_id}", response_model=KbDocumentDetailOut)
 def get_kb_document(
     doc_id: str,
-    role_id: Annotated[str, Query(min_length=1)],
     db: Annotated[Session, Depends(get_db_session)],
     _admin: Annotated[User, Depends(require_admin)],
 ) -> KbDocumentDetailOut:
     try:
-        payload = kb_service.get_document(db, doc_id, role_id=role_id)
+        payload = kb_service.get_document(db, doc_id)
     except ApiError:
         raise
     return KbDocumentDetailOut.model_validate(payload)
@@ -104,7 +103,7 @@ def create_kb_document(
     try:
         payload = kb_service.create_document(
             db,
-            role_id=body.role_id,
+            role_ids=body.role_ids,
             doc_name=body.doc_name,
             content=body.content,
             created_by=admin.user_id,
@@ -127,7 +126,7 @@ def update_kb_document(
         payload = kb_service.update_document(
             db,
             doc_id,
-            role_id=body.role_id,
+            role_ids=body.role_ids,
             doc_name=body.doc_name,
             raw_content=body.raw_content,
             version=body.version,
@@ -140,11 +139,10 @@ def update_kb_document(
 @router.delete("/documents/{doc_id}", status_code=204)
 def delete_kb_document(
     doc_id: str,
-    role_id: Annotated[str, Query(min_length=1)],
     db: Annotated[Session, Depends(get_db_session)],
     _admin: Annotated[User, Depends(require_admin)],
 ) -> None:
     try:
-        kb_service.delete_document(db, doc_id, role_id=role_id)
+        kb_service.delete_document(db, doc_id)
     except ApiError:
         raise

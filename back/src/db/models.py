@@ -91,9 +91,6 @@ class KbDocumentMeta(Base):
     __tablename__ = "kb_document_meta"
 
     doc_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    role_id: Mapped[str] = mapped_column(
-        ForeignKey("roles.role_id", ondelete="CASCADE"), primary_key=True
-    )
     doc_name: Mapped[str] = mapped_column(String(255), nullable=False)
     version: Mapped[str] = mapped_column(String(64), nullable=False, default="1")
     raw_content: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -111,6 +108,24 @@ class KbDocumentMeta(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    role_bindings: Mapped[list[KbDocumentRole]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+
+class KbDocumentRole(Base):
+    __tablename__ = "kb_document_roles"
+
+    doc_id: Mapped[str] = mapped_column(
+        ForeignKey("kb_document_meta.doc_id", ondelete="CASCADE"), primary_key=True
+    )
+    role_id: Mapped[str] = mapped_column(
+        ForeignKey("roles.role_id", ondelete="CASCADE"), primary_key=True
+    )
+
+    document: Mapped[KbDocumentMeta] = relationship(back_populates="role_bindings")
 
 
 class ChatThread(Base):

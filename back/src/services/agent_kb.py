@@ -79,7 +79,6 @@ def agent_kb_list_documents(
 def agent_kb_get_document(
     doc_id: str,
     *,
-    role_id: str,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
     resolved = settings or get_settings()
@@ -88,7 +87,6 @@ def agent_kb_get_document(
     try:
         response = httpx.get(
             url,
-            params={"role_id": role_id},
             headers=_agent_headers(resolved),
             timeout=timeout,
         )
@@ -105,7 +103,6 @@ def agent_kb_get_document(
 def agent_kb_delete_document(
     doc_id: str,
     *,
-    role_id: str,
     settings: Settings | None = None,
 ) -> None:
     resolved = settings or get_settings()
@@ -114,7 +111,6 @@ def agent_kb_delete_document(
     try:
         response = httpx.delete(
             url,
-            params={"role_id": role_id},
             headers=_agent_headers(resolved),
             timeout=timeout,
         )

@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.errors import conflict, not_found
-from db.models import KbDocumentMeta, Role, UserRole
+from db.models import KbDocumentRole, Role, UserRole
 from domain.role_id import validate_role_id
 
 
@@ -38,8 +38,8 @@ def _user_counts(db: Session) -> dict[str, int]:
 
 def _document_counts(db: Session) -> dict[str, int]:
     rows = db.execute(
-        select(KbDocumentMeta.role_id, func.count())
-        .group_by(KbDocumentMeta.role_id)
+        select(KbDocumentRole.role_id, func.count(func.distinct(KbDocumentRole.doc_id)))
+        .group_by(KbDocumentRole.role_id)
     ).all()
     return {role_id: int(count) for role_id, count in rows}
 
@@ -66,9 +66,9 @@ def get_role(db: Session, role_id: str) -> dict[str, object]:
         select(func.count()).select_from(UserRole).where(UserRole.role_id == role_id)
     ) or 0
     document_count = db.scalar(
-        select(func.count())
-        .select_from(KbDocumentMeta)
-        .where(KbDocumentMeta.role_id == role_id)
+        select(func.count(func.distinct(KbDocumentRole.doc_id)))
+        .select_from(KbDocumentRole)
+        .where(KbDocumentRole.role_id == role_id)
     ) or 0
     return role_to_dict(
         role,
@@ -142,9 +142,9 @@ def delete_role(db: Session, role_id: str) -> None:
         )
 
     document_count = db.scalar(
-        select(func.count())
-        .select_from(KbDocumentMeta)
-        .where(KbDocumentMeta.role_id == role_id)
+        select(func.count(func.distinct(KbDocumentRole.doc_id)))
+        .select_from(KbDocumentRole)
+        .where(KbDocumentRole.role_id == role_id)
     ) or 0
     if document_count > 0:
         raise conflict(
