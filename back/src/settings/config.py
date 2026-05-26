@@ -51,6 +51,17 @@ class Settings(BaseSettings):
         default="123456",
         description="Default password for seeded admin user (demo only).",
     )
+    SESSION_SECRET: str = Field(
+        default="change-me-in-production",
+        description="Secret for signing HttpOnly session cookies.",
+    )
+    CORS_ORIGINS: str = Field(
+        default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:3000,http://localhost:3000",
+        description="Comma-separated browser origins allowed with credentials.",
+    )
+
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     def resolve_tools_path(self) -> Path:
         path = Path(self.DEMO_TOOLS_FILE)
