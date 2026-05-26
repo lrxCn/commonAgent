@@ -5,6 +5,7 @@ import * as chatApi from "@/api/chat";
 import type { ChatDisplayMessage, ClientAction, HistoryMessageItem } from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
+const LAST_USER_STORAGE_KEY = "common_agent_last_user_id";
 
 type SseEvent = {
   type?: string;
@@ -140,6 +141,23 @@ export const useChatStore = defineStore("chat", () => {
     persistThreadId(id);
     messages.value = [];
     error.value = null;
+  }
+
+  function ensureThreadForUser(userId: string): void {
+    const lastUserId = sessionStorage.getItem(LAST_USER_STORAGE_KEY);
+    if (lastUserId !== userId) {
+      startNewThread();
+      sessionStorage.setItem(LAST_USER_STORAGE_KEY, userId);
+    }
+  }
+
+  function resetOnLogout(): void {
+    abortStreaming();
+    messages.value = [];
+    error.value = null;
+    sessionStorage.removeItem(THREAD_STORAGE_KEY);
+    sessionStorage.removeItem(LAST_USER_STORAGE_KEY);
+    threadId.value = crypto.randomUUID();
   }
 
   async function copyThreadId(): Promise<void> {
@@ -364,6 +382,8 @@ export const useChatStore = defineStore("chat", () => {
     toggleDrawer,
     loadHistory,
     startNewThread,
+    ensureThreadForUser,
+    resetOnLogout,
     copyThreadId,
     sendMessage,
     abortStreaming,
