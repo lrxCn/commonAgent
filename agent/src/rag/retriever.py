@@ -18,6 +18,7 @@ from infrastructure.llm.gateway import get_llm_gateway
 from infrastructure.llm.rerank_client import default_rerank
 from infrastructure.qdrant.kb_store import DENSE_VECTOR_NAME, QdrantKbStore, get_qdrant_client
 from infrastructure.qdrant.kb_store import role_filter as _role_filter
+from infrastructure.qdrant.kb_store import roles_filter as _roles_filter
 from infrastructure.qdrant.kb_store import set_qdrant_client_override
 from infrastructure.qdrant.payload import (
     hit_to_candidate as _hit_to_candidate,
@@ -42,6 +43,7 @@ __all__ = [
     "_payload_text",
     "_point_to_candidate",
     "_role_filter",
+    "_roles_filter",
     "_sparse_search",
     "_text_search",
     "build_retrieval_metadata",
@@ -67,7 +69,7 @@ _embed_query_override: Callable[[str], list[float]] | None = None
 class RagRetrievalNodeState(TypedDict, total=False):
     """Minimal state slice for rag_retrieval_node."""
 
-    role_id: str
+    role_ids: list[str]
     rewritten_query: str
     rag_skipped: bool
     rag_chunks: list[RagChunk]
@@ -146,13 +148,29 @@ def _embed_query(query: str, settings: Settings) -> list[float]:
     return get_llm_gateway(settings).embed_query(query)
 
 
-def _mock_retrieve(role_id: str, query: str, *, top_k: int) -> list[RagChunk]:
+def _normalize_role_ids(role_ids: Sequence[str] | str) -> list[str]:
+    if isinstance(role_ids, str):
+        rid = role_ids.strip()
+        return [rid] if rid else []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in role_ids:
+        rid = str(raw).strip()
+        if not rid or rid in seen:
+            continue
+        seen.add(rid)
+        normalized.append(rid)
+    return normalized
+
+
+def _mock_retrieve(role_ids: Sequence[str], query: str, *, top_k: int) -> list[RagChunk]:
     if not query:
         return []
+    allowed = set(_normalize_role_ids(role_ids))
     chunks = [
         c
         for c in _MOCK_CHUNKS
-        if _MOCK_ROLE_BY_DOC.get(c.doc_id) == role_id
+        if _MOCK_ROLE_BY_DOC.get(c.doc_id) in allowed
     ]
     return chunks[:top_k]
 
@@ -193,14 +211,14 @@ def _dense_search(
     client: QdrantClient,
     *,
     collection: str,
-    role_id: str,
+    role_ids: Sequence[str],
     query_vector: list[float],
     limit: int,
 ) -> list[dict[str, Any]]:
     return [
         _candidate_to_mapping(item)
         for item in _store(client, collection=collection).dense_search(
-            role_id=role_id,
+            role_ids=role_ids,
             query_vector=query_vector,
             limit=limit,
         )
@@ -211,14 +229,14 @@ def _sparse_search(
     client: QdrantClient,
     *,
     collection: str,
-    role_id: str,
+    role_ids: Sequence[str],
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
     return [
         _candidate_to_mapping(item)
         for item in _store(client, collection=collection).lexical_search(
-            role_id=role_id,
+            role_ids=role_ids,
             query=query,
             limit=limit,
         )
@@ -229,14 +247,14 @@ def _text_search(
     client: QdrantClient,
     *,
     collection: str,
-    role_id: str,
+    role_ids: Sequence[str],
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
     return [
         _candidate_to_mapping(item)
         for item in _store(client, collection=collection).text_search(
-            role_id=role_id,
+            role_ids=role_ids,
             query=query,
             limit=limit,
         )
@@ -247,14 +265,14 @@ def _bm25_search(
     client: QdrantClient,
     *,
     collection: str,
-    role_id: str,
+    role_ids: Sequence[str],
     query: str,
     limit: int,
 ) -> list[dict[str, Any]]:
     return [
         _candidate_to_mapping(item)
         for item in _store(client, collection=collection).bm25_search(
-            role_id=role_id,
+            role_ids=role_ids,
             query=query,
             limit=limit,
         )
@@ -322,7 +340,7 @@ def _service_rerank(
 
 @retrieve_traceable()
 def retrieve(
-    role_id: str,
+    role_ids: Sequence[str] | str,
     query: str,
     *,
     top_k: int | None = None,
@@ -330,23 +348,24 @@ def retrieve(
     settings: Settings | None = None,
 ) -> list[RagChunk]:
     """
-    Retrieve KB chunks for ``role_id`` using hybrid search + rerank.
+    Retrieve KB chunks for bound ``role_ids`` using hybrid search + rerank.
 
-    Returns ``[]`` for empty query, unknown role (mock), empty collection, or errors.
+    Any document whose payload ``role_id`` matches one of the bound roles is eligible (OR).
+    Returns ``[]`` for empty query, unknown roles (mock), empty collection, or errors.
     When ``QDRANT_MOCK`` is true, returns in-memory fixtures without network I/O.
     """
     cfg = settings or get_settings()
-    rid = _text(role_id)
+    roles = _normalize_role_ids(role_ids)
     q = _text(query)
-    if not rid or not q:
+    if not roles or not q:
         return []
 
     final_k = top_k if top_k is not None else cfg.RERANK_TOP_K
 
     if cfg.QDRANT_MOCK:
-        chunks = _mock_retrieve(rid, q, top_k=final_k)
+        chunks = _mock_retrieve(roles, q, top_k=final_k)
         metadata = build_retrieval_metadata(
-            role_id=rid,
+            role_ids=roles,
             query=q,
             dense_count=0,
             sparse_count=0,
@@ -367,7 +386,7 @@ def retrieve(
     prefetch_limit = max(final_k, cfg.RERANK_TOP_K)
     result = service.retrieve(
         RagQueryPlan(
-            role_id=rid,
+            role_ids=tuple(roles),
             query=q,
             top_k=final_k,
             prefetch_limit=prefetch_limit,
@@ -378,13 +397,13 @@ def retrieve(
 
 
 def rag_retrieval_node(state: RagRetrievalNodeState) -> dict[str, list[RagChunk]]:
-    """LangGraph node: populate ``rag_chunks`` from ``rewritten_query`` + ``role_id``."""
+    """LangGraph node: populate ``rag_chunks`` from ``rewritten_query`` + ``role_ids``."""
     if state.get("rag_skipped"):
         return {"rag_chunks": []}
 
-    role_id = _text(state.get("role_id"))
+    role_ids = _normalize_role_ids(state.get("role_ids") or [])
     query = _text(state.get("rewritten_query"))
-    if not role_id or not query:
+    if not role_ids or not query:
         return {"rag_chunks": []}
 
-    return {"rag_chunks": retrieve(role_id, query)}
+    return {"rag_chunks": retrieve(role_ids, query)}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -31,15 +32,41 @@ def get_qdrant_client(settings: Settings) -> QdrantClient:
     return QdrantClient(url=settings.qdrant_url, prefer_grpc=False)
 
 
-def role_filter(role_id: str) -> qmodels.Filter:
+def roles_filter(role_ids: Sequence[str]) -> qmodels.Filter:
+    """OR filter: payload ``role_id`` may match any bound role."""
+    ids = [rid.strip() for rid in role_ids if rid and str(rid).strip()]
+    if not ids:
+        return qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="role_id",
+                    match=qmodels.MatchValue(value="__no_role__"),
+                )
+            ]
+        )
+    if len(ids) == 1:
+        return qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="role_id",
+                    match=qmodels.MatchValue(value=ids[0]),
+                )
+            ]
+        )
     return qmodels.Filter(
-        must=[
+        should=[
             qmodels.FieldCondition(
                 key="role_id",
-                match=qmodels.MatchValue(value=role_id),
+                match=qmodels.MatchValue(value=rid),
             )
+            for rid in ids
         ]
     )
+
+
+def role_filter(role_id: str) -> qmodels.Filter:
+    """Single-role filter; prefer ``roles_filter`` for multi-role OR."""
+    return roles_filter([role_id])
 
 
 class QdrantKbStore:
@@ -52,15 +79,16 @@ class QdrantKbStore:
     def dense_search(
         self,
         *,
-        role_id: str,
+        role_ids: Sequence[str],
         query_vector: list[float],
         limit: int,
     ) -> list[RagCandidate]:
+        role_filter_query = roles_filter(role_ids)
         try:
             hits = self._client.search(
                 collection_name=self._collection,
                 query_vector=(DENSE_VECTOR_NAME, query_vector),
-                query_filter=role_filter(role_id),
+                query_filter=role_filter_query,
                 limit=limit,
                 with_payload=True,
             )
@@ -69,7 +97,7 @@ class QdrantKbStore:
                 hits = self._client.search(
                     collection_name=self._collection,
                     query_vector=query_vector,
-                    query_filter=role_filter(role_id),
+                    query_filter=role_filter_query,
                     limit=limit,
                     with_payload=True,
                 )
@@ -78,43 +106,65 @@ class QdrantKbStore:
                 return []
 
         candidates: list[RagCandidate] = []
+        allowed = {rid.strip() for rid in role_ids if rid and str(rid).strip()}
         for hit in hits:
-            item = hit_to_candidate(hit, channel="dense", role_id=role_id)
+            item = hit_to_candidate(hit, channel="dense", role_ids=allowed or None)
             if item:
                 candidates.append(item)
         return candidates
 
-    def lexical_search(self, *, role_id: str, query: str, limit: int) -> list[RagCandidate]:
+    def lexical_search(self, *, role_ids: Sequence[str], query: str, limit: int) -> list[RagCandidate]:
         if self._collection_has_sparse():
             logger.debug(
                 "collection %s has sparse vectors; BM25 fallback used until sparse query vectors are wired",
                 self._collection,
             )
-        text_hits = self.text_search(role_id=role_id, query=query, limit=limit)
-        bm25_hits = self.bm25_search(role_id=role_id, query=query, limit=limit)
+        text_hits = self.text_search(role_ids=role_ids, query=query, limit=limit)
+        bm25_hits = self.bm25_search(role_ids=role_ids, query=query, limit=limit)
         if text_hits and bm25_hits:
             return merge_candidates(text_hits, bm25_hits)[:limit]
         return bm25_hits or text_hits
 
-    def text_search(self, *, role_id: str, query: str, limit: int) -> list[RagCandidate]:
+    def text_search(self, *, role_ids: Sequence[str], query: str, limit: int) -> list[RagCandidate]:
         """Qdrant full-text scroll search, always role-scoped."""
-        if not query:
+        ids = [rid.strip() for rid in role_ids if rid and str(rid).strip()]
+        if not query or not ids:
             return []
+        if len(ids) == 1:
+            scroll_filter = qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="role_id",
+                        match=qmodels.MatchValue(value=ids[0]),
+                    ),
+                    qmodels.FieldCondition(
+                        key="text",
+                        match=qmodels.MatchText(text=query),
+                    ),
+                ]
+            )
+        else:
+            scroll_filter = qmodels.Filter(
+                should=[
+                    qmodels.Filter(
+                        must=[
+                            qmodels.FieldCondition(
+                                key="role_id",
+                                match=qmodels.MatchValue(value=rid),
+                            ),
+                            qmodels.FieldCondition(
+                                key="text",
+                                match=qmodels.MatchText(text=query),
+                            ),
+                        ]
+                    )
+                    for rid in ids
+                ]
+            )
         try:
             records, _ = self._client.scroll(
                 collection_name=self._collection,
-                scroll_filter=qmodels.Filter(
-                    must=[
-                        qmodels.FieldCondition(
-                            key="role_id",
-                            match=qmodels.MatchValue(value=role_id),
-                        ),
-                        qmodels.FieldCondition(
-                            key="text",
-                            match=qmodels.MatchText(text=query),
-                        ),
-                    ]
-                ),
+                scroll_filter=scroll_filter,
                 limit=limit,
                 with_payload=True,
             )
@@ -122,20 +172,21 @@ class QdrantKbStore:
             logger.debug("text scroll search failed", exc_info=True)
             return []
 
+        allowed = set(ids)
         candidates: list[RagCandidate] = []
         for point in records:
-            item = point_to_candidate(point, channel="text", score=0.5, role_id=role_id)
+            item = point_to_candidate(point, channel="text", score=0.5, role_ids=allowed)
             if item:
                 candidates.append(item)
         return candidates
 
-    def bm25_search(self, *, role_id: str, query: str, limit: int) -> list[RagCandidate]:
+    def bm25_search(self, *, role_ids: Sequence[str], query: str, limit: int) -> list[RagCandidate]:
         """BM25 fallback over role-scoped payload text."""
         scroll_limit = max(BM25_MIN_SCROLL_LIMIT, limit * BM25_SCROLL_MULTIPLIER)
         try:
             records, _ = self._client.scroll(
                 collection_name=self._collection,
-                scroll_filter=role_filter(role_id),
+                scroll_filter=roles_filter(role_ids),
                 limit=scroll_limit,
                 with_payload=True,
             )
@@ -143,9 +194,10 @@ class QdrantKbStore:
             logger.debug("BM25 role-scoped scroll failed", exc_info=True)
             return []
 
+        allowed = {rid.strip() for rid in role_ids if rid and str(rid).strip()}
         candidates: list[RagCandidate] = []
         for point in records:
-            item = point_to_candidate(point, channel="bm25", role_id=role_id)
+            item = point_to_candidate(point, channel="bm25", role_ids=allowed or None)
             if item:
                 candidates.append(item)
         return score_bm25(query, candidates, limit=limit)

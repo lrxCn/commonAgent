@@ -68,7 +68,7 @@ def second_pass_top_k(settings: Settings | None = None) -> int:
 
 
 def run_rag_subagent_retrieval(
-    role_id: str,
+    role_ids: list[str] | str,
     query: str,
     *,
     settings: Settings | None = None,
@@ -77,7 +77,7 @@ def run_rag_subagent_retrieval(
     cfg = settings or get_settings()
     top_k = second_pass_top_k(cfg)
     chunks = retrieve(
-        role_id,
+        role_ids,
         query,
         top_k=top_k,
         second_pass=True,

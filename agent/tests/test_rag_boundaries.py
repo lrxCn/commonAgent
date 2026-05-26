@@ -29,6 +29,8 @@ def _settings(**extra: object) -> Settings:
 def _matches_filter(payload: dict[str, Any], flt: qmodels.Filter | None) -> bool:
     if flt is None:
         return True
+    if flt.should:
+        return any(_matches_filter(payload, qmodels.Filter(must=[cond])) for cond in flt.should)
     if flt.must:
         for cond in flt.must:
             key = cond.key
@@ -122,7 +124,7 @@ def test_qdrant_store_applies_role_filter_before_bm25_scoring() -> None:
     )
     store = QdrantKbStore(client=client, collection="kb")  # type: ignore[arg-type]
 
-    hits = store.bm25_search(role_id="role-hr", query="内部返点策略DELTA", limit=5)
+    hits = store.bm25_search(role_ids=["role-hr"], query="内部返点策略DELTA", limit=5)
 
     assert [hit.doc_id for hit in hits] == ["doc-hr"]
     assert all(hit.doc_id != "doc-sales-secret" for hit in hits)
@@ -167,7 +169,7 @@ def test_rag_service_keeps_bm25_fallback_when_embedding_fails() -> None:
 
     result = service.retrieve(
         RagQueryPlan(
-            role_id="role-sales",
+            role_ids=("role-sales",),
             query="policy",
             top_k=3,
             prefetch_limit=3,

@@ -34,7 +34,7 @@ class RagResult:
 
     chunks: tuple[RagChunk, ...]
     query: str
-    role_id: str
+    role_ids: tuple[str, ...]
     skipped: bool = False
     second_pass: bool = False
     dense_count: int = 0
@@ -48,7 +48,7 @@ class RagResult:
         chunks: list[RagChunk],
         *,
         query: str,
-        role_id: str,
+        role_ids: list[str] | tuple[str, ...],
         skipped: bool = False,
         second_pass: bool = False,
         dense_count: int = 0,
@@ -59,7 +59,7 @@ class RagResult:
         return cls(
             chunks=tuple(chunks),
             query=query,
-            role_id=role_id,
+            role_ids=tuple(role_ids),
             skipped=skipped,
             second_pass=second_pass,
             dense_count=dense_count,

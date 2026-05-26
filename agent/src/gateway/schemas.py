@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 
 class ToolSpec(BaseModel):
@@ -43,11 +43,51 @@ class RequestContext(BaseModel):
     """Per-turn identity and tool whitelist; passed on each chat request, not checkpoint state."""
 
     user_id: str = Field(..., min_length=1, description="Authenticated user identifier from Back.")
-    role_id: str = Field(..., min_length=1, description="Role used for RAG filtering and tool whitelist.")
+    role_ids: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Bound roles for RAG OR filtering and tool whitelist union.",
+    )
     tools: list[ToolSpec] = Field(
         default_factory=list,
         description="External tools the model may emit as client_actions this turn.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coalesce_role_ids(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if data.get("role_ids"):
+            data.pop("role_id", None)
+            return data
+        legacy_role_id = data.get("role_id")
+        if legacy_role_id:
+            data = {**data, "role_ids": [legacy_role_id]}
+            data.pop("role_id", None)
+        return data
+
+    @field_validator("role_ids")
+    @classmethod
+    def _normalize_role_ids(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            role_id = str(raw).strip()
+            if not role_id or role_id in seen:
+                continue
+            seen.add(role_id)
+            normalized.append(role_id)
+        if not normalized:
+            msg = "role_ids must contain at least one non-empty role id"
+            raise ValueError(msg)
+        return normalized
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def role_id(self) -> str:
+        """Deprecated alias for the first bound role; prefer ``role_ids``."""
+        return self.role_ids[0]
 
 
 class ChatRequest(BaseModel):
@@ -61,7 +101,7 @@ class ChatRequest(BaseModel):
                     "message": "请跳转到页面 A",
                     "context": {
                         "user_id": "user-1",
-                        "role_id": "role-sales",
+                        "role_ids": ["role-sales"],
                         "tools": [
                             {
                                 "name": "jumpPage",

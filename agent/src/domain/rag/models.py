@@ -12,7 +12,7 @@ from contracts.rag import RagChannel
 class RagQueryPlan:
     """Role-scoped retrieval plan for one query."""
 
-    role_id: str
+    role_ids: tuple[str, ...]
     query: str
     top_k: int
     prefetch_limit: int

@@ -22,10 +22,12 @@ def candidate_from_payload(
     fallback_id: object,
     channel: RagChannel,
     score: float = 0.0,
-    role_id: str | None = None,
+    role_ids: set[str] | None = None,
 ) -> RagCandidate | None:
-    if role_id is not None and str(payload.get("role_id") or "").strip() != role_id:
-        return None
+    if role_ids is not None:
+        doc_role = str(payload.get("role_id") or "").strip()
+        if doc_role not in role_ids:
+            return None
     doc_id = str(payload.get("doc_id") or "").strip()
     chunk_id = str(payload.get("chunk_id") or fallback_id or "").strip()
     text = payload_text(payload)
@@ -40,7 +42,12 @@ def candidate_from_payload(
     )
 
 
-def hit_to_candidate(hit: Any, *, channel: RagChannel, role_id: str | None = None) -> RagCandidate | None:
+def hit_to_candidate(
+    hit: Any,
+    *,
+    channel: RagChannel,
+    role_ids: set[str] | None = None,
+) -> RagCandidate | None:
     payload = hit.payload if isinstance(hit.payload, dict) else {}
     score = float(hit.score) if hit.score is not None else 0.0
     return candidate_from_payload(
@@ -48,7 +55,7 @@ def hit_to_candidate(hit: Any, *, channel: RagChannel, role_id: str | None = Non
         fallback_id=getattr(hit, "id", ""),
         channel=channel,
         score=score,
-        role_id=role_id,
+        role_ids=role_ids,
     )
 
 
@@ -57,7 +64,7 @@ def point_to_candidate(
     *,
     channel: RagChannel,
     score: float = 0.0,
-    role_id: str | None = None,
+    role_ids: set[str] | None = None,
 ) -> RagCandidate | None:
     payload = point.payload if isinstance(point.payload, dict) else {}
     return candidate_from_payload(
@@ -65,5 +72,5 @@ def point_to_candidate(
         fallback_id=getattr(point, "id", ""),
         channel=channel,
         score=score,
-        role_id=role_id,
+        role_ids=role_ids,
     )

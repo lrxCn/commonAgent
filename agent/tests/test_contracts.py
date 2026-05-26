@@ -121,7 +121,7 @@ def test_context_bundle_contract_carries_sources_and_budget() -> None:
 
 def test_rag_contract_is_compatible_with_retriever_chunk() -> None:
     chunk = RetrieverRagChunk(doc_id="doc-1", chunk_id="c-1", text="policy", score=0.9)
-    result = RagResult.from_chunks([chunk], query="报销制度", role_id="role-sales")
+    result = RagResult.from_chunks([chunk], query="报销制度", role_ids=["role-sales"])
 
     assert isinstance(chunk, RagChunk)
     assert chunk.to_dict() == {

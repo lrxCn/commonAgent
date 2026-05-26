@@ -149,11 +149,11 @@ def rag_retrieval_graph_node(
     state: AgentState,
     runtime: Runtime[GraphContextSchema],
 ) -> dict[str, object]:
-    """Delegate to retriever with role_id from request context."""
+    """Delegate to retriever with role_ids from request context."""
     ctx = request_context_from_runtime(runtime)
     should_call = not bool(state.get("rag_skipped", False))
     payload: dict[str, object] = {
-        "role_id": ctx.role_id,
+        "role_ids": ctx.role_ids,
         "rewritten_query": state.get("rewritten_query"),
         "rag_skipped": state.get("rag_skipped", False),
     }
@@ -198,16 +198,16 @@ def rag_subagent_graph_node(
 ) -> dict[str, object]:
     """Second-pass retrieval; merge and dedupe into ``rag_chunks`` (no third pass)."""
     ctx = request_context_from_runtime(runtime)
-    role_id = ctx.role_id
+    role_ids = ctx.role_ids
     query = text(state.get("rewritten_query"))
     primary = list(state.get("rag_chunks") or [])
 
-    if not role_id or not query:
+    if not role_ids or not query:
         return merge_carry(state, {"rag_chunks": primary})
 
     run_retrieval = facade_attr("run_rag_subagent_retrieval", run_rag_subagent_retrieval)
     apply_merge = facade_attr("apply_rag_subagent_merge", apply_rag_subagent_merge)
-    secondary = run_retrieval(role_id, query, settings=get_settings())
+    secondary = run_retrieval(role_ids, query, settings=get_settings())
     merged = apply_merge(primary, secondary, settings=get_settings())
     updates: dict[str, object] = {"rag_chunks": merged}
     settings = get_settings()

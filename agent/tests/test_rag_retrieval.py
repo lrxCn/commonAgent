@@ -45,6 +45,8 @@ def _settings(**extra: object) -> Settings:
 def _matches_filter(payload: dict[str, Any], flt: qmodels.Filter | None) -> bool:
     if flt is None:
         return True
+    if flt.should:
+        return any(_matches_filter(payload, qmodels.Filter(must=[cond])) for cond in flt.should)
     if flt.must:
         for cond in flt.must:
             key = cond.key
@@ -113,9 +115,9 @@ def test_empty_query_returns_empty_without_error() -> None:
     assert retrieve("role-sales", "   ") == []
 
 
-def test_empty_role_id_returns_empty() -> None:
+def test_empty_role_ids_returns_empty() -> None:
     set_settings_override(_settings(QDRANT_MOCK=True))
-    assert retrieve("", "报销制度") == []
+    assert retrieve([], "报销制度") == []
 
 
 def test_rag_chunks_include_doc_id_and_chunk_id() -> None:
@@ -149,7 +151,7 @@ def test_rag_retrieval_node_skipped_when_router_skipped() -> None:
     set_settings_override(_settings(QDRANT_MOCK=True))
     out = rag_retrieval_node(
         {
-            "role_id": "role-sales",
+            "role_ids": ["role-sales"],
             "rewritten_query": "报销制度",
             "rag_skipped": True,
         }
@@ -161,7 +163,7 @@ def test_rag_retrieval_node_populates_chunks() -> None:
     set_settings_override(_settings(QDRANT_MOCK=True))
     out = rag_retrieval_node(
         {
-            "role_id": "role-sales",
+            "role_ids": ["role-sales"],
             "rewritten_query": "报销制度是什么",
             "rag_skipped": False,
         }
@@ -306,14 +308,14 @@ def test_hybrid_merge_reranks_dense_and_bm25_candidates() -> None:
 
 def test_build_retrieval_metadata_fields() -> None:
     meta = build_retrieval_metadata(
-        role_id="role-sales",
+        role_ids=["role-sales"],
         query="报销",
         dense_count=3,
         sparse_count=1,
         result_count=2,
         mock=False,
     )
-    assert meta["rag.role_id"] == "role-sales"
+    assert meta["rag.role_ids"] == ["role-sales"]
     assert meta["rag.dense_hits"] == 3
     assert meta["rag.result_count"] == 2
     assert meta["rag.mock"] is False
@@ -322,7 +324,7 @@ def test_build_retrieval_metadata_fields() -> None:
 
 def test_build_retrieval_metadata_second_pass_flag() -> None:
     meta = build_retrieval_metadata(
-        role_id="role-sales",
+        role_ids=["role-sales"],
         query="q",
         dense_count=0,
         sparse_count=0,

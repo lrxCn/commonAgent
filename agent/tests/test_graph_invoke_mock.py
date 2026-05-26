@@ -73,14 +73,21 @@ def _clean_graph_mocks() -> None:
 def _context(
     *,
     user_id: str = "user-1",
-    role_id: str = "role-sales",
+    role_ids: list[str] | None = None,
+    role_id: str | None = None,
     tools: list | None = None,
 ) -> dict[str, object]:
-    ctx = RequestContext(
-        user_id=user_id,
-        role_id=role_id,
-        tools=tools or [],
-    )
+    payload: dict[str, object] = {
+        "user_id": user_id,
+        "tools": tools or [],
+    }
+    if role_ids is not None:
+        payload["role_ids"] = role_ids
+    elif role_id is not None:
+        payload["role_id"] = role_id
+    else:
+        payload["role_ids"] = ["role-sales"]
+    ctx = RequestContext.model_validate(payload)
     return graph_context_from_request(ctx)
 
 
@@ -266,13 +273,16 @@ def test_ephemeral_fields_not_visible_at_start_of_second_invoke(
     assert seen == [None]
 
 
-def test_role_id_from_context_not_checkpoint() -> None:
-    """RAG retrieval must use the current invoke's role_id, not a stale checkpoint value."""
+def test_role_ids_from_context_not_checkpoint() -> None:
+    """RAG retrieval must use the current invoke's role_ids, not a stale checkpoint value."""
     set_router_classifier(lambda _prompt: '{"need_rag": true}')
-    role_ids: list[str] = []
+    seen_role_ids: list[list[str]] = []
 
-    def _track_retrieve(role_id: str, query: str, **kwargs):  # type: ignore[no-untyped-def]
-        role_ids.append(role_id)
+    def _track_retrieve(role_ids, query: str, **kwargs):  # type: ignore[no-untyped-def]
+        if isinstance(role_ids, str):
+            seen_role_ids.append([role_ids])
+        else:
+            seen_role_ids.append(list(role_ids))
         return []
 
     import rag.retriever as retriever_mod
@@ -283,12 +293,12 @@ def test_role_id_from_context_not_checkpoint() -> None:
     config = {"configurable": {"thread_id": "thread-role-ctx"}}
     graph.invoke(
         {"messages": [HumanMessage(content="问政策")]},
-        context=_context(role_id="role-a"),
+        context=_context(role_ids=["role-a"]),
         config=config,
     )
     graph.invoke(
         {"messages": [HumanMessage(content="再问")]},
-        context=_context(role_id="role-b"),
+        context=_context(role_ids=["role-b"]),
         config=config,
     )
-    assert role_ids == ["role-a", "role-b"]
+    assert seen_role_ids == [["role-a"], ["role-b"]]

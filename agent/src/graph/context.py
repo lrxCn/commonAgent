@@ -13,7 +13,7 @@ class GraphContextSchema(TypedDict):
     """Same shape as ``gateway.schemas.RequestContext``; passed via ``invoke(..., context=...)``."""
 
     user_id: str
-    role_id: str
+    role_ids: list[str]
     tools: list[ToolSpec]
 
 
@@ -26,6 +26,6 @@ def request_context_from_runtime(runtime: Runtime[GraphContextSchema]) -> Reques
     """Resolve validated request context from the LangGraph runtime (fail fast if missing)."""
     raw = runtime.context
     if not raw:
-        msg = "context is required on each invoke (user_id, role_id, tools)"
+        msg = "context is required on each invoke (user_id, role_ids, tools)"
         raise ValueError(msg)
     return RequestContext.model_validate(raw)

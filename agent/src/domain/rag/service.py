@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from contracts.events import ObservabilityEventType
@@ -22,7 +22,7 @@ class RagStore(Protocol):
     def dense_search(
         self,
         *,
-        role_id: str,
+        role_ids: Sequence[str],
         query_vector: list[float],
         limit: int,
     ) -> list[RagCandidate]: ...
@@ -30,7 +30,7 @@ class RagStore(Protocol):
     def lexical_search(
         self,
         *,
-        role_id: str,
+        role_ids: Sequence[str],
         query: str,
         limit: int,
     ) -> list[RagCandidate]: ...
@@ -42,7 +42,7 @@ EmbedQueryFn = Callable[[str, Settings], list[float]]
 
 def build_retrieval_metadata(
     *,
-    role_id: str,
+    role_ids: Sequence[str],
     query: str,
     dense_count: int,
     sparse_count: int,
@@ -52,7 +52,7 @@ def build_retrieval_metadata(
 ) -> dict[str, Any]:
     """Span metadata for LangSmith."""
     return {
-        "rag.role_id": role_id,
+        "rag.role_ids": list(role_ids),
         "rag.query_len": len(query),
         "rag.dense_hits": dense_count,
         "rag.sparse_hits": sparse_count,
@@ -87,13 +87,13 @@ class RagRetrievalService:
             logger.debug("query embedding failed; continuing with BM25 fallback", exc_info=True)
         else:
             dense_hits = self._store.dense_search(
-                role_id=plan.role_id,
+                role_ids=plan.role_ids,
                 query_vector=dense_vector,
                 limit=plan.prefetch_limit,
             )
 
         sparse_hits = self._store.lexical_search(
-            role_id=plan.role_id,
+            role_ids=plan.role_ids,
             query=plan.query,
             limit=plan.prefetch_limit,
         )
@@ -101,7 +101,7 @@ class RagRetrievalService:
         chunks = self._rerank(plan.query, merged, plan.top_k, self._settings)
 
         metadata = build_retrieval_metadata(
-            role_id=plan.role_id,
+            role_ids=plan.role_ids,
             query=plan.query,
             dense_count=len(dense_hits),
             sparse_count=len(sparse_hits),
@@ -113,7 +113,7 @@ class RagRetrievalService:
         return RagResult.from_chunks(
             chunks,
             query=plan.query,
-            role_id=plan.role_id,
+            role_ids=plan.role_ids,
             second_pass=plan.second_pass,
             dense_count=len(dense_hits),
             sparse_count=len(sparse_hits),
