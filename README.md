@@ -203,7 +203,7 @@ sequenceDiagram
 路径规则：
 
 - `fact_update` 只有通过 Policy Gate 且 slot fill 成功后才走模板确认快速路径，跳过 rewrite、RAG、Supervisor 和 outbound guard；确认话术含已解析字段摘要（如「已记住：姓名=张三」）。
-- `memory_query` 走记忆回答执行器：`memory_query_reply` 生成确定性证据与草稿，`memory_query_polish` 在开关打开时用小模型润色话术（默认关闭则 passthrough）；跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入用户记忆。
+- `memory_query` 走记忆回答执行器：`memory_query_reply` 生成确定性证据与草稿，`memory_query_polish` 默认用小模型润色话术（`MEMORY_QUERY_POLISH_USE_LLM=true`；关闭或失败时回退模板草稿）；跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入用户记忆。
 - `chitchat` 走轻量执行器，默认模板，可选小模型。
 - `knowledge_query` 直接进入 RAG，跳过 router 小模型。
 - `ambiguous` 或旧规则无法确定时，才使用 rewrite/router 小模型与 deepagents。
@@ -295,7 +295,7 @@ Structured Write 链路：
 | `EMBEDDING` | embedding | `EMBEDDING_MODEL` |
 | `RERANK` | rerank | `RERANK_MODEL` |
 | `INTENT_CLASSIFIER` | 结构化 intent 候选分类 | `INTENT_CLASSIFIER_MODEL_NAME` |
-| `MEMORY_QUERY_POLISH` | memory_query 话术润色（仅表达，默认关闭） | `MEMORY_QUERY_POLISH_MODEL_NAME` |
+| `MEMORY_QUERY_POLISH` | memory_query 话术润色（仅表达，默认开启） | `MEMORY_QUERY_POLISH_MODEL_NAME` |
 
 Gateway 负责：
 

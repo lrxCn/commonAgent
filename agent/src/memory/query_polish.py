@@ -31,28 +31,29 @@ def set_memory_query_polish_llm(
 def build_polish_system_prompt() -> str:
     """System constraints: wording only, preserve evidence values, no new facts."""
     return (
-        "你是 memory_query 话术润色器。你只能改写表达，不能增删或修改事实。"
-        "必须保留输入 evidence 中每个 value 的原文。"
+        "你是 memory_query 话术生成器。你只能根据输入的 evidence 回答用户问题，不能增删或修改事实。"
+        "必须保留 evidence 中每个 value 的原文。"
         "如果没有 evidence，不得猜测或编造用户信息，只能诚实说明缺失。"
-        "不要输出解释、JSON 或 Markdown，只输出一句简短自然的中文回复。"
+        "用一句简短、自然、口语化的中文回复，像助手在正常对话。"
+        "禁止使用「我记录到」「根据可靠记忆」等机械模板句式。"
+        "不要输出解释、JSON 或 Markdown，只输出一句中文回复。"
         "不要使用“可能”“大概”“我猜”“不确定”等不确定表述。"
     )
 
 
 def build_polish_user_prompt(polish_input: MemoryQueryPolishInput) -> str:
-    """Serialize deterministic draft and evidence for the polish model."""
+    """Serialize question and evidence for the polish model (draft is fallback-only, not shown)."""
     evidence_lines = [
-        f"- field={item.field}, value={item.value}, source={item.source}"
+        f"- field={item.field}, value={item.value}, source={item.source}, note={item.text}"
         for item in polish_input.evidence
     ]
     evidence_block = "\n".join(evidence_lines) if evidence_lines else "- none"
     missing = polish_input.missing_reason or "none"
     return (
         f"question: {polish_input.question}\n"
-        f"draft_reply: {polish_input.draft_reply}\n"
         f"missing_reason: {missing}\n"
         f"evidence:\n{evidence_block}\n"
-        "请只输出润色后的一句中文回复："
+        "请只输出一句自然的中文回复："
     )
 
 

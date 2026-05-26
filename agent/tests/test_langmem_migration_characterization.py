@@ -41,6 +41,7 @@ _REQUIRED_ENV = {
     "MEMORY_EXTRACT_MODEL_NAME": "Qwen/Qwen2.5-7B-Instruct",
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
+    "MEMORY_QUERY_POLISH_USE_LLM": False,
 }
 
 _SEED_PATH = Path(__file__).resolve().parents[1] / "evals" / "memory_write_seed.json"

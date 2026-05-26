@@ -81,7 +81,7 @@ def test_loads_required_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.INTENT_CLASSIFIER_MODEL_NAME is None
     assert settings.INTENT_CLASSIFIER_MAX_TOKENS == 256
     assert settings.INTENT_CLASSIFIER_TIMEOUT_SECONDS == 5
-    assert settings.MEMORY_QUERY_POLISH_USE_LLM is False
+    assert settings.MEMORY_QUERY_POLISH_USE_LLM is True
     assert settings.MEMORY_QUERY_POLISH_MODEL_NAME is None
     assert settings.MEMORY_QUERY_POLISH_MAX_TOKENS == 80
     assert settings.MEMORY_QUERY_POLISH_TIMEOUT_SECONDS == 5

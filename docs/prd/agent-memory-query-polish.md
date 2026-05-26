@@ -1,6 +1,6 @@
 # Agent memory_query 小模型话术润色 PRD
 
-> **落地状态（2026-05-26）**：任务 76-80 已全部完成并同步 [README.md](/Users/liurixing/Documents/codes/ai/commonAgent/README.md) 与 [docs/maps/](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/)。当前运行路径为 `load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs`；`MEMORY_QUERY_POLISH_USE_LLM` 默认 `false`。
+> **落地状态（2026-05-26）**：任务 76-80 已全部完成并同步 [README.md](/Users/liurixing/Documents/codes/ai/commonAgent/README.md) 与 [docs/maps/](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/)。当前运行路径为 `load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs`；`MEMORY_QUERY_POLISH_USE_LLM` 默认 `true`（校验失败回退 deterministic draft）。
 
 ## 背景
 
@@ -229,7 +229,7 @@ MEMORY_QUERY_POLISH_TIMEOUT_SECONDS=5
 | 任务 78 graph 接入 | ✅ | `memory_query_reply -> memory_query_polish -> post_turn_jobs`；单条 assistant message |
 | 任务 79 可观测与 eval | ✅ | `memory_query.polish.*` metadata、`run_memory_query_polish_eval.py` |
 | 任务 80 文档对齐 | ✅ | README、docs/maps、本 PRD、progress |
-| 默认线上开启润色 | ⏸ 未做 | `MEMORY_QUERY_POLISH_USE_LLM=false`；需显式打开 |
+| 默认线上开启润色 | ✅ | `MEMORY_QUERY_POLISH_USE_LLM=true`；`MEMORY_QUERY_POLISH_MODEL_NAME` 建议配置小模型 |
 | LangSmith Dataset 同步 polish seed | ⏸ 非范围 | 本地 JSON runner 已覆盖；Dataset 同步为可选人工步骤 |
 | 生产监控看板 | ⏸ 非范围 | 仅 trace/path metadata，无独立 dashboard |
 

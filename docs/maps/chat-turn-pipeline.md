@@ -16,7 +16,7 @@
 - `load_memory`：并行读取 checkpoint history、rolling summary、LangGraph Store 用户记忆；调用 `classify_intent()` 生成 `IntentDecision`，派生兼容 `turn_type`，执行 Policy Gate；Policy 通过时对 `fact_update` 做确定性 slot fill，写入单轮 ephemeral `memory_write_record`（fill 失败则拒绝快路径）；记录 intent/policy/fallback metadata。
 - `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 且 `memory_write_record` 存在时执行；输出含字段摘要的 Commit 话术（如「已记住：姓名=张三」），跳过 LLM/RAG/Supervisor。
 - `memory_query_reply`：记忆查询一等路径；调用 `answer_memory_query()` 选择证据并生成 deterministic draft，写入 ephemeral `memory_query_result`；不直接 append assistant message。
-- `memory_query_polish`：读取 draft 与 evidence；`MEMORY_QUERY_POLISH_USE_LLM=false` 时 passthrough draft，打开时调用小模型润色话术；输出校验失败或 LLM 异常回退 draft；append 唯一 assistant message。
+- `memory_query_polish`：读取 draft 与 evidence；`MEMORY_QUERY_POLISH_USE_LLM=true` 时调用小模型润色话术；关闭或校验失败/LLM 异常时回退 draft；append 唯一 assistant message。
 - `chitchat_reply`：寒暄轻量执行器。
 - `rewrite`：按 `turn_type` 决定跳过或做指代消解。
 - `rag_router`：按 `turn_type`、规则或小模型决定是否走 RAG。
@@ -36,7 +36,7 @@
 ## 快速路径
 
 - `fact_update`：必须通过 Policy Gate 且 slot fill 成功；通过后跳过 rewrite、RAG、Supervisor、outbound guard；确认话术与 `StructuredMemoryRecord` 一致。
-- `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过记忆写入；默认不调用润色小模型（`MEMORY_QUERY_POLISH_USE_LLM=false`）。
+- `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过记忆写入；默认调用润色小模型（`MEMORY_QUERY_POLISH_USE_LLM=true`）。
 - `chitchat`：跳过 rewrite、RAG、deepagents。
 - `knowledge_query`：跳过 router 小模型，直接进入 RAG。
 
@@ -61,7 +61,7 @@
 ## memory_query 润色
 
 - 图路径：`memory_query_reply -> memory_query_polish -> post_turn_jobs`
-- 配置：`MEMORY_QUERY_POLISH_USE_LLM`（默认 `false`）、`MEMORY_QUERY_POLISH_MODEL_NAME`、`MEMORY_QUERY_POLISH_MAX_TOKENS`、`MEMORY_QUERY_POLISH_TIMEOUT_SECONDS`
+- 配置：`MEMORY_QUERY_POLISH_USE_LLM`（默认 `true`）、`MEMORY_QUERY_POLISH_MODEL_NAME`、`MEMORY_QUERY_POLISH_MAX_TOKENS`、`MEMORY_QUERY_POLISH_TIMEOUT_SECONDS`
 - trace：`memory_query.evidence_*`、`memory_query.polish.*` 事件 `memory_query.polished`
 - Eval：[memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
 

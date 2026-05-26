@@ -37,6 +37,7 @@ _REQUIRED_ENV = {
     "MEMORY_STORE_MOCK": True,
     "QDRANT_MOCK": True,
     "RAG_ROUTER_MODE": "rules",
+    "MEMORY_QUERY_POLISH_USE_LLM": False,
 }
 
 

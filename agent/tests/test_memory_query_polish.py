@@ -71,7 +71,7 @@ def test_settings_defaults_for_memory_query_polish(monkeypatch: pytest.MonkeyPat
     for key, value in _REQUIRED_ENV.items():
         monkeypatch.setenv(key, value)
     settings = Settings(_env_file=None)
-    assert settings.MEMORY_QUERY_POLISH_USE_LLM is False
+    assert settings.MEMORY_QUERY_POLISH_USE_LLM is True
     assert settings.MEMORY_QUERY_POLISH_MODEL_NAME is None
     assert settings.MEMORY_QUERY_POLISH_MAX_TOKENS == 80
     assert settings.MEMORY_QUERY_POLISH_TIMEOUT_SECONDS == 5
@@ -101,13 +101,16 @@ def test_build_polish_input_from_memory_query_result() -> None:
     assert polish_input.missing_reason == ""
 
 
-def test_build_polish_prompts_include_draft_and_evidence() -> None:
+def test_build_polish_prompts_include_evidence_not_draft() -> None:
     polish_input = _polish_input()
     system = build_polish_system_prompt()
     user = build_polish_user_prompt(polish_input)
     assert "不能增删或修改事实" in system
-    assert "draft_reply: 我记录到你叫刘日兴。" in user
+    assert "禁止使用「我记录到」" in system
+    assert "draft_reply" not in user
+    assert "question: 我叫什么" in user
     assert "value=刘日兴" in user
+    assert "note=name: 刘日兴" in user
     assert "missing_reason: none" in user
 
 

@@ -208,6 +208,8 @@
 | 2026-05-25 | 完成任务 69：`contracts/memory_store.py`（namespace/profile/read 契约）；`test_langmem_migration_characterization.py` 冻结 mem0 基线；`test_langmem_store_spike.py` 验证 Store+checkpointer 同库；pin `langmem>=0.0.30`；Store 实现随 `langgraph-checkpoint-postgres>=3.1.0`，无需单独 store 包 |
 | 2026-05-25 | 完成任务 73：删除 mem0ai、`mem0_client`/`mem0_write`、QDRANT_COLLECTION_MEM0 与 MEM0_* settings；`MEMORY_FREE_TEXT_MAX_FACTS`；AGENTS.md 改为 Store/langmem 约束 |
 | 2026-05-25 | 完成任务 74：`mem0_memories` → `user_memories`；README/maps/PRD/issue/evals 同步 Store+langmem 当前事实；LangMem 迁移 69-75 全部收口 |
+| 2026-05-26 | memory_query 润色 prompt：LLM 输入移除 `draft_reply`（仅作 fallback），改由 question + evidence 生成自然话术，避免小模型照抄模板 |
+| 2026-05-26 | 运行契约：`MEMORY_QUERY_POLISH_USE_LLM` 默认改为 `true`；`.env.example` 同步小模型名；graph  characterization 测试显式 `false` 以隔离 deterministic 断言 |
 | 2026-05-26 | 完成任务 80：README、docs/maps、PRD 同步 memory_query 润色当前运行事实（`memory_query_polish` 节点、`MEMORY_QUERY_POLISH_*`、eval runner）；progress 80/80 完成 |
 | 2026-05-26 | 完成任务 79：新增 `memory_query.polished` 事件与 `memory_query.polish.*` path/trace metadata；`run_memory_query_polish_eval.py` 本地 seed 8/8；篡改/缺失/回退 eval 与 tracing 测试 |
 | 2026-05-26 | 完成任务 78：主图接入 `memory_query_polish` 节点；`memory_query_reply` 写 draft/result，polish 追加唯一 assistant message；默认关闭时行为不变；mock 成功/校验失败回退测试 |

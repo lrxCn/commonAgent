@@ -66,7 +66,7 @@ Policy 通过后的 structured write 链路：
 - 证据回答：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
 - post_turn 跳过写入：[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py:1)
 
-回答只基于 memory profile、Store/langmem 用户记忆或当前 thread 里的可靠用户事实；没有证据时返回诚实缺失回复，并记录 memory fallback。小模型润色默认关闭；打开时仅改写表达，校验失败回退 deterministic draft。
+回答只基于 memory profile、Store/langmem 用户记忆或当前 thread 里的可靠用户事实；没有证据时返回诚实缺失回复，并记录 memory fallback。小模型润色默认开启；校验失败回退 deterministic draft。
 
 ## Fallback
 

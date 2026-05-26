@@ -17,7 +17,7 @@
 - `CHITCHAT`：寒暄回复。
 - `MEMORY_EXTRACT`：langmem inferred 慢路径写入。
 - `INTENT_CLASSIFIER`：低置信或冲突 intent 的结构化候选分类器。
-- `MEMORY_QUERY_POLISH`：memory_query 确定性草稿的话术润色；默认关闭；不计入 supervisor `llm_call_count`。
+- `MEMORY_QUERY_POLISH`：memory_query 确定性草稿的话术润色；默认开启；不计入 supervisor `llm_call_count`。
 - `SUMMARY`：rolling summary 更新。
 - `EMBEDDING`：query/doc embedding。
 - `RERANK`：候选 rerank。
@@ -41,7 +41,7 @@
 - rerank HTTP 失败时按原候选顺序生成稳定 fallback 分数。
 - embedding 失败时 RAG 继续走 lexical BM25 fallback。
 - chitchat 小模型异常时回退模板回复。
-- memory_query polish 小模型异常或输出校验失败（证据缺失、不确定表述、缺失记忆编造等）时回退 deterministic draft；默认 `MEMORY_QUERY_POLISH_USE_LLM=false` 时不调用 LLM。
+- memory_query polish 小模型异常或输出校验失败（证据缺失、不确定表述、缺失记忆编造等）时回退 deterministic draft；`MEMORY_QUERY_POLISH_USE_LLM=false` 时不调用 LLM。
 
 ## 实现入口
 

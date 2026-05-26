@@ -139,7 +139,7 @@ class Settings(BaseSettings):
 
     # --- Memory query polish ---
     MEMORY_QUERY_POLISH_USE_LLM: bool = Field(
-        default=False,
+        default=True,
         description="When true, memory_query replies use a small LLM to polish wording only.",
     )
     MEMORY_QUERY_POLISH_MODEL_NAME: str | None = Field(
