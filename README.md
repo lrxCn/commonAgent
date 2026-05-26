@@ -119,6 +119,49 @@ graph.invoke(
 
 主图拓扑在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，节点实现在 [graph/nodes/](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)。
 
+当前编译拓扑可通过 `cd agent && uv run python scripts/print_graph_mermaid.py` 生成：
+
+```mermaid
+flowchart TD
+    start_node([START])
+    inbound_guard["inbound_guard"]
+    load_memory["load_memory"]
+    fact_update_confirm["fact_update_confirm"]
+    memory_query_reply["memory_query_reply"]
+    chitchat_reply["chitchat_reply"]
+    rewrite["rewrite"]
+    rag_router["rag_router"]
+    rag_retrieval["rag_retrieval"]
+    rag_subagent["rag_subagent"]
+    context_assembly["context_assembly"]
+    supervisor["supervisor"]
+    client_actions_emit["client_actions_emit"]
+    outbound_guard["outbound_guard"]
+    post_turn_jobs["post_turn_jobs"]
+    end_node([END])
+    start_node --> inbound_guard
+    chitchat_reply --> post_turn_jobs
+    client_actions_emit --> post_turn_jobs
+    context_assembly --> supervisor
+    fact_update_confirm --> post_turn_jobs
+    inbound_guard -.-> end_node
+    inbound_guard -.-> load_memory
+    load_memory -.-> chitchat_reply
+    load_memory -.-> fact_update_confirm
+    load_memory -.-> memory_query_reply
+    load_memory -.-> rewrite
+    memory_query_reply --> post_turn_jobs
+    outbound_guard --> post_turn_jobs
+    rag_retrieval -.-> context_assembly
+    rag_retrieval -.-> rag_subagent
+    rag_router --> rag_retrieval
+    rag_subagent --> context_assembly
+    rewrite --> rag_router
+    supervisor -.-> client_actions_emit
+    supervisor -.-> outbound_guard
+    post_turn_jobs --> end_node
+```
+
 ```mermaid
 sequenceDiagram
   participant Back
