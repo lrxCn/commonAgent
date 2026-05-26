@@ -42,3 +42,20 @@ def unauthorized(message: str = "未登录或会话已失效") -> ApiError:
 
 def invalid_credentials() -> ApiError:
     return ApiError(status_code=401, code="UNAUTHORIZED", message="用户名或密码错误")
+
+
+def not_found(message: str = "资源不存在") -> ApiError:
+    return ApiError(status_code=404, code="NOT_FOUND", message=message)
+
+
+def conflict(
+    message: str,
+    *,
+    field_errors: dict[str, str] | None = None,
+) -> ApiError:
+    return ApiError(
+        status_code=409,
+        code="CONFLICT",
+        message=message,
+        field_errors=field_errors,
+    )

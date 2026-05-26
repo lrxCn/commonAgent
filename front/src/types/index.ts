@@ -24,3 +24,37 @@ export type LoginRequest = {
   username: string;
   password: string;
 };
+
+export type Student = {
+  student_id: string;
+  student_no: string;
+  name: string;
+  class_name: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentListResponse = {
+  items: Student[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type StudentCreateRequest = {
+  student_no: string;
+  name: string;
+  class_name?: string | null;
+  status?: string;
+};
+
+export type StudentUpdateRequest = Partial<StudentCreateRequest>;
+
+export type StudentListParams = {
+  offset?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  class_name?: string;
+};
