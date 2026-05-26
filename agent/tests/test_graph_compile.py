@@ -33,6 +33,8 @@ def test_compile_graph_has_expected_nodes() -> None:
         "inbound_guard",
         "load_memory",
         "fact_update_confirm",
+        "memory_query_reply",
+        "memory_query_polish",
         "chitchat_reply",
         "rewrite",
         "rag_router",
@@ -45,6 +47,13 @@ def test_compile_graph_has_expected_nodes() -> None:
         "post_turn_jobs",
     }
     assert expected.issubset(node_names)
+
+
+def test_memory_query_path_goes_through_polish_before_post_turn() -> None:
+    graph = compile_graph(checkpointer=MemorySaver(), use_pooled_postgres=False)
+    edges = graph.builder.edges
+    assert ("memory_query_reply", "memory_query_polish") in edges
+    assert ("memory_query_polish", "post_turn_jobs") in edges
 
 
 def test_get_graph_returns_compiled_instance() -> None:

@@ -24,6 +24,7 @@ _EPHEMERAL_CARRY_KEYS = (
     "policy_fast_path_allowed",
     "policy_denied_reason",
     "memory_write_record",
+    "memory_query_result",
     "path_metrics",
     "rewritten_query",
     "rag_skipped",

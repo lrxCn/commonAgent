@@ -8,6 +8,7 @@ from langgraph.runtime import Runtime
 from contracts.context import ContextBundle
 from contracts.events import ObservabilityEventType
 from contracts.execution import ExecutorDecision
+from contracts.memory_query_polish import build_polish_input
 from graph.chitchat_executor import chitchat_reply
 from graph.client_actions import (
     ERROR_PARSE,
@@ -26,7 +27,8 @@ from graph.rag_subagent import max_chunk_score
 from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
 from intent.fallback import memory_query_fallback_decision, tool_fallback_decision
-from memory.query import answer_memory_query, memory_query_trace_metadata
+from memory.query import MemoryQueryResult, answer_memory_query, memory_query_trace_metadata
+from memory.query_polish import polish_memory_query_reply
 from memory.structured_record import (
     format_structured_memory_confirmation,
     legacy_fact_update_confirmation,
@@ -143,13 +145,40 @@ def memory_query_reply_node(state: AgentState) -> dict[str, object]:
     return merge_carry(
         state,
         {
-            "messages": [AIMessage(content=result.reply)],
+            "memory_query_result": result,
             "supervisor_draft": result.reply,
             "executor": decision.executor.value,
             "executor_reason": decision.reason,
             "client_actions": None,
             "client_actions_error": None,
             "outbound_blocked": False,
+            "path_metrics": path_metrics,
+        },
+    )
+
+
+def memory_query_polish_node(state: AgentState) -> dict[str, object]:
+    """Append the final memory_query assistant reply after optional small-model polish."""
+    raw_result = state.get("memory_query_result")
+    if not isinstance(raw_result, MemoryQueryResult):
+        msg = "memory_query_polish requires memory_query_result from memory_query_reply"
+        raise RuntimeError(msg)
+
+    polish_input = build_polish_input(extract_user_message(state), raw_result)
+    polish_outcome = polish_memory_query_reply(polish_input)
+
+    path_metrics = dict(state.get("path_metrics") or {})
+    settings = get_settings()
+    path_metrics["memory_query_polish.enabled"] = settings.MEMORY_QUERY_POLISH_USE_LLM
+    path_metrics["memory_query_polish.used_llm"] = polish_outcome.used_llm
+    path_metrics["memory_query_polish.fallback_reason"] = polish_outcome.fallback_reason
+    path_metrics["memory_query_polish.changed"] = polish_outcome.changed
+
+    return merge_carry(
+        state,
+        {
+            "messages": [AIMessage(content=polish_outcome.reply)],
+            "supervisor_draft": polish_outcome.reply,
             "path_metrics": path_metrics,
         },
     )

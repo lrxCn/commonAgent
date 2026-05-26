@@ -13,6 +13,7 @@ from contracts.context import ContextBundle
 from contracts.intent import IntentDecision
 from contracts.memory_write import StructuredMemoryRecord
 from gateway.schemas import ClientAction
+from memory.query import MemoryQueryResult
 from rag.retriever import RagChunk
 
 
@@ -38,6 +39,7 @@ class AgentState(TypedDict, total=False):
     policy_fast_path_allowed: Annotated[bool, EphemeralValue]
     policy_denied_reason: Annotated[str, EphemeralValue]
     memory_write_record: Annotated[StructuredMemoryRecord | None, EphemeralValue]
+    memory_query_result: Annotated[MemoryQueryResult | None, EphemeralValue]
     path_metrics: Annotated[dict[str, object], EphemeralValue]
     rewritten_query: Annotated[str, EphemeralValue]
     rag_skipped: Annotated[bool, EphemeralValue]

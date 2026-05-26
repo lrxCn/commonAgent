@@ -20,6 +20,7 @@ from memory.query import (
     answer_memory_query,
     memory_query_trace_metadata,
 )
+from memory.query_polish import set_memory_query_polish_llm
 import rag.retriever as retriever_mod
 from rag.retriever import reset_retriever_overrides
 from rag.rewrite import set_rewrite_llm
@@ -51,6 +52,7 @@ def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_supervisor_overrides()
     set_supervisor_invoke(MagicMock(return_value=[AIMessage(content="supervisor reply")]))
     set_history_checkpointer(None)
+    set_memory_query_polish_llm(None)
     reset_settings()
     set_settings_override(Settings(**_REQUIRED_ENV))  # type: ignore[arg-type]
     yield
@@ -60,6 +62,7 @@ def _graph_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     retriever_mod.retrieve = _ORIGINAL_RETRIEVE
     reset_supervisor_overrides()
     set_history_checkpointer(None)
+    set_memory_query_polish_llm(None)
     reset_settings()
 
 
@@ -272,3 +275,69 @@ def test_memory_query_characterization_full_profile_multi_evidence() -> None:
     assert [item.field for item in result.evidence] == ["name", "job"]
     assert all(item.source == "memory_profile" for item in result.evidence)
     assert result.missing_reason == ""
+
+
+def test_memory_query_graph_appends_single_assistant_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
+    result = _invoke("我叫什么", thread_id="thread-memory-single-ai")
+
+    ai_messages = [message for message in result["messages"] if isinstance(message, AIMessage)]
+    assert len(ai_messages) == 1
+    assert ai_messages[0].content == "我记录到你叫刘日兴。"
+
+
+def test_memory_query_graph_polish_disabled_passthrough(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
+    result = _invoke("我叫什么", thread_id="thread-memory-polish-disabled")
+
+    assert result["messages"][-1].content == "我记录到你叫刘日兴。"
+    assert result["path_metrics"]["memory_query_polish.enabled"] is False
+    assert result["path_metrics"]["memory_query_polish.used_llm"] is False
+    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == "disabled"
+    assert result["path_metrics"]["memory_query_polish.changed"] is False
+
+
+def test_memory_query_graph_polish_enabled_uses_mock_llm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
+    reset_settings()
+    set_settings_override(
+        Settings(**{**_REQUIRED_ENV, "MEMORY_QUERY_POLISH_USE_LLM": True})  # type: ignore[arg-type]
+    )
+    mock = MagicMock()
+    mock.invoke.return_value = MagicMock(content="我记得你的名字是刘日兴。")
+    set_memory_query_polish_llm(mock)
+
+    result = _invoke("我叫什么", thread_id="thread-memory-polish-enabled")
+
+    assert result["messages"][-1].content == "我记得你的名字是刘日兴。"
+    assert result["path_metrics"]["memory_query_polish.enabled"] is True
+    assert result["path_metrics"]["memory_query_polish.used_llm"] is True
+    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == ""
+    assert result["path_metrics"]["memory_query_polish.changed"] is True
+    mock.invoke.assert_called_once()
+
+
+def test_memory_query_graph_polish_validation_failure_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", lambda _user_id, **_kwargs: ["用户叫刘日兴"])
+    reset_settings()
+    set_settings_override(
+        Settings(**{**_REQUIRED_ENV, "MEMORY_QUERY_POLISH_USE_LLM": True})  # type: ignore[arg-type]
+    )
+    mock = MagicMock()
+    mock.invoke.return_value = MagicMock(content="你叫王五。")
+    set_memory_query_polish_llm(mock)
+
+    result = _invoke("我叫什么", thread_id="thread-memory-polish-fallback")
+
+    assert result["messages"][-1].content == "我记录到你叫刘日兴。"
+    assert result["path_metrics"]["memory_query_polish.used_llm"] is True
+    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == "missing_evidence_value"
+    assert result["path_metrics"]["memory_query_polish.changed"] is False
