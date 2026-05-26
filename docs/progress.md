@@ -6,16 +6,16 @@
 
 ## 总览
 
-**当前建议下一步**：演示平台 **92** [文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md)（依赖 81–91）。
+**当前建议下一步**：演示平台批次 **81–92 已全部完成**；可回到产品规划或新需求拆分任务卡。
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 92（规划） |
-| 已完成 | 91（01–80 Agent 核心 + 81–91 演示平台） |
+| 总任务数 | 92 |
+| 已完成 | 92（01–80 Agent 核心 + 81–92 演示平台） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
-**演示平台批次（81–92）**：依赖 [demo-admin-console.md](./prd/demo-admin-console.md)；**92** 为文档收口（README、walkthrough、maps、移除 legacy static front）。
+**演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
 
 
 ---
@@ -118,7 +118,7 @@
 | 89 | [演示平台：Agent KB API + Back kb_document_meta 双写](./prompts/89-demo-kb-meta-agent-apis.md) | ✅ | 2026-05-26 | Agent list/get/delete；Back 双写+代理；`test_kb_admin_api.py` 6 + `test_demo_kb.py` 7 用例 |
 | 90 | [演示平台：Front RAG 管理页](./prompts/90-demo-front-rag-admin-ui.md) | ✅ | 2026-05-26 | `KbDocumentsView` 列表/新建/详情编辑/删除；`api/kb.ts`；admin 菜单 `/app/admin/kb` |
 | 91 | [演示平台：ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md) | ✅ | 2026-05-26 | `ChatDrawer` SSE/token/retract/replace/client_actions；`stores/chat.ts`+`api/chat.ts`；Back `GET /api/threads/{id}/messages` 代理+403；`test_demo_chat_history.py` 4 用例 |
-| 92 | [演示平台：文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md) | ⬜ | — | 依赖 81–91；README、demo-walkthrough、maps |
+| 92 | [演示平台：文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md) | ✅ | 2026-05-26 | README、demo-walkthrough、maps、PRD 落地状态；移除 legacy static；演示平台 81–92 收口 |
 
 ---
 
@@ -238,4 +238,5 @@
 | 2026-05-26 | 完成任务 81：Back `db/` ORM（roles/users/user_roles/students/kb_document_meta/chat_threads）、Alembic 初始迁移、`db.seed` CLI、`domain/role_id` 格式校验；`DATABASE_URL`/`ADMIN_SEED_PASSWORD` env 契约；`test_demo_database.py` 4 用例（SQLite fixture） |
 | 2026-05-26 | 完成任务 91：`ChatDrawer` 接入 SSE 流式、`client_actions` confirm/console、sessionStorage `thread_id`、历史分页拉取；Back 新增 `verify_thread_access` 与 `GET /api/threads/{thread_id}/messages` Agent 代理；`test_demo_chat_history.py` 4 用例；front build 绿 |
 | 2026-05-26 | 完成任务 90：`KbDocumentsView`（角色/关键词筛选、上传 txt/md、详情 chunk 概览、编辑 re-ingest、删除确认）；`front/src/api/kb.ts`；路由与侧边栏启用 RAG 管理 |
+| 2026-05-26 | 完成任务 92：README 同步 `role_ids[]` 与演示启动；新增 `docs/demo-walkthrough.md`、`docs/maps/demo-platform.md`；更新 rag-flow/chat-turn-pipeline；PRD 落地状态；移除 `front/app.js`、`legacy.html`、`styles.css`；progress 92/92 |
 | 2026-05-26 | 完成任务 89：Agent `GET/DELETE /internal/kb/documents` + chunk 预览；Back `/api/admin/kb/documents` ingest 成功后 upsert `kb_document_meta`（含 `raw_content`）；GET/PATCH/DELETE 代理 Agent + meta；≤2MB UTF-8 校验 |

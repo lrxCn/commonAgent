@@ -668,3 +668,42 @@ admin 路由非 admin → **403**；未登录 → **401**。
 **学生种子**：2024001 张三、2024002 李四、2023008 王五（见旧表）。
 
 **提问示例**：alice →「标准版一年多少钱？」；bob →「买错了可以退吗？」
+
+---
+
+## 落地状态与偏差
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| Back `common_agent_back` + Alembic + 种子 | ✅ | 任务 81；`uv run alembic upgrade head` + `uv run python -m db.seed` |
+| Cookie Session + `/api/auth/*` + `/api/me` | ✅ | 任务 82；CORS 放行 `5173` |
+| Front Vue3 SPA 脚手架 | ✅ | 任务 83；Vite + Pinia + Naive UI |
+| 登录 / Layout / 欢迎页 / Chat FAB 空壳 | ✅ | 任务 84 |
+| 学生 CRUD（Back + Front） | ✅ | 任务 85；一期全员共享表 |
+| 账号管理（角色/用户 CRUD） | ✅ | 任务 86 |
+| Agent `role_ids[]` + RAG OR | ✅ | 任务 87；deprecated `role_id` alias 仍接受 |
+| Back context 注入 + `chat_threads` | ✅ | 任务 88 |
+| Agent KB API + Back meta 双写 | ✅ | 任务 89 |
+| Front RAG 管理页 | ✅ | 任务 90；txt/md ≤2MB |
+| ChatDrawer SSE + history + `client_actions` | ✅ | 任务 91 |
+| 文档收口 + legacy static 移除 | ✅ | 任务 92；[demo-walkthrough.md](../demo-walkthrough.md)、[demo-platform.md](../maps/demo-platform.md) |
+| legacy `app.js` / `legacy.html` 静态入口 | ✅ 已移除 | Phase 4 完成；唯一入口为 Vite `index.html` |
+| OAuth / SSO | ⏸ 非目标 | PRD 非目标 |
+| PDF/Word 上传 | ⏸ 二期 | 当前仅 txt/md |
+| 学生行级隔离 | ⏸ 一期未做 | 全员共享 `students` 表 |
+| 对话内 NL 查学生（Agent 工具） | ⏸ 非目标 | 不注册学生查询 tool |
+| `INTENT_CLASSIFIER` 接入 graph 热路径 | ⏸ Agent 既有偏差 | 与演示平台无关；见控制面 PRD |
+| Front 记忆 pending UI | ⏸ Phase 2 | 架构 PRD 遗留项 |
+
+## 验证入口
+
+```bash
+rg -n "role_ids" README.md back agent/src
+rg -n "common_agent_back|5173" README.md back/.env.example
+test ! -f front/app.js
+cd back && uv run pytest tests/ -v --ignore=tests/integration
+cd agent && uv run pytest tests/test_schemas.py tests/test_role_ids_filter.py -v
+cd front && npm run build
+```
+
+演示操作步骤见 [docs/demo-walkthrough.md](../demo-walkthrough.md)。

@@ -1,0 +1,83 @@
+# Demo Platform（演示平台）
+
+回答的问题：浏览器经 Back 登录后，学生/RAG/账号/对话各模块如何路由、鉴权并把 `role_ids[]` 注入 Agent。
+
+## 边界
+
+- Front（Vue 3 SPA，`5173`）只请求 Back（`8080`），`withCredentials` 携带 Cookie。
+- Back 业务库 **`common_agent_back`**；Agent checkpoint/Store 库 **`common_agent`**；Qdrant 仅 KB。
+- 浏览器 **不得** 直连 Agent Gateway。
+
+## 认证与会话
+
+- 登录：`POST /api/auth/login` → HttpOnly signed Cookie（`SessionMiddleware`）。
+- 当前用户：`GET /api/me` → `user_id`、`role_ids[]`、`is_admin`。
+- 登出：`POST /api/auth/logout`。
+- 实现：[back/src/api/auth.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/api/auth.py)、[demo_auth 测试](/Users/liurixing/Documents/codes/ai/commonAgent/back/tests/test_demo_auth.py:1)。
+
+## Front 路由
+
+定义在 [front/src/router/index.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/router/index.ts:1)：
+
+| 路径 | 页面 | 权限 |
+|------|------|------|
+| `/login` | 登录 | 游客 |
+| `/app/home` | 欢迎页 | 登录 |
+| `/app/students` | 学生 CRUD | 登录 |
+| `/app/admin/roles` | 角色管理 | admin |
+| `/app/admin/users` | 用户管理 | admin |
+| `/app/admin/kb` | RAG 文档 | admin |
+
+全局 **ChatFab** + **ChatDrawer**（`AppLayout`）在所有 `/app/*` 页可用。
+
+状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）。
+
+## Back 业务 API（摘要）
+
+| 前缀 | 说明 |
+|------|------|
+| `/api/students` | 学生 CRUD + batch-delete |
+| `/api/admin/roles` | 角色 CRUD |
+| `/api/admin/users` | 用户 CRUD、多角色绑定 |
+| `/api/admin/kb/documents` | KB ingest 代理 Agent + `kb_document_meta` 双写 |
+| `/api/chat` | 对话 SSE/JSON 转发 Agent |
+| `/api/threads/{id}/messages` | 历史分页（thread 归属 403） |
+
+## 对话数据流
+
+```mermaid
+sequenceDiagram
+  participant F as Front Vue
+  participant B as Back
+  participant A as Agent
+
+  F->>B: POST /api/chat Cookie + thread_id, message
+  B->>B: Session → user_id, role_ids[], tools 并集
+  B->>B: chat_threads 登记/403
+  B->>A: POST /internal/chat + context
+  A->>A: LangGraph + RAG OR filter
+  A-->>B: SSE or client_actions JSON
+  B-->>F: 透传
+```
+
+Context 组装：[back/src/services/context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) `build_request_context_from_session()` → `role_ids[]` + `filter_tools_for_role_ids()`。
+
+Agent 契约：[schemas.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas.py:1) `RequestContext.role_ids`；deprecated `role_id` 单字段 alias 仍接受。
+
+## RAG 多角色
+
+- Ingest：Back admin API → Agent `POST /internal/kb/ingest`（按单 `role_id` 写入 Qdrant payload）。
+- 检索：Agent 对 `context.role_ids[]` 做 Qdrant **should OR** 过滤，见 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1) `roles_filter()`。
+- 地图细节：[rag-flow.md](./rag-flow.md)。
+
+## 演示手册
+
+逐步操作：[demo-walkthrough.md](../demo-walkthrough.md)（脚本 A/B）。
+
+## 测试入口
+
+```bash
+cd back && uv run pytest tests/test_demo_auth.py tests/test_demo_students.py tests/test_demo_admin.py tests/test_demo_kb.py tests/test_demo_chat_context.py tests/test_demo_chat_history.py -v
+cd front && npm run build
+cd agent && uv run pytest tests/test_role_ids_filter.py tests/test_schemas.py -v
+```

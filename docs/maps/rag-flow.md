@@ -20,16 +20,17 @@
 步骤：
 
 1. 用 LLM Gateway 生成 query embedding。
-2. Qdrant dense search 按 `role_id` 过滤。
-3. 本地 lexical/BM25 fallback 对同一 `role_id` 候选做词法召回。
+2. Qdrant dense search 按 `role_ids[]` 做 **should OR** 过滤（`roles_filter()`）；单角色时与旧单 `role_id` 行为一致。
+3. 本地 lexical/BM25 fallback 对同一 `role_ids` 候选集合做词法召回。
 4. 在 [merge.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/merge.py:1) 合并 dense + sparse 候选。
 5. 用 rerank provider 重排。
 6. 在 [formatting.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/formatting.py:1) 组装带 citation 的 RAG chunks。
 
 ## 权限与二查
 
-- Qdrant 搜索阶段就按 `role_id` 过滤。
-- payload 解析与 chunk 组装阶段仍保留 `role_id` 相关校验，避免越权 payload 混入。
+- Qdrant 搜索阶段按 `context.role_ids[]` OR 过滤；每个 chunk payload 仍带单个 `role_id`，须落在允许集合内。
+- payload 解析与 chunk 组装阶段仍做 `role_id` 校验，避免越权 payload 混入。
+- 演示平台：Back 从 Session 注入用户绑定的全部 `role_id`；多角色用户可见多库文档并集，单角色用户仍隔离。
 - RagSubAgent 在 [rag_subagent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/rag_subagent.py:1)；只在主检索为空或弱命中时做第二次检索。
 - 二查后仍为空或弱命中会记录 RAG fallback；`knowledge_query` 最终返回无可靠来源模板，不让 deepagents 伪造来源。
 
@@ -51,6 +52,7 @@
 - 路由逻辑：[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
 - 检索与 chunk 格式：[test_rag_retrieval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_retrieval.py:1)
 - 边界与 fallback：[test_rag_boundaries.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_boundaries.py:1)
+- 多角色 OR / 单角色隔离：[test_role_ids_filter.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_role_ids_filter.py:1)
 - RagSubAgent：[test_rag_subagent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_subagent.py:1)
 - 控制面路径：[test_policy_gate.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_policy_gate.py:1)、[test_intent_rules.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_rules.py:1)、[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
 - Ingest API：[test_kb_ingest.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_kb_ingest.py:1)

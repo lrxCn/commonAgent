@@ -4,7 +4,7 @@
 
 ## 主路径
 
-1. Back 在 [context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) 组装 `user_id`、`role_id`、`tools[]`，再由 [forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1) 转发给 Agent。
+1. Back 在 [context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) 从 Cookie Session 组装 `user_id`、`role_ids[]`、按角色并集过滤的 `tools[]`，校验 `chat_threads` 归属后由 [forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1) 转发 Agent。
 2. Agent Gateway 在 [chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1) 把请求转换成 `graph.invoke(..., context=..., configurable.thread_id=...)`。
 3. 主图定义在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，节点导出入口在 [graph/nodes/__init__.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)。
 

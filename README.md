@@ -8,10 +8,11 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-75 已完成（LangMem 迁移 69-75 收口） |
-| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG |
-| Back | FastAPI 占位服务，注入 demo context，转发 Agent |
-| Front | 静态单页，sessionStorage `thread_id`，SSE 展示，`client_actions` demo |
+| 核心任务 | 01-92 已完成（Agent 核心 01-80 + 演示平台 81-92） |
+| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
+| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 并转发 Agent |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA（dev `5173`，proxy → Back）；全局 ChatDrawer SSE + `client_actions` |
+| 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
 ## 文档秩序
@@ -42,6 +43,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 - [client-actions.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/client-actions.md)
 - [failure-modes.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/failure-modes.md)
 - [control-plane.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/control-plane.md)
+- [demo-platform.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/demo-platform.md)
 
 ## 目录结构
 
@@ -49,8 +51,8 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 commonAgent/
 ├── AGENTS.md
 ├── README.md
-├── front/                 # Vue 3 SPA（演示平台）；legacy 静态页见 legacy.html
-├── back/                  # Front 入口：demo context、工具白名单、转发 Agent
+├── front/                 # Vue 3 SPA（演示平台，Vite 入口 index.html）
+├── back/                  # Session 鉴权、业务 CRUD、context 注入、转发 Agent
 ├── agent/
 │   ├── src/
 │   │   ├── contracts/     # 跨模块 typed contracts：routing / execution / path / context / rag / sse / events / llm / intent / fallback
@@ -79,15 +81,15 @@ commonAgent/
 
 | 层级 | 职责 |
 |------|------|
-| Front | 对话 UI、`thread_id` 持久化、SSE 渲染、`client_actions` 确认与执行 |
-| Back | 鉴权入口、计算 `role_id`、过滤工具白名单、转发 Agent |
-| Agent | 记忆装配、RAG、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
+| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions` |
+| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent |
+| Agent | 记忆装配、RAG（多 `role_id` OR）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
 
 硬约束：
 
 - Agent 仅内网可达，浏览器必须经过 Back。
 - `thread_id` 是 checkpoint 会话键。
-- `user_id`、`role_id`、`tools[]` 是每轮 request context，不能从 checkpoint state 取权限。
+- `user_id`、`role_ids[]`、`tools[]` 是每轮 request context，不能从 checkpoint state 取权限；`role_id` 单字段仅为 deprecated alias。
 - 外部工具只以 `client_actions` 形式发给客户端执行；Agent 不执行、不等待、不 resume。
 - Back 拥有鉴权、角色计算和外部工具白名单过滤权。
 - Front 拥有 `thread_id` 保存和客户端动作执行权。
@@ -108,7 +110,7 @@ graph.invoke(
 
 - `AgentState.messages` 是跨轮持久化的权威对话历史。
 - 其余单轮字段通过 `EphemeralValue` 挂在 [state.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/state.py:1)，不可依赖上一轮残留。
-- `GraphContextSchema` 只携带 `user_id`、`role_id`、`tools[]`，作为每轮上下文，不进入 checkpoint 作为权限依据。
+- `GraphContextSchema` 只携带 `user_id`、`role_ids[]`、`tools[]`，作为每轮上下文，不进入 checkpoint 作为权限依据。
 - `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget`、`sources`；执行器和 trace 读同一份 bundle。
 - `IntentDecision` 是运行时唯一意图权威来源，当前由确定性 `classify_intent()`（signals/rules）在 `load_memory` 阶段生成。
 - `turn_type` / `turn_type_reason` 是从 `IntentDecision` 派生的兼容路由字段，供 rewrite/router/executor、path metrics 与 seed 使用；旧 `graph.turn_type.classify_turn_type()` 仅为兼容 adapter，内部委托同一 authority。
@@ -231,7 +233,7 @@ sequenceDiagram
 RAG：
 
 - 兼容入口在 [retriever.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/retriever.py:1)，真实编排在 [service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)。
-- Qdrant 适配在 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)，按 `role_id` 过滤。
+- Qdrant 适配在 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)，按 `role_ids[]` **should OR** 过滤（单角色与旧行为一致）。
 - RAG 是否进入检索由控制面派生的有效 `turn_type`、Policy Gate 结果和 RAG router 共同决定；旧 [rag/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/intent.py:1) 只保留局部启发式兼容，不是全局意图权威。
 - dense 检索失败时继续本地 BM25 fallback，不把整段 RAG 置空。
 - dense + lexical 候选先 merge，再 rerank，再格式化为带 `[doc:.../chunk:...]` 标记的知识片段。
@@ -361,7 +363,7 @@ Back 演示平台（admin）：
   "message": "用户输入",
   "context": {
     "user_id": "u1",
-    "role_id": "role-sales",
+    "role_ids": ["role-sales"],
     "tools": []
   }
 }
@@ -372,16 +374,19 @@ Back 演示平台（admin）：
 - 纯文本：`text/event-stream`，事件契约由 [sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/sse.py:1) 校验。
 - 客户端动作：`application/json`，body 为 `{ "text": null, "client_actions": [...] }`。
 
-Back：
+Back（演示平台，库 `common_agent_back`）：
 
-- `POST /api/chat`：接收 Front `{thread_id, message}`，注入 demo context，转发 Agent。
+- 认证：`POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/me`（Cookie Session）。
+- 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
+- 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
 - `GET /health`：存活检查。
-- admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`（KB 见上）。
+- 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 
-Front：
+Front（Vue SPA）：
 
-- 默认请求 `http://127.0.0.1:8080/api/chat`。
-- `thread_id` 保存在 sessionStorage；刷新保留，新开会话重新生成。
+- dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
+- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`。
+- 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 
 ## 可观测与评测
 
@@ -425,17 +430,22 @@ uv sync
 cp .env.example .env
 uv run uvicorn src.main:app --host 127.0.0.1 --port 18080
 
-# 终端 2 - Back
+# 终端 2 - Back（需 Postgres 库 common_agent_back）
 cd back
 uv sync
 cp .env.example .env
+uv run alembic upgrade head
+uv run python -m db.seed
 uv run uvicorn src.main:app --host 127.0.0.1 --port 8080
 
 # 终端 3 - Front（Vue SPA，dev 默认 5173，proxy → Back :8080）
 cd front
 npm install
 npm run dev
+# 浏览器 http://127.0.0.1:5173 — 种子 admin/123456，alice|bob/demo123
 ```
+
+演示脚本与排障见 [docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 
 LangGraph 开发入口：
 
@@ -546,7 +556,7 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEMORY_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 上下文预算 |
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
 
-Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：`AGENT_URL`、`BACK_HOST`、`BACK_PORT`、`DEMO_USER_ID`、`DEMO_ROLE_ID`、`DEMO_TOOLS_FILE`、`AGENT_TIMEOUT_SECONDS`。
+Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：`AGENT_URL`、`SESSION_SECRET`、`CORS_ORIGINS`（含 `5173`）、`AGENT_DATABASE_URL` / `DATABASE_URL`（`common_agent_back`）、`ADMIN_SEED_PASSWORD`、`DEMO_*`（无 Session 时的转发回退）、`AGENT_TIMEOUT_SECONDS`。
 
 ## 验证入口
 
@@ -605,4 +615,4 @@ uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-inte
 
 ## PRD 说明
 
-[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。结构化记忆写入（任务 63-68）与 memory_query 润色（任务 76-80）已落地并同步 README；Front 记忆 pending UI 等 Phase 2 项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
+[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md)、[docs/prd/demo-admin-console.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/demo-admin-console.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。演示平台（任务 81-92）、结构化记忆写入（63-68）、memory_query 润色（76-80）已落地并同步 README；OAuth、PDF 上传、学生行级隔离等 PRD 二期项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
