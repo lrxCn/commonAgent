@@ -170,6 +170,13 @@ export type JumpPageArgs = {
   page: string;
 };
 
+export type CreateStudentArgs = {
+  student_no?: string;
+  name?: string;
+  class_name?: string;
+  status?: string;
+};
+
 export type ChatJsonResponse = {
   text: string | null;
   client_actions: ClientAction[] | null;
@@ -205,6 +212,16 @@ export type JumpPagePrompt = {
   statusDetail?: string;
 };
 
+export type CreateStudentPromptStatus = JumpPagePromptStatus;
+
+export type CreateStudentPrompt = {
+  action: ClientAction;
+  prefill: Partial<StudentCreateRequest>;
+  prefillLines: string[];
+  status: CreateStudentPromptStatus;
+  statusDetail?: string;
+};
+
 export type ChatDisplayMessage = {
   id: string;
   role: ChatDisplayRole;
@@ -212,4 +229,6 @@ export type ChatDisplayMessage = {
   streaming?: boolean;
   /** In-chat jumpPage confirmation card (not plain text). */
   jumpPagePrompt?: JumpPagePrompt;
+  /** In-chat createStudent confirmation card (not plain text). */
+  createStudentPrompt?: CreateStudentPrompt;
 };

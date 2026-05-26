@@ -89,6 +89,14 @@ cd front && npm install && npm run dev
 7. 期望：Agent 可能产出 `admin-users`；Front 拦截（与 `requiresAdmin` guard 一致）→ toast「当前账号无权访问该页面」，**停留当前页**。
 8. Network 仍只打 Back，无直连 Agent。
 
+### B4b — createStudent 新建学生表单（client_actions）
+
+1. **alice** 登录 → 在首页对话抽屉发送：「帮我新建一个学生，姓名张三，学号 2024999」。
+2. 期望：SSE/JSON 含 `client_actions`，`tool: "createStudent"`、`args` 含姓名/学号（或部分字段）；对话内出现**新建学生确认卡片**，展示预填摘要。
+3. 点击「确认打开」→ URL 变为 `/app/students`，ChatDrawer **关闭**，右侧抽屉打开且字段已预填；**仍需手动点「保存」** 才会调用 API。
+4. 发送：「打开新建学生表单」（无具体字段）→ 确认后同样进入学生页并打开空表单。
+5. 若已在 `/app/students`，确认后应直接打开/刷新新建抽屉，无需重复跳转。
+
 ### B5 — 边界核对（可选，1 分钟）
 
 - 浏览器 Network：请求仅指向 Back（`:8080` 或 dev proxy），**无** 直连 Agent `:18080`。
@@ -105,6 +113,7 @@ cd front && npm install && npm run dev
 | RAG 无命中 | Qdrant 可达；文档 `role_ids[]` 与用户 Session `role_ids[]` **有交集**；存量库可跑 `agent/scripts/migrate_kb_role_ids.py`；Agent `QDRANT_MOCK=false` |
 | 对话无流式 | Agent 已启动；`AGENT_URL` 正确；Back 日志无转发超时 |
 | jumpPage 无跳转 | alice/admin 角色是否在 `tools.demo.json` 白名单；Console 是否有未知 slug toast |
+| createStudent 无反应 | 是否点击确认卡片；Console 是否有参数校验 toast；StudentsView 是否已挂载 |
 | admin 无 RAG 菜单 | 当前用户 `is_admin`；种子 admin 绑定 `role-admin` |
 
 更细的 Back/Front 路由与数据流见 [docs/maps/demo-platform.md](./maps/demo-platform.md)。

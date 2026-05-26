@@ -6,7 +6,7 @@
 
 ## 总览
 
-**当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) 做 jumpPage 端到端手工验收（脚本 B4）；或从 backlog 选取新需求规划下一批次。
+**当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) 做 `createStudent` / jumpPage 端到端手工验收（脚本 B4 / B4b）；或从 backlog 选取新需求规划下一批次。
 
 | 指标 | 值 |
 |------|-----|
@@ -268,6 +268,7 @@
 | 2026-05-26 | 完成任务 101：`is_admin` 由 `role-admin ∈ role_ids` 推导；Front 用户表单移除管理员开关；Back 写 API 不再接受客户端 `is_admin`；种子 admin 不可去掉 `role-admin`；101/101 全部完成 |
 | 2026-05-26 | 完成任务 100：`LoginView` 用户名 Enter 聚焦密码框（`passwordInputRef.focus()`），不再触发校验 toast；密码 Enter/登录按钮行为不变；front build 绿 |
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
+| 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 完成任务 104：Front `page-registry.ts` slug→route 映射与 admin 权限；`chat.ts` 执行 `jumpPage`（toast 未知/无权限、动态 import router）；跳转后保持 ChatDrawer 打开；front build 绿 |
 | 2026-05-26 | 完成任务 103：新增 `jump_page_catalog.py`（slug/中文别名/`/app` path 规则抽取）；`build_simple_client_action` 产出 `students`/`home` 等；intent/eval seed 迁移；router/signals/rules 对齐；118 项相关 pytest 绿 |
 | 2026-05-26 | 完成任务 102：`tools.demo.json` 仅保留 `jumpPage`，`parameters.page.enum` 对齐 PRD 五档 catalog；删除 `openTicket`；`test_demo_chat_context.py` 并集/多角色断言同步；`back/` 无 openTicket 残留 |

@@ -31,16 +31,18 @@
 - 带 `tools[]` 的回合禁用 live token streaming，避免 JSON 被拆成 token。
 - `client_actions` 回合跳过 outbound 文本护栏，直接走结构化返回。
 
-## Front 执行（jumpPage）
+## Front 执行（jumpPage / createStudent）
 
-演示平台当前外部工具仅 **`jumpPage`**（早期 `openTicket` 占位已移除，见 [jumpPage-client-action.md](../prd/jumpPage-client-action.md)）。
+演示平台外部工具：**`jumpPage`**、**`createStudent`**（早期 `openTicket` 占位已移除，见 [jumpPage-client-action.md](../prd/jumpPage-client-action.md)）。
 
 | 层 | 入口 | 职责 |
 |----|------|------|
-| Back | [tools.demo.json](/Users/liurixing/Documents/codes/ai/commonAgent/back/config/tools.demo.json) | `parameters.page.enum` + 中文 description；按 `role_ids[]` 并集注入白名单 |
-| Agent | [jump_page_catalog.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/jump_page_catalog.py) | 规则路径 slug/中文/path 抽取（非 prompt 权威源） |
-| Front | [page-registry.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/page-registry.ts) | slug → Vue route name；admin 页权限校验 |
-| Front | [stores/chat.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/chat.ts) `handleClientActions` | `requires_approval` → confirm；`router.push`；未知/无权限 toast |
+| Back | [tools.demo.json](/Users/liurixing/Documents/codes/ai/commonAgent/back/config/tools.demo.json) | `jumpPage` page enum + `createStudent` 可选字段 schema；按 `role_ids[]` 并集注入白名单 |
+| Agent | [jump_page_catalog.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/jump_page_catalog.py) | jumpPage 规则路径 slug/中文/path 抽取（非 prompt 权威源） |
+| Front | [page-registry.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/page-registry.ts) | jumpPage：slug → Vue route name；admin 页权限校验 |
+| Front | [create-student.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/client-actions/create-student.ts) | createStudent：参数校验/清洗、预填文案 |
+| Front | [student-ui.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/student-ui.ts) | 跨路由 pending 新建意图；StudentsView 消费 |
+| Front | [stores/chat.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/chat.ts) `handleClientActions` | 专用确认卡片；`router.push` / 设置 pendingCreate |
 
 slug catalog（Back enum 与 Front registry 手动同步）：
 
@@ -51,6 +53,8 @@ slug catalog（Back enum 与 Front registry 手动同步）：
 | `admin-roles` | 角色管理（admin） | `app-admin-roles` |
 | `admin-users` | 用户管理（admin） | `app-admin-users` |
 | `admin-kb` | RAG 管理（admin） | `app-admin-kb` |
+
+**createStudent**（`role-admin` / `role-sales`）：确认后 → `/app/students` → 打开新建抽屉；可选预填 `student_no`、`name`、`class_name`、`status`；不自动提交 API。
 
 ## 实现入口
 

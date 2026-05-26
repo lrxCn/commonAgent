@@ -15,6 +15,25 @@
       },
       "requires_approval": false,
       "roles": ["role-admin", "role-sales"]
+    },
+    {
+      "name": "createStudent",
+      "description": "Open the create-student form on the Students page. Optional prefill fields: student_no (学号), name (姓名), class_name (班级), status (active=在读, inactive=休学). Does NOT submit the form; the user must click Save in the UI.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "student_no": { "type": "string" },
+          "name": { "type": "string" },
+          "class_name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive"]
+          }
+        },
+        "required": []
+      },
+      "requires_approval": true,
+      "roles": ["role-admin", "role-sales"]
     }
   ]
 }

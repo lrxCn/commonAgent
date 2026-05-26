@@ -4,20 +4,28 @@ import { ref, watch } from "vue";
 
 import * as chatApi from "@/api/chat";
 import {
+  formatCreateStudentPrefill,
+  validateCreateStudentAction,
+} from "@/client-actions/create-student";
+import {
   isPageAllowedForUser,
   PAGE_SLUG_LABELS,
   parsePageSlug,
   resolveJumpPageTarget,
 } from "@/client-actions/page-registry";
 import { useAuthStore } from "@/stores/auth";
+import { useStudentUiStore } from "@/stores/student-ui";
 import type {
   ChatDisplayMessage,
   ClientAction,
+  CreateStudentPrompt,
+  CreateStudentPromptStatus,
   HistoryMessageItem,
   JumpPageArgs,
   JumpPagePrompt,
   JumpPagePromptStatus,
   PageSlug,
+  StudentCreateRequest,
 } from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
@@ -104,6 +112,34 @@ function buildJumpPagePromptMessage(
   };
 }
 
+function buildCreateStudentPromptMessage(
+  action: ClientAction,
+  initialStatus: CreateStudentPromptStatus,
+): ChatDisplayMessage {
+  const validation = validateCreateStudentAction(action);
+  const createStudentPrompt: CreateStudentPrompt = validation.ok
+    ? {
+        action,
+        prefill: validation.args,
+        prefillLines: formatCreateStudentPrefill(validation.args),
+        status: initialStatus,
+      }
+    : {
+        action,
+        prefill: {},
+        prefillLines: [],
+        status: "invalid",
+        statusDetail: validation.detail,
+      };
+
+  return {
+    id: crypto.randomUUID(),
+    role: "ai",
+    content: "",
+    createStudentPrompt,
+  };
+}
+
 function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
   if (item.role === "tool" || item.role === "other") {
     return [];
@@ -123,6 +159,8 @@ function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
     for (const action of item.client_actions) {
       if (action.tool === "jumpPage") {
         items.push(buildJumpPagePromptMessage(action, "historical"));
+      } else if (action.tool === "createStudent") {
+        items.push(buildCreateStudentPromptMessage(action, "historical"));
       }
     }
   }
@@ -165,6 +203,33 @@ async function navigateJumpPage(action: ClientAction): Promise<boolean> {
   } catch (err) {
     console.error("[client_actions] jumpPage navigation failed", err);
     message.warning("页面跳转失败");
+    return false;
+  }
+}
+
+async function executeCreateStudent(prefill: Partial<StudentCreateRequest>): Promise<boolean> {
+  const auth = useAuthStore();
+  if (!auth.isAuthenticated) {
+    message.warning("请先登录后再新建学生");
+    return false;
+  }
+
+  const studentUi = useStudentUiStore();
+  studentUi.setPendingCreate(prefill);
+
+  const { default: router } = await import("@/router");
+  try {
+    if (router.currentRoute.value.name !== "app-students") {
+      await router.push({ name: "app-students" });
+    }
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] createStudent navigated", { prefill });
+    }
+    return true;
+  } catch (err) {
+    studentUi.clearPendingCreate();
+    console.error("[client_actions] createStudent navigation failed", err);
+    message.warning("打开新建学生表单失败");
     return false;
   }
 }
@@ -219,6 +284,17 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  function enqueueCreateStudentPrompt(action: ClientAction): void {
+    const promptMessage = buildCreateStudentPromptMessage(action, "pending");
+    messages.value.push(promptMessage);
+    if (promptMessage.createStudentPrompt?.status === "invalid") {
+      message.warning(promptMessage.createStudentPrompt.statusDetail ?? "无法打开新建学生表单");
+    }
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] createStudent prompt enqueued", action);
+    }
+  }
+
   function handleClientActions(actions: unknown): void {
     if (!Array.isArray(actions)) {
       console.warn("[client_actions] expected array, got", actions);
@@ -231,6 +307,10 @@ export const useChatStore = defineStore("chat", () => {
       const record = action as ClientAction;
       if (record.tool === "jumpPage") {
         enqueueJumpPagePrompt(record);
+        continue;
+      }
+      if (record.tool === "createStudent") {
+        enqueueCreateStudentPrompt(record);
         continue;
       }
 
@@ -272,6 +352,40 @@ export const useChatStore = defineStore("chat", () => {
     prompt.status = "cancelled";
     if (import.meta.env.DEV) {
       console.log("[client_actions] jumpPage cancelled", prompt.action);
+    }
+  }
+
+  async function confirmCreateStudent(messageId: string): Promise<void> {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const prompt = entry?.createStudentPrompt;
+    if (!entry || !prompt || prompt.status !== "pending") {
+      return;
+    }
+
+    const validation = validateCreateStudentAction(prompt.action);
+    if (!validation.ok) {
+      prompt.status = "invalid";
+      prompt.statusDetail = validation.detail;
+      message.warning(validation.detail);
+      return;
+    }
+
+    const ok = await executeCreateStudent(validation.args);
+    if (ok) {
+      prompt.status = "confirmed";
+      closeDrawer();
+    }
+  }
+
+  function cancelCreateStudent(messageId: string): void {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const prompt = entry?.createStudentPrompt;
+    if (!entry || !prompt || prompt.status !== "pending") {
+      return;
+    }
+    prompt.status = "cancelled";
+    if (import.meta.env.DEV) {
+      console.log("[client_actions] createStudent cancelled", prompt.action);
     }
   }
 
@@ -553,6 +667,8 @@ export const useChatStore = defineStore("chat", () => {
     sendMessage,
     confirmJumpPage,
     cancelJumpPage,
+    confirmCreateStudent,
+    cancelCreateStudent,
     abortStreaming,
     clearError,
   };

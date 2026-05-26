@@ -40,6 +40,22 @@ _OTHER_TOOL = ToolSpec(
     requires_approval=True,
 )
 
+_CREATE_STUDENT_TOOL = ToolSpec(
+    name="createStudent",
+    description="Open the create-student form.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_no": {"type": "string"},
+            "name": {"type": "string"},
+            "class_name": {"type": "string"},
+            "status": {"type": "string", "enum": ["active", "inactive"]},
+        },
+        "required": [],
+    },
+    requires_approval=True,
+)
+
 _REQUIRED_ENV = {
     "LANGSMITH_API_KEY": "lsv2_test",
     "OPENAI_API_KEY": "sk-test",
@@ -66,6 +82,34 @@ def test_parse_valid_client_actions_json() -> None:
     assert action.tool == "jumpPage"
     assert action.args == {"page": "pageA"}
     assert action.requires_approval is False
+
+
+def test_parse_create_student_with_optional_args() -> None:
+    payload = json.dumps(
+        {
+            "client_actions": [
+                {
+                    "tool": "createStudent",
+                    "args": {"name": "张三", "student_no": "2024004"},
+                    "requires_approval": False,
+                }
+            ]
+        }
+    )
+    outcome = parse_client_actions_from_llm(payload, [_CREATE_STUDENT_TOOL])
+    assert outcome.kind == "client_actions"
+    assert len(outcome.actions) == 1
+    action = outcome.actions[0]
+    assert action.tool == "createStudent"
+    assert action.args == {"name": "张三", "student_no": "2024004"}
+    assert action.requires_approval is True
+
+
+def test_parse_create_student_empty_args() -> None:
+    payload = json.dumps({"client_actions": [{"tool": "createStudent", "args": {}}]})
+    outcome = parse_client_actions_from_llm(payload, [_CREATE_STUDENT_TOOL])
+    assert outcome.kind == "client_actions"
+    assert outcome.actions[0].args == {}
 
 
 def test_tool_not_in_whitelist_rejected() -> None:

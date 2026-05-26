@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from "axios";
 import { computed, h, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import {
   NButton,
   NDataTable,
@@ -24,9 +25,12 @@ import {
   fetchStudents,
   updateStudent,
 } from "@/api/students";
-import type { ApiErrorBody, Student } from "@/types";
+import { useStudentUiStore } from "@/stores/student-ui";
+import type { ApiErrorBody, Student, StudentCreateRequest } from "@/types";
 
 const message = useMessage();
+const route = useRoute();
+const studentUi = useStudentUiStore();
 
 const loading = ref(false);
 const students = ref<Student[]>([]);
@@ -135,10 +139,36 @@ function resetForm(): void {
   formStatus.value = "active";
 }
 
-function openCreate(): void {
+function openCreateWithPrefill(prefill?: Partial<StudentCreateRequest>): void {
   editing.value = null;
   resetForm();
+  if (prefill?.student_no) {
+    formStudentNo.value = prefill.student_no;
+  }
+  if (prefill?.name) {
+    formName.value = prefill.name;
+  }
+  if (prefill?.class_name) {
+    formClassName.value = prefill.class_name;
+  }
+  if (prefill?.status) {
+    formStatus.value = prefill.status;
+  }
   drawerVisible.value = true;
+}
+
+function openCreate(): void {
+  openCreateWithPrefill();
+}
+
+function consumePendingCreateIntent(): void {
+  if (route.name !== "app-students" || !studentUi.pendingCreate) {
+    return;
+  }
+  const prefill = studentUi.consumePendingCreate();
+  if (prefill) {
+    openCreateWithPrefill(prefill);
+  }
 }
 
 function openEdit(row: Student): void {
@@ -234,9 +264,24 @@ watch([statusFilter, classFilter], () => {
   void loadStudents();
 });
 
+watch(
+  () => studentUi.pendingCreate,
+  () => {
+    consumePendingCreateIntent();
+  },
+);
+
+watch(
+  () => route.name,
+  () => {
+    consumePendingCreateIntent();
+  },
+);
+
 onMounted(async () => {
   await loadClassNames();
   await loadStudents();
+  consumePendingCreateIntent();
 });
 </script>
 
