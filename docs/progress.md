@@ -2,20 +2,22 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)
 
 ## 总览
 
-**当前建议下一步**：演示平台批次 **81–92 已全部完成**；可回到产品规划或新需求拆分任务卡。
+**当前建议下一步**：**93** [Agent ingest 与 documents API `role_ids[]`](./prompts/93-kb-multi-role-agent-ingest.md)（KB 多角色主链路起点）。小迭代 **99–101** 可与 93 并行。
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 92 |
+| 总任务数 | 101 |
 | 已完成 | 92（01–80 Agent 核心 + 81–92 演示平台） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
 **演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
+
+**KB 多角色批次（93–98）**：⬜ 待开始；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
 
 
 ---
@@ -119,6 +121,15 @@
 | 90 | [演示平台：Front RAG 管理页](./prompts/90-demo-front-rag-admin-ui.md) | ✅ | 2026-05-26 | `KbDocumentsView` 列表/新建/详情编辑/删除；`api/kb.ts`；admin 菜单 `/app/admin/kb` |
 | 91 | [演示平台：ChatDrawer SSE 与 history](./prompts/91-demo-front-chat-drawer-sse.md) | ✅ | 2026-05-26 | `ChatDrawer` SSE/token/retract/replace/client_actions；`stores/chat.ts`+`api/chat.ts`；Back `GET /api/threads/{id}/messages` 代理+403；`test_demo_chat_history.py` 4 用例 |
 | 92 | [演示平台：文档收口与 legacy Front 移除](./prompts/92-demo-docs-final-alignment.md) | ✅ | 2026-05-26 | README、demo-walkthrough、maps、PRD 落地状态；移除 legacy static；演示平台 81–92 收口 |
+| 93 | [KB 多角色：Agent ingest 与 documents API `role_ids[]`](./prompts/93-kb-multi-role-agent-ingest.md) | ⬜ 待开始 | - | 依赖 **87**；ingest payload + list/get/delete 按 `doc_id` |
+| 94 | [KB 多角色：Agent RAG payload `role_ids[]` 过滤](./prompts/94-kb-multi-role-agent-rag-filter.md) | ⬜ 待开始 | - | 依赖 **93**；Qdrant 交集 + 旧 `role_id` fallback |
+| 95 | [KB 多角色：Back 库表迁移与 Admin KB API](./prompts/95-kb-multi-role-back-schema-api.md) | ⬜ 待开始 | - | 依赖 **93**；junction + meta PK + `agent_kb` |
+| 96 | [KB 多角色：Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md) | ⬜ 待开始 | - | 依赖 **95** |
+| 97 | [KB 多角色：Postgres 与 Qdrant 数据迁移](./prompts/97-kb-multi-role-data-migration.md) | ⬜ 待开始 | - | 依赖 **93**、**95** |
+| 98 | [KB 多角色：README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md) | ⬜ 待开始 | - | 依赖 **93–97**；批次收口 |
+| 99 | [Front：换用户登录后重置 thread_id](./prompts/99-front-thread-reset-on-user-switch.md) | ⬜ 待开始 | - | 独立；auth/chat store |
+| 100 | [Front：登录页用户名 Enter 聚焦密码](./prompts/100-front-login-enter-focus-password.md) | ⬜ 待开始 | - | 独立；`LoginView.vue` |
+| 101 | [管理员身份由 role-admin 推导，移除重复开关](./prompts/101-admin-role-derived-is-admin.md) | ⬜ 待开始 | - | 独立；UsersView + Back users API |
 
 ---
 
@@ -240,3 +251,4 @@
 | 2026-05-26 | 完成任务 90：`KbDocumentsView`（角色/关键词筛选、上传 txt/md、详情 chunk 概览、编辑 re-ingest、删除确认）；`front/src/api/kb.ts`；路由与侧边栏启用 RAG 管理 |
 | 2026-05-26 | 完成任务 92：README 同步 `role_ids[]` 与演示启动；新增 `docs/demo-walkthrough.md`、`docs/maps/demo-platform.md`；更新 rag-flow/chat-turn-pipeline；PRD 落地状态；移除 `front/app.js`、`legacy.html`、`styles.css`；progress 92/92 |
 | 2026-05-26 | 完成任务 89：Agent `GET/DELETE /internal/kb/documents` + chunk 预览；Back `/api/admin/kb/documents` ingest 成功后 upsert `kb_document_meta`（含 `raw_content`）；GET/PATCH/DELETE 代理 Agent + meta；≤2MB UTF-8 校验 |
+| 2026-05-26 | 文档：基于 [KB 多角色 RAG PRD](./prd/kb-multi-role-rag.md) 拆分任务 **93–101**（主链路 93–98 + 独立小迭代 99–101）；**98** 负责 README/demo-walkthrough/maps/PRD/progress 最终对齐 |
