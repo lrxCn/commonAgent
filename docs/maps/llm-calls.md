@@ -17,6 +17,7 @@
 - `CHITCHAT`：寒暄回复。
 - `MEMORY_EXTRACT`：langmem inferred 慢路径写入。
 - `INTENT_CLASSIFIER`：低置信或冲突 intent 的结构化候选分类器。
+- `MEMORY_QUERY_POLISH`：memory_query 确定性草稿的话术润色；默认关闭；不计入 supervisor `llm_call_count`。
 - `SUMMARY`：rolling summary 更新。
 - `EMBEDDING`：query/doc embedding。
 - `RERANK`：候选 rerank。
@@ -28,6 +29,7 @@
 - Router：[router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/router.py:1)
 - Chitchat：[chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/chitchat_executor.py:1)
 - Intent classifier：[classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/classifier.py:1)
+- memory_query polish：[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)（graph 节点 [executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)）
 - 用户记忆 / summary：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py:1)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py:1)、[summary_job.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/summary_job.py:1)
 - Embedding / rerank：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
 
@@ -39,6 +41,7 @@
 - rerank HTTP 失败时按原候选顺序生成稳定 fallback 分数。
 - embedding 失败时 RAG 继续走 lexical BM25 fallback。
 - chitchat 小模型异常时回退模板回复。
+- memory_query polish 小模型异常或输出校验失败（证据缺失、不确定表述、缺失记忆编造等）时回退 deterministic draft；默认 `MEMORY_QUERY_POLISH_USE_LLM=false` 时不调用 LLM。
 
 ## 实现入口
 
@@ -53,3 +56,4 @@
 - Rewrite / router fallback：[test_rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
 - Chitchat fallback：[test_chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chitchat_executor.py:1)
 - Intent classifier fallback：[test_intent_classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_classifier.py:1)
+- memory_query polish fallback：[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)

@@ -10,7 +10,7 @@
 - `graph.turn_type.classify_turn_type()` 保留为兼容 adapter，内部委托同一 authority，不再独立分类。
 - `intent_conflict` / `intent_conflict_reason` 保留兼容字段，常态为 `false` / 空；分类失败时写 `intent_shadow_error` 并保守回退 `general_chat`。
 - Policy Gate 当前只准入 `fact_update` 快速路径，不是通用鉴权系统。
-- `memory_query` 已是一等路径，直接进入 `memory_query_reply`，不走 RAG、deepagents 或 mem0 write。
+- `memory_query` 已是一等路径，进入 `memory_query_reply -> memory_query_polish -> post_turn_jobs`，不走 RAG、deepagents 或 memory write。
 - Fallback Manager 不执行恢复动作本身，只产出标准 `FallbackDecision`，由节点写入 path metrics 和事件。
 
 ## 核心契约
@@ -61,11 +61,12 @@ Policy 通过后的 structured write 链路：
 ## memory_query
 
 - 路由分支：[routing_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/routing_nodes.py:1)
-- 执行节点：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)
+- 确定性回答：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_reply_node`
+- 话术润色：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_polish_node`、[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)
 - 证据回答：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
 - post_turn 跳过写入：[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py:1)
 
-回答只基于 memory profile、mem0 文本或当前 thread 里的可靠用户事实；没有证据时返回诚实缺失回复，并记录 memory fallback。
+回答只基于 memory profile、Store/langmem 用户记忆或当前 thread 里的可靠用户事实；没有证据时返回诚实缺失回复，并记录 memory fallback。小模型润色默认关闭；打开时仅改写表达，校验失败回退 deterministic draft。
 
 ## Fallback
 
@@ -90,6 +91,7 @@ Policy 通过后的 structured write 链路：
 - Eval 说明：[agent/evals/README.md](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/README.md:1)
 - 本地 runner：[run_intent_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_intent_eval.py:1)
 - 结构化记忆 seed / runner：[memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py)
+- memory_query 润色 seed / runner：[memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
 - LangSmith dry-run 同步：[sync_langsmith_dataset.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/sync_langsmith_dataset.py:1)
 
 Feedback 样本需要人工确认后进入 seed；第一人称疑问误判为事实写入的反例必须保留。
@@ -104,7 +106,7 @@ Feedback 样本需要人工确认后进入 seed；第一人称疑问误判为事
 - Structured classifier：[test_intent_classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_classifier.py:1)
 - Graph 单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
 - Policy Gate：[test_policy_gate.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_policy_gate.py:1)
-- memory_query：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- memory_query：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)
 - Fallback：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
 - Feedback / eval：[test_intent_feedback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_feedback.py:1)、[test_intent_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_eval_seed.py:1)、[test_intent_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_eval_runner.py:1)
 - Structured memory write：[test_memory_write_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_seed.py:1)、[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py:1)

@@ -128,6 +128,7 @@ flowchart TD
     load_memory["load_memory"]
     fact_update_confirm["fact_update_confirm"]
     memory_query_reply["memory_query_reply"]
+    memory_query_polish["memory_query_polish"]
     chitchat_reply["chitchat_reply"]
     rewrite["rewrite"]
     rag_router["rag_router"]
@@ -150,7 +151,8 @@ flowchart TD
     load_memory -.-> fact_update_confirm
     load_memory -.-> memory_query_reply
     load_memory -.-> rewrite
-    memory_query_reply --> post_turn_jobs
+    memory_query_reply --> memory_query_polish
+    memory_query_polish --> post_turn_jobs
     outbound_guard --> post_turn_jobs
     rag_retrieval -.-> context_assembly
     rag_retrieval -.-> rag_subagent
@@ -175,7 +177,8 @@ sequenceDiagram
   alt policy-approved fact_update
     G->>G: fact_update_confirm
   else memory_query
-    G->>G: memory_query_reply
+    G->>G: memory_query_reply (deterministic evidence + draft)
+    G->>G: memory_query_polish (optional wording polish)
   else chitchat
     G->>G: chitchat_reply
   else normal path
@@ -200,7 +203,7 @@ sequenceDiagram
 路径规则：
 
 - `fact_update` 只有通过 Policy Gate 且 slot fill 成功后才走模板确认快速路径，跳过 rewrite、RAG、Supervisor 和 outbound guard；确认话术含已解析字段摘要（如「已记住：姓名=张三」）。
-- `memory_query` 走记忆回答执行器，跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入用户记忆。
+- `memory_query` 走记忆回答执行器：`memory_query_reply` 生成确定性证据与草稿，`memory_query_polish` 在开关打开时用小模型润色话术（默认关闭则 passthrough）；跳过 rewrite、RAG、deepagents，并且 `post_turn` 不写入用户记忆。
 - `chitchat` 走轻量执行器，默认模板，可选小模型。
 - `knowledge_query` 直接进入 RAG，跳过 router 小模型。
 - `ambiguous` 或旧规则无法确定时，才使用 rewrite/router 小模型与 deepagents。
@@ -217,7 +220,7 @@ sequenceDiagram
 - `IntentDecision` 包含 `speech_act`、`domain`、`operation`、`route`、`confidence`、`risk`、`reasons`、`evidence` 和 `needs_clarification`，并通过 `route` 派生兼容 `turn_type`。
 - `INTENT_CLASSIFIER` 小模型结构化分类器已经有模型用途、schema 校验、repair 和冲突 fallback，但当前 graph 热路径不调用它；它服务于低置信控制面评测和后续接入。
 - Policy Gate 当前只准入高置信、低风险、显式属性和值的 `fact_update` 记忆写入快速路径；第一人称疑问会被拒绝并走 `memory_query` 或保守路径。
-- `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / `user_memories` / 当前 thread 里可靠证据回答，缺失时诚实说明。
+- `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / `user_memories` / 当前 thread 里可靠证据回答，缺失时诚实说明。小模型润色仅改写表达，不得增删事实；校验失败回退 deterministic draft。
 - Fallback Manager 用 `FallbackDecision` 记录 intent 低置信/分类失败、policy denied、memory missing、RAG 空/弱命中、tool unavailable、schema/LLM fallback、output guard 等降级；`intent_conflict` 字段保留兼容但常态为 `false`。
 - Feedback/Eval 闭环使用 `IntentFeedback`、[intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json) 和本地 eval runner，将人工纠错或 fallback conflict 转成可回归 seed。
 
@@ -243,7 +246,7 @@ RAG：
   - **Collection** `("users", user_id, "facts")`：langmem inferred 自由文本 facts，pgvector 语义检索。
 - `user_memories` 在 state 中只保留 `list[str]`（profile + collection 合并后的 canonical fact 文本）；归一化视图在 `memory_profile`。
 - `rolling_summary`、用户记忆、RAG、tools schema、messages 都受 `ContextBudget` 约束。
-- `memory_query` 只读可靠记忆证据，不触发写入；`post_turn` 会识别该路径并跳过 memory write。
+- `memory_query` 只读可靠记忆证据，不触发写入；`post_turn` 会识别该路径并跳过 memory write。润色小模型不计入 supervisor `llm_call_count`。
 
 记忆写入采用 **Single Extraction Point + 双轨** 策略（见 [agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)）：
 
@@ -292,6 +295,7 @@ Structured Write 链路：
 | `EMBEDDING` | embedding | `EMBEDDING_MODEL` |
 | `RERANK` | rerank | `RERANK_MODEL` |
 | `INTENT_CLASSIFIER` | 结构化 intent 候选分类 | `INTENT_CLASSIFIER_MODEL_NAME` |
+| `MEMORY_QUERY_POLISH` | memory_query 话术润色（仅表达，默认关闭） | `MEMORY_QUERY_POLISH_MODEL_NAME` |
 
 Gateway 负责：
 
@@ -373,13 +377,14 @@ Front：
 - LangSmith 适配在 [metadata_mapper.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/langsmith/metadata_mapper.py:1)。
 - 业务逻辑优先 emit 事件，再由 LangSmith adapter 映射 metadata；兼容 facade 仍保留。
 - 控制面事件包含 intent classified、policy evaluated、executor chosen、fallback triggered；`intent.conflict` 常态为 `false`。
-- path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`memory_write.mode`、`memory_write.record.attribute`、`executor`、`llm_call_count` 和各阶段 should/called。
+- path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`memory_query.*`、`memory_query.polish.*`、`memory_write.mode`、`memory_write.record.attribute`、`executor`、`llm_call_count` 和各阶段 should/called。
 
 评测：
 
 - 本地 seed 在 [seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/seed.json)。
 - 控制面 seed 在 [intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json)，覆盖 `fact_update`、`memory_query`、`knowledge_query`、`client_action`、`ambiguous`、`general_chat`、`chitchat`、`safety_refusal`。
 - 结构化记忆写入 seed 在 [memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)，覆盖 `structured_fact_update`、`inferred_general_chat`、`regression_store_empty`；本地 runner：`scripts/run_memory_write_eval.py`。
+- memory_query 润色 seed 在 [memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)，覆盖姓名/地址/偏好/缺失/thread fallback/篡改与不确定表述；本地 runner：`scripts/run_memory_query_polish_eval.py`（mock LLM + 输出校验，默认 `--json`）。
 - `expected_answer` 与 `expected_path` 分开维护。
 - RAG 样例可带 `kb_fixture`、`expected_doc_ids`、`forbidden_doc_ids` 做 role 过滤评测。
 - `IntentFeedback` 可将用户纠错、人工 trace review、path contract 失败或 fallback conflict 转成 `intent_seed.json` 行。
@@ -518,7 +523,7 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 |------|----------|------|
 | LangSmith | `LANGSMITH_API_KEY`、`LANGCHAIN_TRACING_V2`、`LANGCHAIN_PROJECT`、`LANGCHAIN_ENDPOINT` | tracing |
 | Main LLM | `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME` | 主回复模型 |
-| Rewrite / Chitchat / Intent | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE`、`CHITCHAT_USE_LLM`、`CHITCHAT_MODEL_NAME`、`CHITCHAT_MAX_TOKENS`、`CHITCHAT_TIMEOUT_SECONDS`、`INTENT_CLASSIFIER_MODEL_NAME`、`INTENT_CLASSIFIER_MAX_TOKENS`、`INTENT_CLASSIFIER_TIMEOUT_SECONDS` | 小任务模型 |
+| Rewrite / Chitchat / Intent / Polish | `REWRITE_MODEL_NAME`、`REWRITE_MAX_TOKENS`、`REWRITE_TIMEOUT_SECONDS`、`REWRITE_SKIP_ENABLED`、`REWRITE_FORCE`、`CHITCHAT_USE_LLM`、`CHITCHAT_MODEL_NAME`、`CHITCHAT_MAX_TOKENS`、`CHITCHAT_TIMEOUT_SECONDS`、`INTENT_CLASSIFIER_MODEL_NAME`、`INTENT_CLASSIFIER_MAX_TOKENS`、`INTENT_CLASSIFIER_TIMEOUT_SECONDS`、`MEMORY_QUERY_POLISH_USE_LLM`、`MEMORY_QUERY_POLISH_MODEL_NAME`、`MEMORY_QUERY_POLISH_MAX_TOKENS`、`MEMORY_QUERY_POLISH_TIMEOUT_SECONDS` | 小任务模型 |
 | Router | `RAG_ROUTER_MODE`、`RAG_ROUTER_MODEL_NAME`、`RAG_ROUTER_MAX_TOKENS`、`RAG_ROUTER_TIMEOUT_SECONDS` | RAG 路由 |
 | Embedding / Rerank | `EMBEDDING_MODEL`、`EMBEDDING_MODEL_DIMS`、`RERANK_MODEL`、`RERANK_TOP_K` | 检索基础设施 |
 | Qdrant KB | `QDRANT_*` | 知识库向量检索 |
@@ -556,8 +561,10 @@ uv run pytest tests/test_intent_contracts.py tests/test_policy_gate.py tests/tes
 uv run pytest tests/test_intent_shadow_graph.py tests/test_graph_invoke_mock.py tests/test_path_contract.py -v
 uv run pytest tests/test_intent_feedback.py tests/test_intent_eval_seed.py tests/test_intent_eval_runner.py -v
 uv run pytest tests/test_memory_write_eval_seed.py tests/test_memory_write_eval_runner.py tests/test_fact_update_fast_path.py -v
+uv run pytest tests/test_memory_query_polish.py tests/test_memory_query_polish_eval_seed.py tests/test_memory_query_polish_eval_runner.py -v
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
 uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
+uv run python scripts/run_memory_query_polish_eval.py --seed evals/memory_query_polish_seed.json --json
 uv run pytest tests/test_graph_compile.py tests/test_state_lifecycle.py tests/test_context_assembly.py -v
 uv run pytest tests/test_llm_gateway.py tests/test_rag_boundaries.py tests/test_client_actions.py tests/test_chat_sse.py -v
 make test
@@ -574,6 +581,7 @@ cd agent
 uv run python scripts/run_rag_eval.py --seed evals/seed.json --json
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
 uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
+uv run python scripts/run_memory_query_polish_eval.py --seed evals/memory_query_polish_seed.json --json
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-seed --seed evals/seed.json --dry-run
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-intent-seed --seed evals/intent_seed.json --dry-run
 ```
@@ -582,4 +590,4 @@ uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-inte
 
 ## PRD 说明
 
-[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。结构化记忆写入（任务 63-68）已落地并同步 README；Front 记忆 pending UI 等 Phase 2 项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
+[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。结构化记忆写入（任务 63-68）与 memory_query 润色（任务 76-80）已落地并同步 README；Front 记忆 pending UI 等 Phase 2 项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。

@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：memory_query 小模型话术润色 **79 已完成**；建议执行 **80 README、代码地图与文档最终对齐**。
+**当前建议下一步**：memory_query 润色 **76-80 已全部完成**（80/80）；可按 [demo-admin-console.md](./prd/demo-admin-console.md) 等产品 PRD 规划下一批任务。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 80（规划） |
-| 已完成 | 79 |
+| 已完成 | 80 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -104,7 +104,7 @@
 | 77 | [memory_query 润色 Phase 1：契约、配置与小模型客户端](./prompts/77-memory-query-polish-contract-config.md) | ✅ | 2026-05-26 | `MEMORY_QUERY_POLISH_*` settings/env；`ModelUseCase.MEMORY_QUERY_POLISH`；`query_polish.py` 校验+fallback；14 用例 |
 | 78 | [memory_query 润色 Phase 2：Graph 接入与 fallback](./prompts/78-memory-query-polish-graph-cutover.md) | ✅ | 2026-05-26 | `memory_query_reply -> memory_query_polish -> post_turn_jobs`；draft 与 final 分层；开关/回退/单条 assistant 测试 |
 | 79 | [memory_query 润色 Phase 3：可观测、eval 与 trace 验证](./prompts/79-memory-query-polish-observability-eval.md) | ✅ | 2026-05-26 | `memory_query.polish.*` metadata/事件；`run_memory_query_polish_eval.py` seed 8/8；tracing/path 测试 |
-| 80 | [memory_query 润色 Phase 4：README、代码地图与文档最终对齐](./prompts/80-memory-query-polish-docs-final.md) | ⬜ 待开始 | — | 依赖 76-79；最终同步 README、docs/maps、PRD 与 progress |
+| 80 | [memory_query 润色 Phase 4：README、代码地图与文档最终对齐](./prompts/80-memory-query-polish-docs-final.md) | ✅ | 2026-05-26 | README/maps/PRD/progress 同步 polish 当前事实；memory_query 润色 76-80 全部收口 |
 
 ---
 
@@ -208,6 +208,7 @@
 | 2026-05-25 | 完成任务 69：`contracts/memory_store.py`（namespace/profile/read 契约）；`test_langmem_migration_characterization.py` 冻结 mem0 基线；`test_langmem_store_spike.py` 验证 Store+checkpointer 同库；pin `langmem>=0.0.30`；Store 实现随 `langgraph-checkpoint-postgres>=3.1.0`，无需单独 store 包 |
 | 2026-05-25 | 完成任务 73：删除 mem0ai、`mem0_client`/`mem0_write`、QDRANT_COLLECTION_MEM0 与 MEM0_* settings；`MEMORY_FREE_TEXT_MAX_FACTS`；AGENTS.md 改为 Store/langmem 约束 |
 | 2026-05-25 | 完成任务 74：`mem0_memories` → `user_memories`；README/maps/PRD/issue/evals 同步 Store+langmem 当前事实；LangMem 迁移 69-75 全部收口 |
+| 2026-05-26 | 完成任务 80：README、docs/maps、PRD 同步 memory_query 润色当前运行事实（`memory_query_polish` 节点、`MEMORY_QUERY_POLISH_*`、eval runner）；progress 80/80 完成 |
 | 2026-05-26 | 完成任务 79：新增 `memory_query.polished` 事件与 `memory_query.polish.*` path/trace metadata；`run_memory_query_polish_eval.py` 本地 seed 8/8；篡改/缺失/回退 eval 与 tracing 测试 |
 | 2026-05-26 | 完成任务 78：主图接入 `memory_query_polish` 节点；`memory_query_reply` 写 draft/result，polish 追加唯一 assistant message；默认关闭时行为不变；mock 成功/校验失败回退测试 |
 | 2026-05-26 | 完成任务 77：新增 `contracts/memory_query_polish`、`ModelUseCase.MEMORY_QUERY_POLISH`、`MEMORY_QUERY_POLISH_*` env 契约、`memory/query_polish.py` 小模型润色与输出校验 fallback；`test_memory_query_polish.py` 14 用例；未接 graph |

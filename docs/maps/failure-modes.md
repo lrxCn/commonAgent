@@ -28,6 +28,7 @@
 
 - Store 读取失败或 mock：返回空记忆，不阻断回合。
 - `memory_query` 没有可靠证据：返回诚实缺失回复，并记录 memory fallback。
+- memory_query polish 小模型输出校验失败或调用异常：回退 deterministic draft，记录 `memory_query.polish.fallback_reason` 与 `memory_query.polish.validation_failed`；用户仍看到安全草稿回复。
 - Policy 通过但 slot fill 失败（`structured_fill_failed`）：拒绝 fact_update 快路径，不输出 Commit 话术，不写入 structured record。
 - post_turn structured 路径出现 `stored_empty`：视为缺陷；`memory_write_seed.json` 的 `regression_store_empty` 类别与 eval runner 用于捕获该回归。
 - post_turn summary / 记忆写入失败：只记日志和 observability metadata，不阻断当前响应；structured 路径主图已基于 record 给出 Commit，异步 write 失败需靠 trace 告警（Front pending UI 未实现）。
@@ -63,7 +64,7 @@
 - RAG fallback：[test_rag_boundaries.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_boundaries.py:1)
 - rewrite/router fallback：[test_rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
 - Fallback manager：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
-- memory_query 缺失证据：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- memory_query 缺失证据 / polish 回退：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)
 - post_turn 非阻塞：[test_post_turn_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_post_turn_graph.py:1)
 - structured write / stored_empty 回归：[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_structured_memory_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_structured_memory_characterization.py:1)
 - fact_update slot fill 失败：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py:1)

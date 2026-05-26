@@ -18,6 +18,8 @@
 - `intent_conflict`、`intent_conflict_reason`：兼容字段，常态为 `false` / 空；不再表示旧双轨分歧。
 - `intent_shadow_error`：`classify_intent()` 异常时写；当前回合保守回退 `general_chat` + `intent_classify_error`。
 - `policy_fast_path_allowed`、`policy_denied_reason`：Policy Gate 写，`route_after_load_memory`、rewrite/router 和 post_turn 读。
+- `memory_write_record`：`load_memory` slot fill 写，fact_update 快路径与 post_turn structured 写读。
+- `memory_query_result`：`memory_query_reply` 写 deterministic `MemoryQueryResult`，`memory_query_polish` 读；单轮 ephemeral，不进入 checkpoint。
 - `path_metrics`：沿图逐步补充，最终用于 observability。
 - `rewritten_query`：`rewrite` 写，`rag_router`、`rag_retrieval` 读。
 - `rag_skipped`：`rag_router` 写，控制后续检索是否跳过。
@@ -36,7 +38,7 @@
 - `ContextBundle` 是模型上下文单一来源，避免 `system_prompt`、messages、trace metadata 分叉。
 - `IntentDecision` 是唯一意图权威；`turn_type` 必须从同一决策派生，不能作为独立分类来源跨轮复用。
 - Intent、policy 与 fallback 字段都是单轮治理状态，不进入 checkpoint，也不能作为下一轮权限依据。
-- `memory_query` 回合会把 `executor` 标记为 `memory_query_executor`；`post_turn_jobs` 据此跳过记忆写入。
+- `memory_query` 回合会把 `executor` 标记为 `memory_query_executor`；`post_turn_jobs` 据此跳过记忆写入。最终 assistant message 由 `memory_query_polish` append。
 
 ## 实现入口
 

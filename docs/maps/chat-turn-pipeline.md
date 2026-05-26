@@ -15,7 +15,8 @@
 - `inbound_guard`：入站文本护栏。
 - `load_memory`：并行读取 checkpoint history、rolling summary、LangGraph Store 用户记忆；调用 `classify_intent()` 生成 `IntentDecision`，派生兼容 `turn_type`，执行 Policy Gate；Policy 通过时对 `fact_update` 做确定性 slot fill，写入单轮 ephemeral `memory_write_record`（fill 失败则拒绝快路径）；记录 intent/policy/fallback metadata。
 - `fact_update_confirm`：仅当 `policy_fast_path_allowed=true` 且 `memory_write_record` 存在时执行；输出含字段摘要的 Commit 话术（如「已记住：姓名=张三」），跳过 LLM/RAG/Supervisor。
-- `memory_query_reply`：记忆查询一等路径，只读可靠记忆证据，跳过 RAG/deepagents/记忆写入。
+- `memory_query_reply`：记忆查询一等路径；调用 `answer_memory_query()` 选择证据并生成 deterministic draft，写入 ephemeral `memory_query_result`；不直接 append assistant message。
+- `memory_query_polish`：读取 draft 与 evidence；`MEMORY_QUERY_POLISH_USE_LLM=false` 时 passthrough draft，打开时调用小模型润色话术；输出校验失败或 LLM 异常回退 draft；append 唯一 assistant message。
 - `chitchat_reply`：寒暄轻量执行器。
 - `rewrite`：按 `turn_type` 决定跳过或做指代消解。
 - `rag_router`：按 `turn_type`、规则或小模型决定是否走 RAG。
@@ -35,7 +36,7 @@
 ## 快速路径
 
 - `fact_update`：必须通过 Policy Gate 且 slot fill 成功；通过后跳过 rewrite、RAG、Supervisor、outbound guard；确认话术与 `StructuredMemoryRecord` 一致。
-- `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过记忆写入。
+- `memory_query`：跳过 rewrite、RAG、deepagents，并由 `post_turn_jobs` 跳过记忆写入；默认不调用润色小模型（`MEMORY_QUERY_POLISH_USE_LLM=false`）。
 - `chitchat`：跳过 rewrite、RAG、deepagents。
 - `knowledge_query`：跳过 router 小模型，直接进入 RAG。
 
@@ -55,6 +56,14 @@
 - Policy Gate：[policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1)
 - Fallback 决策：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
 - 记忆查询执行：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
+- 话术润色：[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)、契约 [memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_query_polish.py:1)
+
+## memory_query 润色
+
+- 图路径：`memory_query_reply -> memory_query_polish -> post_turn_jobs`
+- 配置：`MEMORY_QUERY_POLISH_USE_LLM`（默认 `false`）、`MEMORY_QUERY_POLISH_MODEL_NAME`、`MEMORY_QUERY_POLISH_MAX_TOKENS`、`MEMORY_QUERY_POLISH_TIMEOUT_SECONDS`
+- trace：`memory_query.evidence_*`、`memory_query.polish.*` 事件 `memory_query.polished`
+- Eval：[memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
 
 ## 实现入口
 
@@ -72,6 +81,7 @@
 - 意图单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
 - 权威对齐矩阵：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
 - memory_query 路径：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- memory_query 润色契约 / eval：[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_polish_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish_eval_runner.py:1)
 - fact_update 快路径：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py)
 - 结构化记忆 eval：[test_memory_write_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_seed.py)、[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py)
 - SSE 行为：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)

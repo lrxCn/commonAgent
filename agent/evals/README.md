@@ -20,6 +20,10 @@
   - `structured_fact_update` 行可带 `expected_record`，字段与 `contracts.memory_write.StructuredMemoryRecord` 对齐。
   - `regression_store_empty` 行用 `forbidden_final_status` 声明 Policy 通过的 `fact_update` 不得再出现 `stored_empty`。
   - 本地 runner：`scripts/run_memory_write_eval.py`（默认 mock Store/langmem；`--dry-run` 仅校验 seed 结构）。
+- `memory_query_polish_seed.json`
+  - memory_query 话术润色 seed，覆盖 `polish_hit_name`、`polish_hit_company_address`、`polish_hit_preference`、`polish_missing_name`、`polish_missing_profile`、`polish_thread_fallback`、`polish_forbidden_fact_tamper`、`polish_forbidden_uncertainty`。
+  - 每行包含 `deterministic_reply`、`evidence`、`expected_polish_constraints`、`forbidden_outputs`；正例可带 `example_polished_reply`。
+  - 本地 runner：`scripts/run_memory_query_polish_eval.py`（mock LLM + 输出校验；`--dry-run` 仅校验 seed 结构）。
 
 ## Feedback
 
@@ -47,8 +51,11 @@ cd agent
 uv run pytest tests/test_evals_seed.py -v
 uv run pytest tests/test_intent_eval_seed.py -v
 uv run pytest tests/test_memory_write_eval_seed.py -v
+uv run pytest tests/test_memory_query_polish_eval_seed.py -v
 uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --json
 uv run python scripts/run_memory_write_eval.py --seed evals/memory_write_seed.json --dry-run --json
+uv run python scripts/run_memory_query_polish_eval.py --seed evals/memory_query_polish_seed.json --json
+uv run python scripts/run_memory_query_polish_eval.py --seed evals/memory_query_polish_seed.json --dry-run --json
 uv run python scripts/run_rag_eval.py --seed evals/seed.json --json
 uv run python scripts/run_intent_eval.py --seed evals/intent_seed.json --json
 uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-seed --seed evals/seed.json --dry-run

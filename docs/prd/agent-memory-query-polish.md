@@ -1,18 +1,20 @@
 # Agent memory_query 小模型话术润色 PRD
 
+> **落地状态（2026-05-26）**：任务 76-80 已全部完成并同步 [README.md](/Users/liurixing/Documents/codes/ai/commonAgent/README.md) 与 [docs/maps/](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/)。当前运行路径为 `load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs`；`MEMORY_QUERY_POLISH_USE_LLM` 默认 `false`。
+
 ## 背景
 
-`memory_query` 已是一等运行路径，用于回答「我是谁」「我叫什么」「我公司在哪」等用户长期记忆读取问题。当前路径在主图中的形态是：
+`memory_query` 已是一等运行路径，用于回答「我是谁」「我叫什么」「我公司在哪」等用户长期记忆读取问题。**当前**主图形态为：
 
 ```text
-load_memory -> memory_query_reply -> post_turn_jobs
+load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs
 ```
 
-`memory_query_reply` 调用 `memory.query.answer_memory_query()`，返回 `MemoryQueryResult`：
+`memory_query_reply` 调用 `memory.query.answer_memory_query()`，返回 `MemoryQueryResult`；`memory_query_polish` 根据开关润色话术或 passthrough draft，并 append 唯一 assistant message。
 
 | 字段 | 含义 |
 |------|------|
-| `reply` | 确定性模板回答，直接写入 assistant message |
+| `reply` | 确定性模板草稿（polish 前） |
 | `evidence` | 本轮回答使用的可靠记忆证据，如 `name=刘日兴` |
 | `missing_reason` | 没有可靠证据时的缺失原因，用于 memory fallback |
 
@@ -44,7 +46,20 @@ load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs
 - 不将 `memory_query` 交给 Supervisor/deepagents。
 - 不改变 RAG、client_actions 或外部工具边界。
 
-## 当前链路
+## 当前链路（已落地）
+
+```mermaid
+flowchart TD
+    load_memory["load_memory"]
+    memory_query_reply["memory_query_reply (deterministic evidence + draft)"]
+    memory_query_polish["memory_query_polish (small model wording only)"]
+    post_turn_jobs["post_turn_jobs"]
+    load_memory -.-> memory_query_reply
+    memory_query_reply --> memory_query_polish
+    memory_query_polish --> post_turn_jobs
+```
+
+## 历史设计稿（任务 76 前）
 
 ```mermaid
 flowchart TD
@@ -55,7 +70,7 @@ flowchart TD
     memory_query_reply --> post_turn_jobs
 ```
 
-## 目标链路
+## 目标链路（与当前一致）
 
 ```mermaid
 flowchart TD
@@ -204,3 +219,24 @@ MEMORY_QUERY_POLISH_TIMEOUT_SECONDS=5
 | 路径契约混乱 | 单独记录 `memory_query_polish` metadata，不复用 supervisor |
 | 缺失记忆被编造 | missing 场景强约束，默认可跳过润色 |
 | README 提前描述未来状态 | 仅 PRD/任务卡描述目标；README 在任务 80 落地后同步 |
+
+## 落地状态与偏差
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| 任务 76 行为冻结与 seed | ✅ | `memory_query_polish_seed.json` 8 条；characterization 测试 |
+| 任务 77 契约 / 配置 / 客户端 | ✅ | `contracts/memory_query_polish`、`query_polish.py`、`MEMORY_QUERY_POLISH_*` |
+| 任务 78 graph 接入 | ✅ | `memory_query_reply -> memory_query_polish -> post_turn_jobs`；单条 assistant message |
+| 任务 79 可观测与 eval | ✅ | `memory_query.polish.*` metadata、`run_memory_query_polish_eval.py` |
+| 任务 80 文档对齐 | ✅ | README、docs/maps、本 PRD、progress |
+| 默认线上开启润色 | ⏸ 未做 | `MEMORY_QUERY_POLISH_USE_LLM=false`；需显式打开 |
+| LangSmith Dataset 同步 polish seed | ⏸ 非范围 | 本地 JSON runner 已覆盖；Dataset 同步为可选人工步骤 |
+| 生产监控看板 | ⏸ 非范围 | 仅 trace/path metadata，无独立 dashboard |
+
+## 验证入口
+
+```bash
+cd agent
+uv run pytest tests/test_graph_compile.py tests/test_memory_query_polish.py tests/test_memory_query_executor.py tests/test_path_contract.py tests/test_tracing.py -v
+uv run python scripts/run_memory_query_polish_eval.py --seed evals/memory_query_polish_seed.json --json
+```
