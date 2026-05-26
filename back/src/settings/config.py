@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from settings.database_url import resolve_back_database_url
 
 _settings_override: Settings | None = None
 
@@ -43,9 +46,23 @@ class Settings(BaseSettings):
         default=120.0,
         description="HTTP timeout when forwarding chat to Agent.",
     )
-    DATABASE_URL: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/common_agent_back",
-        description="Back business database URL (same Postgres instance as Agent, separate DB).",
+    DATABASE_URL: str | None = Field(
+        default=None,
+        description=(
+            "Back business database URL (same Postgres instance as Agent, separate DB). "
+            "If omitted, derived from AGENT_DATABASE_URL."
+        ),
+    )
+    AGENT_DATABASE_URL: str | None = Field(
+        default=None,
+        description=(
+            "Agent DATABASE_URL (postgresql://…/common_agent). "
+            "Back reuses host/user/password and switches to BACK_DATABASE_NAME."
+        ),
+    )
+    BACK_DATABASE_NAME: str = Field(
+        default="common_agent_back",
+        description="Database name when deriving DATABASE_URL from AGENT_DATABASE_URL.",
     )
     ADMIN_SEED_PASSWORD: str = Field(
         default="123456",
@@ -59,6 +76,16 @@ class Settings(BaseSettings):
         default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:3000,http://localhost:3000",
         description="Comma-separated browser origins allowed with credentials.",
     )
+
+    @model_validator(mode="after")
+    def resolve_database_url(self) -> Self:
+        resolved = resolve_back_database_url(
+            database_url=self.DATABASE_URL,
+            agent_database_url=self.AGENT_DATABASE_URL,
+            back_database_name=self.BACK_DATABASE_NAME,
+        )
+        object.__setattr__(self, "DATABASE_URL", resolved)
+        return self
 
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

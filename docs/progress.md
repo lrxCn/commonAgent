@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：演示平台 **84** [Front 登录与布局](./prompts/84-demo-front-auth-layout-home.md)（依赖 82+83，均已就绪）。
+**当前建议下一步**：演示平台 **85** [学生 CRUD](./prompts/85-demo-students-crud.md)（依赖 81+82+84，均已就绪）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 92（规划） |
-| 已完成 | 83（01–80 Agent 核心 + 81–83 演示平台） |
+| 已完成 | 84（01–80 Agent 核心 + 81–84 演示平台） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -110,7 +110,7 @@
 | 81 | [演示平台：Back 数据库、迁移与种子](./prompts/81-demo-back-database-seed.md) | ✅ | 2026-05-26 | SQLAlchemy+Alembic；`common_agent_back` 六表；种子 role-* + admin/alice/bob + 3 学生；pytest SQLite fixture |
 | 82 | [演示平台：Back Cookie Session 与认证 API](./prompts/82-demo-back-session-auth.md) | ✅ | 2026-05-26 | login/logout/me；signed cookie session；CORS 5173+credentials；`test_demo_auth.py` 8 用例 |
 | 83 | [演示平台：Front Vue3 SPA 脚手架](./prompts/83-demo-front-vue-scaffold.md) | ✅ | 2026-05-26 | Vite+Vue3+TS strict+Pinia+Naive UI；dev 5173 proxy→Back 8080；legacy 静态保留 |
-| 84 | [演示平台：Front 登录、布局、欢迎页与 Chat 空壳](./prompts/84-demo-front-auth-layout-home.md) | ⬜ | — | 依赖 82、83；FAB+Drawer 空壳 |
+| 84 | [演示平台：Front 登录、布局、欢迎页与 Chat 空壳](./prompts/84-demo-front-auth-layout-home.md) | ✅ | 2026-05-26 | Login/AppLayout/Home；auth+chat store；FAB+Drawer 空壳；401→login |
 | 85 | [演示平台：学生 CRUD（Back + Front）](./prompts/85-demo-students-crud.md) | ⬜ | — | 依赖 81、82、84；**演示 MVP 里程碑** |
 | 86 | [演示平台：账号管理（角色与用户 CRUD）](./prompts/86-demo-admin-accounts-crud.md) | ⬜ | — | 依赖 81、82、84 |
 | 87 | [演示平台：Agent role_ids[] 与 RAG OR 检索](./prompts/87-demo-agent-role-ids-rag-or.md) | ⬜ | — | Agent 侧；可与 86 并行 |
@@ -230,7 +230,7 @@
 | 2026-05-26 | 完成任务 77：新增 `contracts/memory_query_polish`、`ModelUseCase.MEMORY_QUERY_POLISH`、`MEMORY_QUERY_POLISH_*` env 契约、`memory/query_polish.py` 小模型润色与输出校验 fallback；`test_memory_query_polish.py` 14 用例；未接 graph |
 | 2026-05-26 | 完成任务 76：补充 memory_query characterization/path contract 测试；新增 `memory_query_polish_seed.json`（姓名/地址/偏好/缺失/thread fallback/禁止篡改）与 seed smoke test；运行行为不变 |
 | 2026-05-26 | 文档：新增 [Agent memory_query 小模型话术润色 PRD](./prd/agent-memory-query-polish.md)，并拆分任务 **76-80**；最后任务负责 README、docs/maps、PRD 与 progress 最终对齐 |
-| 2026-05-26 | 完成任务 83：`front/` Vue3 SPA 脚手架（Vite/TS strict/Pinia/Naive UI/Router）；axios `withCredentials`；dev 5173 `/api` proxy→Back；`legacy.html`+旧静态保留至 **92** |
+| 2026-05-26 | 完成任务 84：Front 登录页（`/login`）、`AppLayout`+侧边栏+顶栏退出、`HomeView` 展示 `/api/me` 与角色标签；路由守卫 `requiresAuth`/`requiresAdmin`；`ChatFab`+`ChatDrawer`（420px 空壳）；Pinia `auth`/`chat` store；401 全局跳转登录 |
 | 2026-05-26 | 完成任务 82：Back HttpOnly Cookie Session（`SessionMiddleware`+signed cookie）；`POST /api/auth/login|logout`、`GET /api/me`；bcrypt 校验；PRD 统一错误体；`SESSION_SECRET`/`CORS_ORIGINS` env；`test_demo_auth.py` 8 用例 |
 | 2026-05-26 | 完成任务 81：Back `db/` ORM（roles/users/user_roles/students/kb_document_meta/chat_threads）、Alembic 初始迁移、`db.seed` CLI、`domain/role_id` 格式校验；`DATABASE_URL`/`ADMIN_SEED_PASSWORD` env 契约；`test_demo_database.py` 4 用例（SQLite fixture） |
 | 2026-05-26 | 文档：基于 [演示平台 PRD](./prd/demo-admin-console.md) 拆分任务 **81-92**（12 张任务卡）；**92** 负责 README、`role_ids[]` 契约、demo-walkthrough、maps、移除 legacy static front 与 progress 收口 |

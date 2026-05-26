@@ -1,8 +1,14 @@
-/** Shared API and domain types (expanded in later demo tasks). */
+/** Shared API and domain types. */
 
 export type ApiErrorBody = {
   code: string;
   message: string;
+  field_errors?: Record<string, string>;
+};
+
+export type RoleSummary = {
+  role_id: string;
+  name: string;
 };
 
 export type MeResponse = {
@@ -11,4 +17,10 @@ export type MeResponse = {
   display_name: string;
   role_ids: string[];
   is_admin: boolean;
+  roles: RoleSummary[];
+};
+
+export type LoginRequest = {
+  username: string;
+  password: string;
 };
