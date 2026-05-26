@@ -105,3 +105,55 @@ export type AdminUserUpdateRequest = {
   role_ids?: string[];
   is_admin?: boolean;
 };
+
+export type KbChunk = {
+  chunk_id: string;
+  index: number;
+  text: string;
+};
+
+export type KbDocument = {
+  doc_id: string;
+  role_id: string;
+  doc_name: string;
+  version: string;
+  raw_content: string;
+  chunks_written: number;
+  tokens_estimated: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KbDocumentDetail = KbDocument & {
+  chunks: KbChunk[];
+};
+
+export type KbDocumentListResponse = {
+  items: KbDocument[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type KbDocumentListParams = {
+  role_id?: string;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+
+export type KbDocumentCreateRequest = {
+  role_id: string;
+  doc_name: string;
+  content: string;
+  doc_id?: string;
+  version?: string;
+};
+
+export type KbDocumentUpdateRequest = {
+  role_id: string;
+  doc_name?: string;
+  raw_content?: string;
+  version?: string;
+};

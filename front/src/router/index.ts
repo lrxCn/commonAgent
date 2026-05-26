@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout.vue";
 import { useAuthStore } from "@/stores/auth";
 import HomeView from "@/views/HomeView.vue";
 import LoginView from "@/views/LoginView.vue";
+import KbDocumentsView from "@/views/admin/KbDocumentsView.vue";
 import RolesView from "@/views/admin/RolesView.vue";
 import StudentsView from "@/views/StudentsView.vue";
 import UsersView from "@/views/admin/UsersView.vue";
@@ -56,6 +57,12 @@ const router = createRouter({
           path: "admin/users",
           name: "app-admin-users",
           component: UsersView,
+          meta: { requiresAuth: true, requiresAdmin: true },
+        },
+        {
+          path: "admin/kb",
+          name: "app-admin-kb",
+          component: KbDocumentsView,
           meta: { requiresAuth: true, requiresAdmin: true },
         },
       ],

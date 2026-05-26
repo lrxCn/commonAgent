@@ -21,7 +21,7 @@ const menuOptions = computed<MenuOption[]>(() => {
       { type: "divider", key: "admin-divider" },
       { label: "角色管理", key: "/app/admin/roles" },
       { label: "用户管理", key: "/app/admin/users" },
-      { label: "RAG 管理", key: "/app/admin/kb", disabled: true },
+      { label: "RAG 管理", key: "/app/admin/kb" },
     );
   }
 
