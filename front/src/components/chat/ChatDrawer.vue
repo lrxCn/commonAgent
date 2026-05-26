@@ -13,6 +13,7 @@ import {
   NText,
 } from "naive-ui";
 
+import JumpPageConfirmCard from "@/components/chat/JumpPageConfirmCard.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useChatStore } from "@/stores/chat";
 
@@ -144,7 +145,18 @@ function handleDrawerUpdate(show: boolean): void {
             >
               <div class="chat-bubble">
                 <strong class="chat-entry__label">{{ roleLabel(msg.role) }}</strong>
-                <p class="chat-entry__content">
+                <JumpPageConfirmCard
+                  v-if="msg.jumpPagePrompt"
+                  :page-label="msg.jumpPagePrompt.pageLabel"
+                  :status="msg.jumpPagePrompt.status"
+                  :status-detail="msg.jumpPagePrompt.statusDetail"
+                  @confirm="() => void chat.confirmJumpPage(msg.id)"
+                  @cancel="chat.cancelJumpPage(msg.id)"
+                />
+                <p
+                  v-else-if="msg.content || msg.streaming"
+                  class="chat-entry__content"
+                >
                   {{ msg.content }}<span v-if="msg.streaming" class="chat-cursor">▍</span>
                 </p>
               </div>

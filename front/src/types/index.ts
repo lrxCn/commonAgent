@@ -1,5 +1,9 @@
 /** Shared API and domain types. */
 
+import type { PageSlug } from "@/client-actions/page-registry";
+
+export type { PageSlug } from "@/client-actions/page-registry";
+
 export type ApiErrorBody = {
   code: string;
   message: string;
@@ -186,9 +190,26 @@ export type HistoryMessagesResponse = {
 
 export type ChatDisplayRole = "human" | "ai" | "system";
 
+export type JumpPagePromptStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "invalid"
+  | "historical";
+
+export type JumpPagePrompt = {
+  action: ClientAction;
+  pageLabel: string;
+  slug: PageSlug | null;
+  status: JumpPagePromptStatus;
+  statusDetail?: string;
+};
+
 export type ChatDisplayMessage = {
   id: string;
   role: ChatDisplayRole;
   content: string;
   streaming?: boolean;
+  /** In-chat jumpPage confirmation card (not plain text). */
+  jumpPagePrompt?: JumpPagePrompt;
 };

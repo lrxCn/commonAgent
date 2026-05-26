@@ -5,11 +5,20 @@ import { ref, watch } from "vue";
 import * as chatApi from "@/api/chat";
 import {
   isPageAllowedForUser,
+  PAGE_SLUG_LABELS,
   parsePageSlug,
   resolveJumpPageTarget,
 } from "@/client-actions/page-registry";
 import { useAuthStore } from "@/stores/auth";
-import type { ChatDisplayMessage, ClientAction, HistoryMessageItem, JumpPageArgs } from "@/types";
+import type {
+  ChatDisplayMessage,
+  ClientAction,
+  HistoryMessageItem,
+  JumpPageArgs,
+  JumpPagePrompt,
+  JumpPagePromptStatus,
+  PageSlug,
+} from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
 const LAST_USER_STORAGE_KEY = "common_agent_last_user_id";
@@ -39,15 +48,86 @@ function getOrCreateThreadId(): string {
   return id;
 }
 
-function historyToDisplay(item: HistoryMessageItem): ChatDisplayMessage | null {
-  if (item.role === "tool" || item.role === "other") {
-    return null;
+type JumpPageValidation =
+  | { ok: true; slug: PageSlug; pageLabel: string }
+  | { ok: false; pageLabel: string; detail: string };
+
+function validateJumpPageAction(action: ClientAction): JumpPageValidation {
+  const args = action.args as JumpPageArgs;
+  const rawPage = typeof args.page === "string" ? args.page : "";
+  const slug = parsePageSlug(rawPage);
+  const fallbackLabel = rawPage.trim() || "未知页面";
+
+  if (!slug) {
+    return { ok: false, pageLabel: fallbackLabel, detail: "未知页面，无法跳转" };
   }
+
+  const pageLabel = PAGE_SLUG_LABELS[slug];
+  const auth = useAuthStore();
+  if (!auth.isAuthenticated) {
+    return { ok: false, pageLabel, detail: "请先登录后再跳转页面" };
+  }
+  if (!isPageAllowedForUser(slug, auth.isAdmin)) {
+    return { ok: false, pageLabel, detail: "当前账号无权访问该页面" };
+  }
+  if (!resolveJumpPageTarget(rawPage)) {
+    return { ok: false, pageLabel, detail: "未知页面，无法跳转" };
+  }
+  return { ok: true, slug, pageLabel };
+}
+
+function buildJumpPagePromptMessage(
+  action: ClientAction,
+  initialStatus: JumpPagePromptStatus,
+): ChatDisplayMessage {
+  const validation = validateJumpPageAction(action);
+  const jumpPagePrompt: JumpPagePrompt = validation.ok
+    ? {
+        action,
+        slug: validation.slug,
+        pageLabel: validation.pageLabel,
+        status: initialStatus,
+      }
+    : {
+        action,
+        slug: null,
+        pageLabel: validation.pageLabel,
+        status: "invalid",
+        statusDetail: validation.detail,
+      };
+
   return {
-    id: item.message_id ?? crypto.randomUUID(),
-    role: item.role,
-    content: item.content,
+    id: crypto.randomUUID(),
+    role: "ai",
+    content: "",
+    jumpPagePrompt,
   };
+}
+
+function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
+  if (item.role === "tool" || item.role === "other") {
+    return [];
+  }
+
+  const items: ChatDisplayMessage[] = [];
+  const content = item.content?.trim() ?? "";
+  if (content || item.role === "human") {
+    items.push({
+      id: item.message_id ?? crypto.randomUUID(),
+      role: item.role,
+      content: item.content,
+    });
+  }
+
+  if (item.client_actions?.length) {
+    for (const action of item.client_actions) {
+      if (action.tool === "jumpPage") {
+        items.push(buildJumpPagePromptMessage(action, "historical"));
+      }
+    }
+  }
+
+  return items;
 }
 
 function segmentsToText(state: StreamingSegments): string {
@@ -57,81 +137,35 @@ function segmentsToText(state: StreamingSegments): string {
   return state.plain;
 }
 
-async function executeJumpPage(action: ClientAction): Promise<void> {
+async function navigateJumpPage(action: ClientAction): Promise<boolean> {
   const args = action.args as JumpPageArgs;
   const rawPage = typeof args.page === "string" ? args.page : "";
-  const slug = parsePageSlug(rawPage);
-  if (!slug) {
-    message.warning("未知页面，无法跳转");
-    return;
-  }
-
-  const auth = useAuthStore();
-  if (!auth.isAuthenticated) {
-    message.warning("请先登录后再跳转页面");
-    return;
-  }
-
-  if (!isPageAllowedForUser(slug, auth.isAdmin)) {
-    message.warning("当前账号无权访问该页面");
-    return;
+  const validation = validateJumpPageAction(action);
+  if (!validation.ok) {
+    message.warning(validation.detail);
+    return false;
   }
 
   const target = resolveJumpPageTarget(rawPage);
   if (!target) {
     message.warning("未知页面，无法跳转");
-    return;
-  }
-
-  if (action.requires_approval) {
-    const prompt = `跳转到「${slug}」？\n参数：${JSON.stringify(action.args ?? {}, null, 2)}`;
-    if (!window.confirm(prompt)) {
-      if (import.meta.env.DEV) {
-        console.log("[client_actions] skipped (user declined)", action);
-      }
-      return;
-    }
+    return false;
   }
 
   const { default: router } = await import("@/router");
   try {
     await router.push(target);
     if (import.meta.env.DEV) {
-      console.info("[client_actions] jumpPage navigated", { page: slug, target });
+      console.info("[client_actions] jumpPage navigated", {
+        page: validation.slug,
+        target,
+      });
     }
+    return true;
   } catch (err) {
     console.error("[client_actions] jumpPage navigation failed", err);
     message.warning("页面跳转失败");
-  }
-}
-
-function handleClientActions(actions: unknown): void {
-  if (!Array.isArray(actions)) {
-    console.warn("[client_actions] expected array, got", actions);
-    return;
-  }
-  for (const action of actions) {
-    if (!action || typeof action !== "object") {
-      continue;
-    }
-    const record = action as ClientAction;
-    if (record.tool === "jumpPage") {
-      void executeJumpPage(record);
-      continue;
-    }
-
-    const tool = record.tool ?? "(unknown)";
-    const needsApproval = Boolean(record.requires_approval);
-    const prompt = `执行工具「${tool}」？\n参数：${JSON.stringify(record.args ?? {}, null, 2)}`;
-    if (needsApproval && !window.confirm(prompt)) {
-      if (import.meta.env.DEV) {
-        console.log("[client_actions] skipped (user declined)", action);
-      }
-      continue;
-    }
-    if (import.meta.env.DEV) {
-      console.log("[client_actions] unhandled tool", action);
-    }
+    return false;
   }
 }
 
@@ -174,6 +208,73 @@ export const useChatStore = defineStore("chat", () => {
     abortStreaming();
   }
 
+  function enqueueJumpPagePrompt(action: ClientAction): void {
+    const promptMessage = buildJumpPagePromptMessage(action, "pending");
+    messages.value.push(promptMessage);
+    if (promptMessage.jumpPagePrompt?.status === "invalid") {
+      message.warning(promptMessage.jumpPagePrompt.statusDetail ?? "无法跳转");
+    }
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] jumpPage prompt enqueued", action);
+    }
+  }
+
+  function handleClientActions(actions: unknown): void {
+    if (!Array.isArray(actions)) {
+      console.warn("[client_actions] expected array, got", actions);
+      return;
+    }
+    for (const action of actions) {
+      if (!action || typeof action !== "object") {
+        continue;
+      }
+      const record = action as ClientAction;
+      if (record.tool === "jumpPage") {
+        enqueueJumpPagePrompt(record);
+        continue;
+      }
+
+      const tool = record.tool ?? "(unknown)";
+      const needsApproval = Boolean(record.requires_approval);
+      const prompt = `执行工具「${tool}」？\n参数：${JSON.stringify(record.args ?? {}, null, 2)}`;
+      if (needsApproval && !window.confirm(prompt)) {
+        if (import.meta.env.DEV) {
+          console.log("[client_actions] skipped (user declined)", action);
+        }
+        continue;
+      }
+      if (import.meta.env.DEV) {
+        console.log("[client_actions] unhandled tool", action);
+      }
+    }
+  }
+
+  async function confirmJumpPage(messageId: string): Promise<void> {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const prompt = entry?.jumpPagePrompt;
+    if (!entry || !prompt || prompt.status !== "pending") {
+      return;
+    }
+
+    const ok = await navigateJumpPage(prompt.action);
+    if (ok) {
+      prompt.status = "confirmed";
+      closeDrawer();
+    }
+  }
+
+  function cancelJumpPage(messageId: string): void {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const prompt = entry?.jumpPagePrompt;
+    if (!entry || !prompt || prompt.status !== "pending") {
+      return;
+    }
+    prompt.status = "cancelled";
+    if (import.meta.env.DEV) {
+      console.log("[client_actions] jumpPage cancelled", prompt.action);
+    }
+  }
+
   function toggleDrawer(): void {
     if (drawerOpen.value) {
       closeDrawer();
@@ -190,9 +291,7 @@ export const useChatStore = defineStore("chat", () => {
     error.value = null;
     try {
       const items = await chatApi.fetchAllThreadMessages(threadId.value);
-      messages.value = items
-        .map(historyToDisplay)
-        .filter((item): item is ChatDisplayMessage => item !== null);
+      messages.value = items.flatMap(historyToDisplayItems);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       error.value = `加载历史失败：${msg}`;
@@ -452,6 +551,8 @@ export const useChatStore = defineStore("chat", () => {
     resetOnLogout,
     copyThreadId,
     sendMessage,
+    confirmJumpPage,
+    cancelJumpPage,
     abortStreaming,
     clearError,
   };

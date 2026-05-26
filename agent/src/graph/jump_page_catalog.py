@@ -16,6 +16,8 @@ JUMP_PAGE_CN_ALIASES: tuple[tuple[str, str], ...] = tuple(
             ("账号管理", "admin-users"),
             ("rag管理", "admin-kb"),
             ("RAG管理", "admin-kb"),
+            ("rag", "admin-kb"),
+            ("RAG", "admin-kb"),
             ("知识库", "admin-kb"),
             ("文档管理", "admin-kb"),
             ("学生管理", "students"),

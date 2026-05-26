@@ -124,6 +124,8 @@ def test_build_simple_client_action_extracts_page() -> None:
         ("跳转到首页", "home"),
         ("前往 /app/admin/kb", "admin-kb"),
         ("打开 pageA", "pageA"),
+        ("跳转到rag", "admin-kb"),
+        ("跳转到RAG", "admin-kb"),
     ],
 )
 def test_build_simple_client_action_catalog_and_legacy(

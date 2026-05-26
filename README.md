@@ -121,7 +121,7 @@ graph.invoke(
 
 主图拓扑在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，节点实现在 [graph/nodes/](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)。
 
-当前编译拓扑可通过 `cd agent && uv run python scripts/print_graph_mermaid.py` 生成：
+
 
 ```mermaid
 flowchart TD

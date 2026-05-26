@@ -82,7 +82,7 @@ cd front && npm install && npm run dev
 
 1. **admin** 登录 → 对话抽屉。
 2. 发送：「请打开 RAG 管理页面」或「跳转到 RAG 管理」。
-3. 期望：SSE/JSON 含 `client_actions`，`tool: "jumpPage"`、`args.page: "admin-kb"`；浏览器 URL 变为 `/app/admin/kb`；ChatDrawer **保持打开**。
+3. 期望：SSE/JSON 含 `client_actions`，`tool: "jumpPage"`、`args.page: "admin-kb"`；对话内出现**跳转确认卡片**；点击「确认跳转」后 URL 变为 `/app/admin/kb` 且 ChatDrawer **关闭**；点「取消」则不跳转。
 4. 退出后以 **alice**（`role-sales`）登录 → 发送：「打开学生管理」。
 5. 期望：进入 `/app/students`。
 6. alice 再发送：「打开用户管理」。
