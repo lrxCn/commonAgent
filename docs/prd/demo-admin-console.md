@@ -632,15 +632,22 @@ admin 路由非 admin → **403**；未登录 → **401**。
 
 ## 建议任务拆分（progress 81+）
 
+已落地为 `docs/prompts/81-*.md` … `92-*.md`，详见 [docs/progress.md](../progress.md)。
+
 | ID | 范围 |
 |----|------|
-| 81 | Front 脚手架 + 认证 + 欢迎页 + Layout |
-| 82 | Back 学生 CRUD + students 表 |
-| 83 | 账号 / 角色 CRUD + seed |
-| 84 | Agent `role_ids[]` + RAG OR + Back context |
-| 85 | KB meta 双写 + RAG 管理 UI + Agent list/delete |
-| 86 | ChatDrawer SSE + thread 归属 + history 代理 |
-| 87 | 文档收口：README、demo-walkthrough、progress |
+| 81 | Back 数据库、迁移与种子（`common_agent_back`） |
+| 82 | Back Cookie Session 与认证 API |
+| 83 | Front Vue3 SPA 脚手架（可与 81–82 并行） |
+| 84 | Front 登录、布局、欢迎页、Chat FAB/Drawer 空壳 |
+| 85 | 学生 CRUD（Back + Front，演示 MVP） |
+| 86 | 账号管理：角色与用户 CRUD |
+| 87 | Agent `role_ids[]` + RAG OR 检索 |
+| 88 | Back context 注入、tools 并集、`chat_threads` |
+| 89 | Agent KB list/get/delete + Back `kb_document_meta` 双写 |
+| 90 | Front RAG 管理页 |
+| 91 | ChatDrawer SSE、history、`client_actions` |
+| 92 | 文档收口：README、demo-walkthrough、maps、移除 legacy static front |
 
 ---
 
