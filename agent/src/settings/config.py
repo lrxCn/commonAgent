@@ -191,12 +191,19 @@ class Settings(BaseSettings):
 
     # --- KB ingest ---
     CHUNK_SIZE_TOKENS: int = Field(
-        default=768,
+        default=480,
         description="Target chunk size in estimated tokens (README target: 512–1024).",
     )
     CHUNK_OVERLAP_RATIO: float = Field(
         default=0.12,
         description="Chunk overlap ratio (README target: 10–15%).",
+    )
+    EMBEDDING_MAX_INPUT_TOKENS: int = Field(
+        default=512,
+        description=(
+            "Provider per-input token limit for embedding API; ingest chunk size is "
+            "capped below this value."
+        ),
     )
 
     # --- Qdrant ---

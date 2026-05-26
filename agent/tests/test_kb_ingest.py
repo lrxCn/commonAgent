@@ -14,6 +14,7 @@ from gateway.app import create_app
 from rag.ingest import (
     IngestError,
     chunk_text,
+    effective_chunk_size_tokens,
     estimate_tokens,
     ingest_document,
     reset_ingest_overrides,
@@ -206,6 +207,14 @@ def test_chunk_text_respects_size_and_overlap() -> None:
     assert len(chunks) >= 2
     for chunk in chunks:
         assert estimate_tokens(chunk) <= 128
+
+
+def test_effective_chunk_size_tokens_respects_embedding_limit() -> None:
+    settings = _settings(
+        CHUNK_SIZE_TOKENS=768,
+        EMBEDDING_MAX_INPUT_TOKENS=512,
+    )
+    assert effective_chunk_size_tokens(settings) == 480
 
 
 def test_ingest_then_retrieve_hits_content(fake_qdrant: FakeQdrantClient) -> None:

@@ -21,6 +21,15 @@ def _agent_base(settings: Settings) -> str:
     return settings.AGENT_URL.rstrip("/")
 
 
+def _raise_agent_error(response: httpx.Response) -> None:
+    try:
+        body = response.json()
+        detail = body.get("detail", response.text)
+    except ValueError:
+        detail = response.text
+    raise HTTPException(status_code=response.status_code, detail=detail)
+
+
 def agent_kb_ingest(
     payload: dict[str, Any],
     *,
@@ -37,7 +46,7 @@ def agent_kb_ingest(
             detail={"error": "agent_unreachable", "message": str(exc)},
         ) from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        _raise_agent_error(response)
     return response.json()
 
 
@@ -63,7 +72,7 @@ def agent_kb_list_documents(
             detail={"error": "agent_unreachable", "message": str(exc)},
         ) from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        _raise_agent_error(response)
     return response.json()
 
 
@@ -89,7 +98,7 @@ def agent_kb_get_document(
             detail={"error": "agent_unreachable", "message": str(exc)},
         ) from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        _raise_agent_error(response)
     return response.json()
 
 
@@ -115,4 +124,4 @@ def agent_kb_delete_document(
             detail={"error": "agent_unreachable", "message": str(exc)},
         ) from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        _raise_agent_error(response)

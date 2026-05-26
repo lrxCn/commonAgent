@@ -141,6 +141,16 @@ def chunk_text(
     return chunks or [body]
 
 
+def effective_chunk_size_tokens(settings: Settings) -> int:
+    """Cap ingest chunk size so each embedding input stays under provider limits."""
+    target = max(64, settings.CHUNK_SIZE_TOKENS)
+    provider_limit = max(64, settings.EMBEDDING_MAX_INPUT_TOKENS)
+    # Heuristic token counts can exceed the provider tokenizer; keep a safety margin.
+    safety_margin = 32
+    capped = max(64, provider_limit - safety_margin)
+    return min(target, capped)
+
+
 def _embed_texts(texts: Sequence[str], settings: Settings) -> list[list[float]]:
     if not texts:
         return []
@@ -292,7 +302,7 @@ def ingest_document(
 
     chunks = chunk_text(
         body,
-        chunk_size_tokens=cfg.CHUNK_SIZE_TOKENS,
+        chunk_size_tokens=effective_chunk_size_tokens(cfg),
         overlap_ratio=cfg.CHUNK_OVERLAP_RATIO,
     )
     if not chunks:
@@ -304,7 +314,15 @@ def ingest_document(
     try:
         vectors = _embed_texts(chunks, cfg)
     except Exception as exc:
-        msg = "embedding failed"
+        cause = str(exc)
+        if "512" in cause or "413" in cause:
+            msg = (
+                "embedding input exceeds provider token limit "
+                f"({cfg.EMBEDDING_MAX_INPUT_TOKENS}); "
+                "reduce CHUNK_SIZE_TOKENS or split the document further"
+            )
+        else:
+            msg = f"embedding failed: {cause}"
         raise IngestError(msg) from exc
 
     if len(vectors) != len(chunks):
