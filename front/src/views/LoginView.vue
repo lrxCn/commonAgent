@@ -10,6 +10,7 @@ import {
   NSpace,
   NText,
   useMessage,
+  type InputInst,
 } from "naive-ui";
 
 import { useAuthStore } from "@/stores/auth";
@@ -22,6 +23,11 @@ const auth = useAuthStore();
 const username = ref("");
 const password = ref("");
 const loading = ref(false);
+const passwordInputRef = ref<InputInst | null>(null);
+
+function focusPassword(): void {
+  passwordInputRef.value?.focus();
+}
 
 const redirectPath = computed(() => {
   const redirect = route.query.redirect;
@@ -59,11 +65,12 @@ async function onSubmit(): Promise<void> {
             placeholder="admin"
             autocomplete="username"
             :disabled="loading"
-            @keyup.enter="onSubmit"
+            @keyup.enter="focusPassword"
           />
         </n-form-item>
         <n-form-item label="密码">
           <n-input
+            ref="passwordInputRef"
             v-model:value="password"
             type="password"
             show-password-on="click"
