@@ -2,29 +2,19 @@
   "tools": [
     {
       "name": "jumpPage",
-      "description": "Navigate the user to an in-app page.",
+      "description": "Navigate the user to an in-app page. Allowed pages: home (首页), students (学生管理), admin-roles (角色管理, admin only), admin-users (用户管理, admin only), admin-kb (RAG/知识库管理, admin only). Use the slug exactly as listed.",
       "parameters": {
         "type": "object",
         "properties": {
-          "page": { "type": "string" }
+          "page": {
+            "type": "string",
+            "enum": ["home", "students", "admin-roles", "admin-users", "admin-kb"]
+          }
         },
         "required": ["page"]
       },
       "requires_approval": false,
       "roles": ["role-admin", "role-sales"]
-    },
-    {
-      "name": "openTicket",
-      "description": "Open a support ticket for the user.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "subject": { "type": "string" }
-        },
-        "required": ["subject"]
-      },
-      "requires_approval": true,
-      "roles": ["role-support"]
     }
   ]
 }

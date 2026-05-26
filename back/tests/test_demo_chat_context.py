@@ -29,26 +29,28 @@ def _sample_tools() -> list[dict]:
     return [
         {
             "name": "jumpPage",
-            "description": "Go to page",
-            "parameters": {"type": "object", "properties": {"page": {"type": "string"}}},
+            "description": "Navigate the user to an in-app page. Allowed pages: home (首页), students (学生管理), admin-roles (角色管理, admin only), admin-users (用户管理, admin only), admin-kb (RAG/知识库管理, admin only). Use the slug exactly as listed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "string",
+                        "enum": ["home", "students", "admin-roles", "admin-users", "admin-kb"],
+                    }
+                },
+                "required": ["page"],
+            },
             "requires_approval": False,
             "roles": ["role-admin", "role-sales"],
-        },
-        {
-            "name": "openTicket",
-            "description": "Open ticket",
-            "parameters": {"type": "object", "properties": {"subject": {"type": "string"}}},
-            "requires_approval": True,
-            "roles": ["role-support"],
         },
     ]
 
 
 def test_filter_tools_for_role_ids_union_dedup() -> None:
     tools = _sample_tools()
-    allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-support"])
+    allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-admin"])
     names = [tool["name"] for tool in allowed]
-    assert names == ["jumpPage", "openTicket"]
+    assert names == ["jumpPage"]
     assert "roles" not in allowed[0]
 
 
@@ -68,8 +70,8 @@ def test_filter_tools_for_role_ids_dedupes_by_name() -> None:
             "roles": ["role-support"],
         },
     ]
-    allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-support"])
-    assert [tool["name"] for tool in allowed] == ["jumpPage", "openTicket"]
+    allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-admin"])
+    assert [tool["name"] for tool in allowed] == ["jumpPage"]
 
 
 def test_build_request_context_includes_role_ids(tmp_path: Path) -> None:
@@ -232,13 +234,15 @@ def test_api_chat_multi_role_tool_union(chat_client: TestClient) -> None:
     body = json.loads(route.calls[0].request.content.decode())
     assert body["context"]["role_ids"] == ["role-sales", "role-support"]
     tool_names = [tool["name"] for tool in body["context"]["tools"]]
-    assert tool_names == ["jumpPage", "openTicket"]
+    assert tool_names == ["jumpPage"]
 
 
 def test_demo_tools_file_has_roles_arrays() -> None:
     back_root = Path(__file__).resolve().parents[1]
     tools = load_role_tools(back_root / "config" / "tools.demo.json")
-    assert tools
+    assert [tool["name"] for tool in tools] == ["jumpPage"]
     for tool in tools:
         assert isinstance(tool.get("roles"), list)
         assert tool["roles"]
+    page_enum = tools[0]["parameters"]["properties"]["page"]["enum"]
+    assert page_enum == ["home", "students", "admin-roles", "admin-users", "admin-kb"]
