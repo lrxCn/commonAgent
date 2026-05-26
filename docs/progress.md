@@ -6,18 +6,18 @@
 
 ## 总览
 
-**当前建议下一步**：**96** [Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md)（依赖 **95** 已完成）。小迭代 **99–101** 可与 96 并行。
+**当前建议下一步**：**97** [Postgres 与 Qdrant 数据迁移](./prompts/97-kb-multi-role-data-migration.md)（依赖 **93**、**95** 已完成）；或并行 **99–101** 小迭代。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 101 |
-| 已完成 | 95（01–80 Agent 核心 + 81–92 演示平台 + 93–95 KB 多角色 Agent/Back） |
+| 已完成 | 96（01–80 Agent 核心 + 81–92 演示平台 + 93–96 KB 多角色 Agent/Back/Front） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
 **演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
 
-**KB 多角色批次（93–98）**：🔄 进行中（**93–95** ✅）；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
+**KB 多角色批次（93–98）**：🔄 进行中（**93–96** ✅）；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md)。**Front/Back 小迭代（99–101）**：⬜ 待开始，无 KB 依赖。
 
 
 ---
@@ -124,7 +124,7 @@
 | 93 | [KB 多角色：Agent ingest 与 documents API `role_ids[]`](./prompts/93-kb-multi-role-agent-ingest.md) | ✅ | 2026-05-26 | ingest payload `role_ids[]`；list 交集筛选；get/delete 仅 `doc_id` |
 | 94 | [KB 多角色：Agent RAG payload `role_ids[]` 过滤](./prompts/94-kb-multi-role-agent-rag-filter.md) | ✅ | 2026-05-26 | `roles_filter` 交集 + `role_id` M1 fallback；payload 后过滤；`test_role_ids_filter` + ingest→retrieve |
 | 95 | [KB 多角色：Back 库表迁移与 Admin KB API](./prompts/95-kb-multi-role-back-schema-api.md) | ✅ | 2026-05-26 | `002_kb_multi_role`；`kb_document_roles`；Admin API `role_ids[]`；`test_demo_kb.py` 9 用例 |
-| 96 | [KB 多角色：Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md) | ⬜ 待开始 | - | 依赖 **95** |
+| 96 | [KB 多角色：Front RAG 管理页多选角色](./prompts/96-kb-multi-role-front-ui.md) | ✅ | 2026-05-26 | `KbDocumentsView` 多选 `role_ids[]`；types/api 对齐 Back |
 | 97 | [KB 多角色：Postgres 与 Qdrant 数据迁移](./prompts/97-kb-multi-role-data-migration.md) | ⬜ 待开始 | - | 依赖 **93**、**95** |
 | 98 | [KB 多角色：README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md) | ⬜ 待开始 | - | 依赖 **93–97**；批次收口 |
 | 99 | [Front：换用户登录后重置 thread_id](./prompts/99-front-thread-reset-on-user-switch.md) | ⬜ 待开始 | - | 独立；auth/chat store |
@@ -253,5 +253,6 @@
 | 2026-05-26 | 完成任务 89：Agent `GET/DELETE /internal/kb/documents` + chunk 预览；Back `/api/admin/kb/documents` ingest 成功后 upsert `kb_document_meta`（含 `raw_content`）；GET/PATCH/DELETE 代理 Agent + meta；≤2MB UTF-8 校验 |
 | 2026-05-26 | 完成任务 93：Agent `KbIngestRequest.role_ids[]`；ingest payload 双写 `role_ids`+`role_id` fallback；`kb_documents` list 交集/get/delete 按 `doc_id`；`test_kb_ingest` 8 + `test_kb_admin_api` 6 用例 |
 | 2026-05-26 | 完成任务 94：`roles_filter` 对 payload `role_ids[]` 交集 + `role_id` M1 fallback；`text_search`/BM25/dense 统一；`payload.py` 后过滤；`test_role_ids_filter` 11 + `test_kb_ingest` ingest→retrieve 交集用例 |
+| 2026-05-26 | 完成任务 96：`KbDocumentsView` 角色多选（新建/详情/列表 Tag）；`KbDocument.role_ids[]` types/api；get/delete 仅 `doc_id`；筛选仍单选「包含该角色」；front build 绿 |
 | 2026-05-26 | 完成任务 95：Alembic `002_kb_multi_role`（meta `doc_id` PK + junction）；Admin KB `role_ids[]` CRUD；`agent_kb` 转发；角色文档数改 junction 去重；`test_demo_kb.py` 9 用例 |
 | 2026-05-26 | 文档：基于 [KB 多角色 RAG PRD](./prd/kb-multi-role-rag.md) 拆分任务 **93–101**（主链路 93–98 + 独立小迭代 99–101）；**98** 负责 README/demo-walkthrough/maps/PRD/progress 最终对齐 |

@@ -114,7 +114,7 @@ export type KbChunk = {
 
 export type KbDocument = {
   doc_id: string;
-  role_id: string;
+  role_ids: string[];
   doc_name: string;
   version: string;
   raw_content: string;
@@ -144,7 +144,7 @@ export type KbDocumentListParams = {
 };
 
 export type KbDocumentCreateRequest = {
-  role_id: string;
+  role_ids: string[];
   doc_name: string;
   content: string;
   doc_id?: string;
@@ -152,7 +152,7 @@ export type KbDocumentCreateRequest = {
 };
 
 export type KbDocumentUpdateRequest = {
-  role_id: string;
+  role_ids?: string[];
   doc_name?: string;
   raw_content?: string;
   version?: string;

@@ -17,13 +17,8 @@ export async function fetchKbDocuments(
   return data;
 }
 
-export async function fetchKbDocument(
-  docId: string,
-  roleId: string,
-): Promise<KbDocumentDetail> {
-  const { data } = await http.get<KbDocumentDetail>(`/api/admin/kb/documents/${docId}`, {
-    params: { role_id: roleId },
-  });
+export async function fetchKbDocument(docId: string): Promise<KbDocumentDetail> {
+  const { data } = await http.get<KbDocumentDetail>(`/api/admin/kb/documents/${docId}`);
   return data;
 }
 
@@ -40,8 +35,6 @@ export async function updateKbDocument(
   return data;
 }
 
-export async function deleteKbDocument(docId: string, roleId: string): Promise<void> {
-  await http.delete(`/api/admin/kb/documents/${docId}`, {
-    params: { role_id: roleId },
-  });
+export async function deleteKbDocument(docId: string): Promise<void> {
+  await http.delete(`/api/admin/kb/documents/${docId}`);
 }

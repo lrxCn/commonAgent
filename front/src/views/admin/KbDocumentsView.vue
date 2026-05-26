@@ -45,7 +45,7 @@ const detailDrawerVisible = ref(false);
 const formLoading = ref(false);
 const detailLoading = ref(false);
 
-const formRoleId = ref<string | null>(null);
+const formRoleIds = ref<string[]>([]);
 const formDocName = ref("");
 const formContent = ref("");
 const formDocId = ref("");
@@ -53,6 +53,7 @@ const formDocId = ref("");
 const detailDoc = ref<KbDocumentDetail | null>(null);
 const editDocName = ref("");
 const editRawContent = ref("");
+const editRoleIds = ref<string[]>([]);
 
 function formatDateTime(value: string): string {
   const date = new Date(value);
@@ -80,7 +81,20 @@ const columns = computed<DataTableColumns<KbDocument>>(() => [
   { title: "文档名称", key: "doc_name", width: 160, ellipsis: { tooltip: true } },
   { title: "doc_id", key: "doc_id", width: 160, ellipsis: { tooltip: true } },
   { title: "版本", key: "version", width: 80 },
-  { title: "角色", key: "role_id", width: 140 },
+  {
+    title: "角色",
+    key: "role_ids",
+    width: 180,
+    render: (row) =>
+      h(
+        NSpace,
+        { size: 4, wrap: true },
+        () =>
+          row.role_ids.map((roleId) =>
+            h(NTag, { size: "small", key: roleId }, { default: () => roleId }),
+          ),
+      ),
+  },
   { title: "Chunks", key: "chunks_written", width: 90 },
   { title: "Tokens", key: "tokens_estimated", width: 90 },
   {
@@ -107,7 +121,7 @@ const columns = computed<DataTableColumns<KbDocument>>(() => [
             trigger: () =>
               h(NButton, { size: "small", quaternary: true, type: "error" }, { default: () => "删除" }),
             default: () =>
-              `确定删除文档「${row.doc_name}」（${row.role_id}）吗？此操作不可恢复。`,
+              `确定删除文档「${row.doc_name}」（${row.role_ids.join("、")}）吗？此操作不可恢复。`,
           },
         ),
       ]),
@@ -145,7 +159,7 @@ async function loadDocuments(): Promise<void> {
 }
 
 function resetCreateForm(): void {
-  formRoleId.value = null;
+  formRoleIds.value = [];
   formDocName.value = "";
   formContent.value = "";
   formDocId.value = "";
@@ -161,10 +175,11 @@ async function openDetail(row: KbDocument): Promise<void> {
   detailLoading.value = true;
   detailDoc.value = null;
   try {
-    const detail = await fetchKbDocument(row.doc_id, row.role_id);
+    const detail = await fetchKbDocument(row.doc_id);
     detailDoc.value = detail;
     editDocName.value = detail.doc_name;
     editRawContent.value = detail.raw_content;
+    editRoleIds.value = [...detail.role_ids];
   } catch {
     message.error("加载文档详情失败");
     detailDrawerVisible.value = false;
@@ -182,8 +197,8 @@ function extractFieldErrors(error: unknown): Record<string, string> {
 }
 
 async function onCreateSubmit(): Promise<void> {
-  if (!formRoleId.value) {
-    message.warning("请选择角色");
+  if (formRoleIds.value.length === 0) {
+    message.warning("请至少选择一个角色");
     return;
   }
   if (!formDocName.value.trim()) {
@@ -198,7 +213,7 @@ async function onCreateSubmit(): Promise<void> {
   formLoading.value = true;
   try {
     await createKbDocument({
-      role_id: formRoleId.value,
+      role_ids: formRoleIds.value,
       doc_name: formDocName.value.trim(),
       content: formContent.value.trim(),
       doc_id: formDocId.value.trim() || undefined,
@@ -212,6 +227,8 @@ async function onCreateSubmit(): Promise<void> {
       message.error(`内容：${fieldErrors.content}`);
     } else if (fieldErrors.doc_id) {
       message.error(`doc_id：${fieldErrors.doc_id}`);
+    } else if (fieldErrors.role_ids) {
+      message.error(`角色：${fieldErrors.role_ids}`);
     } else if (axios.isAxiosError(error) && error.response?.data) {
       const body = error.response.data as ApiErrorBody;
       message.error(body.message || "上传失败");
@@ -235,11 +252,15 @@ async function onDetailSave(): Promise<void> {
     message.warning("文档内容不能为空");
     return;
   }
+  if (editRoleIds.value.length === 0) {
+    message.warning("请至少选择一个角色");
+    return;
+  }
 
   formLoading.value = true;
   try {
     const updated = await updateKbDocument(detailDoc.value.doc_id, {
-      role_id: detailDoc.value.role_id,
+      role_ids: editRoleIds.value,
       doc_name: editDocName.value.trim(),
       raw_content: editRawContent.value.trim(),
       version: nextVersion(detailDoc.value.version),
@@ -247,14 +268,17 @@ async function onDetailSave(): Promise<void> {
     message.success(`已保存为新版本 v${updated.version}`);
     detailDoc.value = { ...detailDoc.value, ...updated, chunks: detailDoc.value.chunks };
     await loadDocuments();
-    const refreshed = await fetchKbDocument(updated.doc_id, updated.role_id);
+    const refreshed = await fetchKbDocument(updated.doc_id);
     detailDoc.value = refreshed;
     editDocName.value = refreshed.doc_name;
     editRawContent.value = refreshed.raw_content;
+    editRoleIds.value = [...refreshed.role_ids];
   } catch (error: unknown) {
     const fieldErrors = extractFieldErrors(error);
     if (fieldErrors.content || fieldErrors.raw_content) {
       message.error(`内容：${fieldErrors.content ?? fieldErrors.raw_content}`);
+    } else if (fieldErrors.role_ids) {
+      message.error(`角色：${fieldErrors.role_ids}`);
     } else if (axios.isAxiosError(error) && error.response?.data) {
       const body = error.response.data as ApiErrorBody;
       message.error(body.message || "保存失败");
@@ -268,15 +292,12 @@ async function onDetailSave(): Promise<void> {
 
 async function onDelete(row: KbDocument): Promise<void> {
   try {
-    await deleteKbDocument(row.doc_id, row.role_id);
+    await deleteKbDocument(row.doc_id);
     message.success("文档已删除");
     if (documents.value.length === 1 && page.value > 1) {
       page.value -= 1;
     }
-    if (
-      detailDoc.value?.doc_id === row.doc_id &&
-      detailDoc.value.role_id === row.role_id
-    ) {
+    if (detailDoc.value?.doc_id === row.doc_id) {
       detailDrawerVisible.value = false;
       detailDoc.value = null;
     }
@@ -382,7 +403,7 @@ onMounted(async () => {
           onUpdatePage: onPageChange,
           onUpdatePageSize: onPageSizeChange,
         }"
-        :row-key="(row: KbDocument) => `${row.doc_id}:${row.role_id}`"
+        :row-key="(row: KbDocument) => row.doc_id"
       />
     </n-space>
 
@@ -391,10 +412,11 @@ onMounted(async () => {
         <n-form label-placement="top">
           <n-form-item label="角色" required>
             <n-select
-              v-model:value="formRoleId"
+              v-model:value="formRoleIds"
               :options="roleOptions"
-              placeholder="选择文档所属角色"
+              multiple
               filterable
+              placeholder="至少选择一个角色"
             />
           </n-form-item>
           <n-form-item label="文档名称" required>
@@ -433,7 +455,9 @@ onMounted(async () => {
           <n-space vertical :size="12">
             <n-space wrap>
               <n-tag size="small">doc_id: {{ detailDoc.doc_id }}</n-tag>
-              <n-tag size="small">角色: {{ detailDoc.role_id }}</n-tag>
+              <n-tag v-for="roleId in detailDoc.role_ids" :key="roleId" size="small">
+                角色: {{ roleId }}
+              </n-tag>
               <n-tag size="small">版本: v{{ detailDoc.version }}</n-tag>
               <n-tag size="small">Chunks: {{ detailDoc.chunks_written }}</n-tag>
               <n-tag size="small">Tokens: {{ detailDoc.tokens_estimated }}</n-tag>
@@ -441,6 +465,15 @@ onMounted(async () => {
             <div class="meta-line">更新于 {{ formatDateTime(detailDoc.updated_at) }}</div>
 
             <n-form label-placement="top">
+              <n-form-item label="角色" required>
+                <n-select
+                  v-model:value="editRoleIds"
+                  :options="roleOptions"
+                  multiple
+                  filterable
+                  placeholder="至少选择一个角色"
+                />
+              </n-form-item>
               <n-form-item label="文档名称" required>
                 <n-input v-model:value="editDocName" />
               </n-form-item>
