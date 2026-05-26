@@ -6,6 +6,23 @@
 
 **用户长期记忆**：由 Agent 内 mem0 + Qdrant 按 `user_id` 维护（Back 不读写）。计划中的 [mem0 All-in（infer=True）](../docs/prompts/24-allin-mem0.md) 在 Agent 侧落地后，同一 `user_id` 跨 thread 偏好由 mem0 去重写入；本地联调若见重复记忆，可按任务卡清空 `QDRANT_COLLECTION_MEM0` 后重试。
 
+## 数据库（演示平台）
+
+Back 业务数据使用 Postgres 库 **`common_agent_back`**（与 Agent 的 `common_agent` **同实例、不同库**）。
+
+```bash
+# 创建库（示例；与 Agent 共用同一 Postgres 实例）
+createdb common_agent_back
+
+cd back
+cp .env.example .env   # 配置 DATABASE_URL
+uv sync
+uv run alembic upgrade head
+uv run python -m db.seed
+```
+
+环境变量见 [`.env.example`](.env.example) 中的 `DATABASE_URL`、`ADMIN_SEED_PASSWORD`。完整演示 walkthrough 见任务 **92**。
+
 ## 启动顺序
 
 1. **先启动 Agent**（内网 Gateway）  
@@ -45,14 +62,18 @@ uv run uvicorn main:app --host 127.0.0.1 --port 8080
 - `AGENT_URL` — Agent 基址，默认 `http://127.0.0.1:18080`
 - `BACK_PORT` — 本服务端口，默认 `8080`
 - `DEMO_*` — 演示身份与工具文件路径
+- `DATABASE_URL` — Back 业务库（默认 `common_agent_back`）
+- `ADMIN_SEED_PASSWORD` — 种子 `admin` 密码（默认 `123456`，仅演示）
 
 ## 测试
 
 ```bash
 cd back
 uv sync
-uv run pytest tests/test_back_forward.py -v
+uv run pytest tests/ -v
 ```
+
+数据库迁移与种子：`tests/test_demo_database.py`（默认 SQLite fixture；本地 Postgres 集成可选）。
 
 手动（需 Agent 已启动或使用 mock）：
 

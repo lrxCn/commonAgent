@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：演示平台 **81** [Back 数据库、迁移与种子](./prompts/81-demo-back-database-seed.md)（Agent 核心 01–80 已完成）。
+**当前建议下一步**：演示平台 **82** [Back Cookie Session 与认证 API](./prompts/82-demo-back-session-auth.md)（**81** 已完成）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 92（规划） |
-| 已完成 | 80（01–80 Agent 核心）+ 0（81–92 演示平台） |
+| 已完成 | 81（01–80 Agent 核心 + 81 演示平台首批） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -107,7 +107,7 @@
 | 78 | [memory_query 润色 Phase 2：Graph 接入与 fallback](./prompts/78-memory-query-polish-graph-cutover.md) | ✅ | 2026-05-26 | `memory_query_reply -> memory_query_polish -> post_turn_jobs`；draft 与 final 分层；开关/回退/单条 assistant 测试 |
 | 79 | [memory_query 润色 Phase 3：可观测、eval 与 trace 验证](./prompts/79-memory-query-polish-observability-eval.md) | ✅ | 2026-05-26 | `memory_query.polish.*` metadata/事件；`run_memory_query_polish_eval.py` seed 8/8；tracing/path 测试 |
 | 80 | [memory_query 润色 Phase 4：README、代码地图与文档最终对齐](./prompts/80-memory-query-polish-docs-final.md) | ✅ | 2026-05-26 | README/maps/PRD/progress 同步 polish 当前事实；memory_query 润色 76-80 全部收口 |
-| 81 | [演示平台：Back 数据库、迁移与种子](./prompts/81-demo-back-database-seed.md) | ⬜ | — | `common_agent_back`；roles/users/students/meta/chat_threads 表；种子 role-* + admin |
+| 81 | [演示平台：Back 数据库、迁移与种子](./prompts/81-demo-back-database-seed.md) | ✅ | 2026-05-26 | SQLAlchemy+Alembic；`common_agent_back` 六表；种子 role-* + admin/alice/bob + 3 学生；pytest SQLite fixture |
 | 82 | [演示平台：Back Cookie Session 与认证 API](./prompts/82-demo-back-session-auth.md) | ⬜ | — | 依赖 81；login/logout/me；CORS 5173 |
 | 83 | [演示平台：Front Vue3 SPA 脚手架](./prompts/83-demo-front-vue-scaffold.md) | ⬜ | — | 可与 81–82 并行；Vite/TS/Pinia/Naive/proxy |
 | 84 | [演示平台：Front 登录、布局、欢迎页与 Chat 空壳](./prompts/84-demo-front-auth-layout-home.md) | ⬜ | — | 依赖 82、83；FAB+Drawer 空壳 |
@@ -230,4 +230,5 @@
 | 2026-05-26 | 完成任务 77：新增 `contracts/memory_query_polish`、`ModelUseCase.MEMORY_QUERY_POLISH`、`MEMORY_QUERY_POLISH_*` env 契约、`memory/query_polish.py` 小模型润色与输出校验 fallback；`test_memory_query_polish.py` 14 用例；未接 graph |
 | 2026-05-26 | 完成任务 76：补充 memory_query characterization/path contract 测试；新增 `memory_query_polish_seed.json`（姓名/地址/偏好/缺失/thread fallback/禁止篡改）与 seed smoke test；运行行为不变 |
 | 2026-05-26 | 文档：新增 [Agent memory_query 小模型话术润色 PRD](./prd/agent-memory-query-polish.md)，并拆分任务 **76-80**；最后任务负责 README、docs/maps、PRD 与 progress 最终对齐 |
+| 2026-05-26 | 完成任务 81：Back `db/` ORM（roles/users/user_roles/students/kb_document_meta/chat_threads）、Alembic 初始迁移、`db.seed` CLI、`domain/role_id` 格式校验；`DATABASE_URL`/`ADMIN_SEED_PASSWORD` env 契约；`test_demo_database.py` 4 用例（SQLite fixture） |
 | 2026-05-26 | 文档：基于 [演示平台 PRD](./prd/demo-admin-console.md) 拆分任务 **81-92**（12 张任务卡）；**92** 负责 README、`role_ids[]` 契约、demo-walkthrough、maps、移除 legacy static front 与 progress 收口 |

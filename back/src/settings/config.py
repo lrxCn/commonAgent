@@ -43,6 +43,14 @@ class Settings(BaseSettings):
         default=120.0,
         description="HTTP timeout when forwarding chat to Agent.",
     )
+    DATABASE_URL: str = Field(
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/common_agent_back",
+        description="Back business database URL (same Postgres instance as Agent, separate DB).",
+    )
+    ADMIN_SEED_PASSWORD: str = Field(
+        default="123456",
+        description="Default password for seeded admin user (demo only).",
+    )
 
     def resolve_tools_path(self) -> Path:
         path = Path(self.DEMO_TOOLS_FILE)
