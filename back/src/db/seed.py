@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import bcrypt
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from db.models import Role, Student, User, UserRole
 from domain.role_id import validate_role_id
+from services.auth import hash_password
 
 SEED_ROLES: tuple[tuple[str, str, str], ...] = (
     ("role-admin", "管理员", "演示平台管理员角色；独立工具与 RAG"),
@@ -68,10 +68,6 @@ SEED_STUDENTS: tuple[dict[str, str | None], ...] = (
         "created_by": "u-bob",
     },
 )
-
-
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def _upsert_role(session: Session, role_id: str, name: str, description: str) -> None:

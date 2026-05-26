@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：演示平台 **86** [账号管理 CRUD](./prompts/86-demo-admin-accounts-crud.md)（依赖 81+82+84，均已就绪）；或并行启动 **87** Agent role_ids[]。
+**当前建议下一步**：演示平台 **87** [Agent role_ids[] 与 RAG OR 检索](./prompts/87-demo-agent-role-ids-rag-or.md)（可与 **88** 并行）；或 **88** Back context 注入（依赖 86+87）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 92（规划） |
-| 已完成 | 85（01–80 Agent 核心 + 81–85 演示平台） |
+| 已完成 | 86（01–80 Agent 核心 + 81–86 演示平台） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -112,7 +112,7 @@
 | 83 | [演示平台：Front Vue3 SPA 脚手架](./prompts/83-demo-front-vue-scaffold.md) | ✅ | 2026-05-26 | Vite+Vue3+TS strict+Pinia+Naive UI；dev 5173 proxy→Back 8080；legacy 静态保留 |
 | 84 | [演示平台：Front 登录、布局、欢迎页与 Chat 空壳](./prompts/84-demo-front-auth-layout-home.md) | ✅ | 2026-05-26 | Login/AppLayout/Home；auth+chat store；FAB+Drawer 空壳；401→login |
 | 85 | [演示平台：学生 CRUD（Back + Front）](./prompts/85-demo-students-crud.md) | ✅ | 2026-05-26 | 演示 MVP（学生）可达；`/api/students` CRUD+batch-delete；`StudentsView` 表格+抽屉 |
-| 86 | [演示平台：账号管理（角色与用户 CRUD）](./prompts/86-demo-admin-accounts-crud.md) | ⬜ | — | 依赖 81、82、84 |
+| 86 | [演示平台：账号管理（角色与用户 CRUD）](./prompts/86-demo-admin-accounts-crud.md) | ✅ | 2026-05-26 | `/api/admin/roles|users`；403/409/admin 保护；`RolesView`/`UsersView`；`test_demo_admin.py` 14 用例 |
 | 87 | [演示平台：Agent role_ids[] 与 RAG OR 检索](./prompts/87-demo-agent-role-ids-rag-or.md) | ⬜ | — | Agent 侧；可与 86 并行 |
 | 88 | [演示平台：Back context 注入与 chat_threads](./prompts/88-demo-back-context-chat-threads.md) | ⬜ | — | 依赖 82、86、87 |
 | 89 | [演示平台：Agent KB API + Back kb_document_meta 双写](./prompts/89-demo-kb-meta-agent-apis.md) | ⬜ | — | 依赖 81、86、87 |
@@ -230,6 +230,7 @@
 | 2026-05-26 | 完成任务 77：新增 `contracts/memory_query_polish`、`ModelUseCase.MEMORY_QUERY_POLISH`、`MEMORY_QUERY_POLISH_*` env 契约、`memory/query_polish.py` 小模型润色与输出校验 fallback；`test_memory_query_polish.py` 14 用例；未接 graph |
 | 2026-05-26 | 完成任务 76：补充 memory_query characterization/path contract 测试；新增 `memory_query_polish_seed.json`（姓名/地址/偏好/缺失/thread fallback/禁止篡改）与 seed smoke test；运行行为不变 |
 | 2026-05-26 | 文档：新增 [Agent memory_query 小模型话术润色 PRD](./prd/agent-memory-query-polish.md)，并拆分任务 **76-80**；最后任务负责 README、docs/maps、PRD 与 progress 最终对齐 |
+| 2026-05-26 | 完成任务 86：Back `/api/admin/roles|users` CRUD + 403/409/admin 保护；Front `RolesView`/`UsersView` + admin 侧边栏；`tools.demo.json` 补 `roles`；`test_demo_admin.py` 14 用例；front build 绿 |
 | 2026-05-26 | 完成任务 85：Back `/api/students` CRUD + batch-delete + 409 field_errors；Front `StudentsView` 表格/搜索/筛选/抽屉/Popconfirm；`test_demo_students.py` 7 用例；演示 MVP（学生）可达 |
 | 2026-05-26 | 完成任务 84：Front 登录页（`/login`）、`AppLayout`+侧边栏+顶栏退出、`HomeView` 展示 `/api/me` 与角色标签；路由守卫 `requiresAuth`/`requiresAdmin`；`ChatFab`+`ChatDrawer`（420px 空壳）；Pinia `auth`/`chat` store；401 全局跳转登录 |
 | 2026-05-26 | 完成任务 82：Back HttpOnly Cookie Session（`SessionMiddleware`+signed cookie）；`POST /api/auth/login|logout`、`GET /api/me`；bcrypt 校验；PRD 统一错误体；`SESSION_SECRET`/`CORS_ORIGINS` env；`test_demo_auth.py` 8 用例 |

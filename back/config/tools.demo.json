@@ -10,7 +10,8 @@
         },
         "required": ["page"]
       },
-      "requires_approval": false
+      "requires_approval": false,
+      "roles": ["role-admin", "role-sales"]
     }
   ]
 }

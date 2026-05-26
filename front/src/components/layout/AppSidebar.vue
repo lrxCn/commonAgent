@@ -16,12 +16,11 @@ const menuOptions = computed<MenuOption[]>(() => {
     { label: "学生管理", key: "/app/students" },
   ];
 
-  // Admin menus (roles/users/kb) arrive in task 86.
   if (auth.isAdmin) {
     items.push(
       { type: "divider", key: "admin-divider" },
-      { label: "角色管理", key: "/app/admin/roles", disabled: true },
-      { label: "用户管理", key: "/app/admin/users", disabled: true },
+      { label: "角色管理", key: "/app/admin/roles" },
+      { label: "用户管理", key: "/app/admin/users" },
       { label: "RAG 管理", key: "/app/admin/kb", disabled: true },
     );
   }

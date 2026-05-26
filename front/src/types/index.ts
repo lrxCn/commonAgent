@@ -58,3 +58,50 @@ export type StudentListParams = {
   status?: string;
   class_name?: string;
 };
+
+export type AdminRole = {
+  role_id: string;
+  name: string;
+  description: string | null;
+  user_count: number;
+  document_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminRoleCreateRequest = {
+  role_id: string;
+  name: string;
+  description?: string | null;
+};
+
+export type AdminRoleUpdateRequest = {
+  name?: string;
+  description?: string | null;
+};
+
+export type AdminUser = {
+  user_id: string;
+  username: string;
+  display_name: string;
+  is_admin: boolean;
+  role_ids: string[];
+  roles: RoleSummary[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminUserCreateRequest = {
+  username: string;
+  password: string;
+  display_name: string;
+  role_ids: string[];
+  is_admin?: boolean;
+};
+
+export type AdminUserUpdateRequest = {
+  display_name?: string;
+  password?: string;
+  role_ids?: string[];
+  is_admin?: boolean;
+};

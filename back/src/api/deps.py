@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from api.errors import unauthorized
+from api.errors import forbidden, unauthorized
 from auth.session_keys import SESSION_USER_ID
 from db.models import User
 from db.session import get_engine, get_session_factory
@@ -45,4 +45,12 @@ def require_current_user(
     if user is None:
         request.session.clear()
         raise unauthorized()
+    return user
+
+
+def require_admin(
+    user: Annotated[User, Depends(require_current_user)],
+) -> User:
+    if not user.is_admin:
+        raise forbidden()
     return user

@@ -59,3 +59,7 @@ def conflict(
         message=message,
         field_errors=field_errors,
     )
+
+
+def forbidden(message: str = "需要管理员权限") -> ApiError:
+    return ApiError(status_code=403, code="FORBIDDEN", message=message)
