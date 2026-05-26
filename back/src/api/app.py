@@ -10,12 +10,17 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from api.auth_routes import me_router, router as auth_router
 from admin.routes import router as admin_router
+from api.deps import get_db_session, require_current_user
 from api.students_routes import router as students_router
-from api.errors import register_error_handlers
+from api.errors import forbidden, register_error_handlers
 from api.schemas import BackChatRequest
+from db.models import User
+from services.auth import load_user_roles
+from services.chat_threads import ensure_thread_access
 from services.context import build_agent_chat_payload
 from services.forward import forward_chat_to_agent
 from settings.config import Settings, get_settings
+from sqlalchemy.orm import Session
 
 
 def create_app() -> FastAPI:
@@ -60,11 +65,20 @@ def create_app() -> FastAPI:
     @application.post("/api/chat", response_model=None)
     async def api_chat(
         body: BackChatRequest,
+        user: Annotated[User, Depends(require_current_user)],
+        db: Annotated[Session, Depends(get_db_session)],
         settings: Annotated[Settings, Depends(get_settings)],
     ):
+        ensure_thread_access(db, user_id=user.user_id, thread_id=body.thread_id)
+        roles = load_user_roles(db, user.user_id)
+        role_ids = [role.role_id for role in roles]
+        if not role_ids:
+            raise forbidden("用户未绑定角色")
         payload = build_agent_chat_payload(
             thread_id=body.thread_id,
             message=body.message,
+            user_id=user.user_id,
+            role_ids=role_ids,
             settings=settings,
         )
         return await forward_chat_to_agent(payload, settings=settings)

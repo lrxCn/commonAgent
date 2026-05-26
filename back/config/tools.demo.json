@@ -12,6 +12,19 @@
       },
       "requires_approval": false,
       "roles": ["role-admin", "role-sales"]
+    },
+    {
+      "name": "openTicket",
+      "description": "Open a support ticket for the user.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": { "type": "string" }
+        },
+        "required": ["subject"]
+      },
+      "requires_approval": true,
+      "roles": ["role-support"]
     }
   ]
 }
