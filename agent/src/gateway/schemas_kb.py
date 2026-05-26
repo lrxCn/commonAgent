@@ -15,7 +15,7 @@ class KbDocumentSummaryOut(BaseModel):
     doc_id: str
     doc_name: str
     version: str
-    role_id: str
+    role_ids: list[str]
     chunks_written: int
 
 
@@ -27,6 +27,6 @@ class KbDocumentDetailResponse(BaseModel):
     doc_id: str
     doc_name: str
     version: str
-    role_id: str
+    role_ids: list[str]
     chunks_written: int
     chunks: list[KbChunkPreviewOut] = Field(default_factory=list)

@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from typing import Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class KbIngestRequest(BaseModel):
     """Internal KB ingest body."""
 
-    role_id: str = Field(..., min_length=1, description="Role for Qdrant payload filtering.")
+    role_ids: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Roles bound to this document; stored on each chunk payload.",
+    )
     doc_id: str = Field(..., min_length=1, description="Stable document identifier.")
     doc_name: str = Field(..., min_length=1, description="Logical name; stale chunks removed by this key.")
     version: str = Field(..., min_length=1, description="Document version string.")
@@ -22,6 +26,22 @@ class KbIngestRequest(BaseModel):
         default=None,
         description="Internal filesystem path to UTF-8 text (mutually exclusive with content).",
     )
+
+    @field_validator("role_ids")
+    @classmethod
+    def _normalize_role_ids(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            role_id = str(raw).strip()
+            if not role_id or role_id in seen:
+                continue
+            seen.add(role_id)
+            normalized.append(role_id)
+        if not normalized:
+            msg = "role_ids must contain at least one non-empty role id"
+            raise ValueError(msg)
+        return normalized
 
     @model_validator(mode="after")
     def _content_or_file_path(self) -> Self:

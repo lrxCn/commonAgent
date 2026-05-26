@@ -44,7 +44,10 @@ def _fake_embed_batch(texts: list[str]) -> list[list[float]]:
 def _field_matches(payload: dict[str, Any], cond: qmodels.FieldCondition) -> bool:
     key = cond.key
     value = cond.match.value if cond.match else None
-    return payload.get(key) == value
+    payload_val = payload.get(key)
+    if isinstance(payload_val, list):
+        return value in payload_val
+    return payload_val == value
 
 
 def _payload_matches_filter(payload: dict[str, Any], flt: qmodels.Filter | None) -> bool:
@@ -159,7 +162,7 @@ def fake_qdrant() -> FakeQdrantClient:
 def _seed_doc(
     fake_qdrant: FakeQdrantClient,
     *,
-    role_id: str,
+    role_ids: list[str],
     doc_id: str,
     doc_name: str,
     version: str,
@@ -169,7 +172,7 @@ def _seed_doc(
         _settings(QDRANT_MOCK=False, QDRANT_COLLECTION_KB="kb_admin_test")
     )
     ingest_document(
-        role_id=role_id,
+        role_ids=role_ids,
         doc_id=doc_id,
         doc_name=doc_name,
         version=version,
@@ -178,10 +181,12 @@ def _seed_doc(
     assert fake_qdrant.points
 
 
-def test_list_documents_groups_by_doc_and_role(fake_qdrant: FakeQdrantClient) -> None:
+def test_list_documents_groups_by_doc_id_and_role_intersection(
+    fake_qdrant: FakeQdrantClient,
+) -> None:
     _seed_doc(
         fake_qdrant,
-        role_id="role-sales",
+        role_ids=["role-sales", "role-support"],
         doc_id="doc-a",
         doc_name="手册A",
         version="1",
@@ -189,7 +194,7 @@ def test_list_documents_groups_by_doc_and_role(fake_qdrant: FakeQdrantClient) ->
     )
     _seed_doc(
         fake_qdrant,
-        role_id="role-hr",
+        role_ids=["role-hr"],
         doc_id="doc-b",
         doc_name="手册B",
         version="1",
@@ -199,7 +204,12 @@ def test_list_documents_groups_by_doc_and_role(fake_qdrant: FakeQdrantClient) ->
     sales_items = list_documents(["role-sales"])
     assert len(sales_items) == 1
     assert sales_items[0].doc_id == "doc-a"
+    assert sales_items[0].role_ids == ["role-sales", "role-support"]
     assert sales_items[0].chunks_written >= 1
+
+    support_items = list_documents(["role-support"])
+    assert len(support_items) == 1
+    assert support_items[0].doc_id == "doc-a"
 
     both = list_documents(["role-sales", "role-hr"])
     assert len(both) == 2
@@ -210,15 +220,16 @@ def test_get_document_returns_chunk_previews(fake_qdrant: FakeQdrantClient) -> N
     marker = "chunk预览MARKER"
     _seed_doc(
         fake_qdrant,
-        role_id="role-sales",
+        role_ids=["role-sales", "role-support"],
         doc_id="doc-preview",
         doc_name="预览文档",
         version="v1",
         content=f"第一段：{marker}。第二段补充。",
     )
 
-    detail = get_document("doc-preview", "role-sales")
+    detail = get_document("doc-preview")
     assert detail.doc_name == "预览文档"
+    assert detail.role_ids == ["role-sales", "role-support"]
     assert detail.chunks_written >= 1
     assert any(marker in chunk.text for chunk in detail.chunks)
 
@@ -228,13 +239,13 @@ def test_get_document_missing_raises(fake_qdrant: FakeQdrantClient) -> None:
         _settings(QDRANT_MOCK=False, QDRANT_COLLECTION_KB="kb_admin_test")
     )
     with pytest.raises(KbDocumentError, match="not found"):
-        get_document("missing-doc", "role-sales")
+        get_document("missing-doc")
 
 
 def test_delete_document_removes_points(fake_qdrant: FakeQdrantClient) -> None:
     _seed_doc(
         fake_qdrant,
-        role_id="role-sales",
+        role_ids=["role-sales", "role-support"],
         doc_id="doc-del",
         doc_name="待删文档",
         version="1",
@@ -242,8 +253,9 @@ def test_delete_document_removes_points(fake_qdrant: FakeQdrantClient) -> None:
     )
     assert list_documents(["role-sales"])
 
-    delete_document("doc-del", "role-sales")
+    delete_document("doc-del")
     assert list_documents(["role-sales"]) == []
+    assert list_documents(["role-support"]) == []
 
 
 def test_gateway_list_requires_role_id() -> None:
@@ -262,7 +274,7 @@ def test_gateway_kb_crud_endpoints(fake_qdrant: FakeQdrantClient) -> None:
     ingest = client.post(
         "/internal/kb/ingest",
         json={
-            "role_id": "role-sales",
+            "role_ids": ["role-sales", "role-support"],
             "doc_id": "doc-api",
             "doc_name": "API文档",
             "version": "1",
@@ -275,18 +287,15 @@ def test_gateway_kb_crud_endpoints(fake_qdrant: FakeQdrantClient) -> None:
     assert listed.status_code == 200
     items = listed.json()["items"]
     assert any(item["doc_id"] == "doc-api" for item in items)
+    matched = next(item for item in items if item["doc_id"] == "doc-api")
+    assert matched["role_ids"] == ["role-sales", "role-support"]
 
-    detail = client.get(
-        "/internal/kb/documents/doc-api",
-        params={"role_id": "role-sales"},
-    )
+    detail = client.get("/internal/kb/documents/doc-api")
     assert detail.status_code == 200
+    assert detail.json()["role_ids"] == ["role-sales", "role-support"]
     assert detail.json()["chunks_written"] >= 1
 
-    deleted = client.delete(
-        "/internal/kb/documents/doc-api",
-        params={"role_id": "role-sales"},
-    )
+    deleted = client.delete("/internal/kb/documents/doc-api")
     assert deleted.status_code == 204
 
     listed_after = client.get("/internal/kb/documents", params={"role_id": "role-sales"})

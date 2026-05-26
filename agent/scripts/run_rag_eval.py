@@ -213,7 +213,7 @@ def _ingest_fixture(row: dict[str, Any]) -> None:
         if not isinstance(doc, dict):
             continue
         ingest_document(
-            role_id=str(doc["role_id"]),
+            role_ids=[str(doc["role_id"])],
             doc_id=str(doc["doc_id"]),
             doc_name=str(doc["doc_name"]),
             version=str(doc.get("version") or "eval"),

@@ -186,17 +186,32 @@ def _chunk_id(doc_id: str, version: str, index: int) -> str:
     return f"{doc_id}:{version}:{index:04d}"
 
 
+def _normalize_role_ids(role_ids: Sequence[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in role_ids:
+        role_id = str(raw).strip()
+        if not role_id or role_id in seen:
+            continue
+        seen.add(role_id)
+        normalized.append(role_id)
+    return normalized
+
+
 def _payload(
     *,
-    role_id: str,
+    role_ids: Sequence[str],
     doc_id: str,
     doc_name: str,
     version: str,
     chunk_id: str,
     text: str,
 ) -> dict[str, Any]:
+    ids = _normalize_role_ids(role_ids)
     return {
-        "role_id": role_id,
+        "role_ids": ids,
+        # Migration fallback for RAG still filtering payload.role_id until task 94.
+        "role_id": ids[0],
         "doc_id": doc_id,
         "doc_name": doc_name,
         "version": version,
@@ -267,7 +282,7 @@ def _delete_stale_by_doc_name(
 
 def ingest_document(
     *,
-    role_id: str,
+    role_ids: Sequence[str],
     doc_id: str,
     doc_name: str,
     version: str,
@@ -282,13 +297,13 @@ def ingest_document(
   so a failed upsert does not leave only deleted data.
     """
     cfg = settings or get_settings()
-    rid = role_id.strip()
+    rids = _normalize_role_ids(role_ids)
     did = doc_id.strip()
     dname = doc_name.strip()
     ver = version.strip()
 
-    if not rid or not did or not dname or not ver:
-        msg = "role_id, doc_id, doc_name, and version are required"
+    if not rids or not did or not dname or not ver:
+        msg = "role_ids, doc_id, doc_name, and version are required"
         raise IngestError(msg)
 
     if content is not None and file_path is not None:
@@ -346,7 +361,7 @@ def ingest_document(
                 id=str(uuid.uuid4()),
                 vector={DENSE_VECTOR_NAME: vector},
                 payload=_payload(
-                    role_id=rid,
+                    role_ids=rids,
                     doc_id=did,
                     doc_name=dname,
                     version=ver,
@@ -375,12 +390,12 @@ def ingest_document(
         raise IngestError(msg) from exc
 
     logger.info(
-        "ingested doc_id=%s doc_name=%s version=%s chunks=%d role_id=%s",
+        "ingested doc_id=%s doc_name=%s version=%s chunks=%d role_ids=%s",
         did,
         dname,
         ver,
         len(points),
-        rid,
+        rids,
     )
     return IngestResult(
         doc_id=did,

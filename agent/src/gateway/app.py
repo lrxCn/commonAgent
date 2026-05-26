@@ -113,12 +113,9 @@ def create_app() -> FastAPI:
     )
     def internal_kb_get_document(
         doc_id: str,
-        role_id: str,
     ) -> KbDocumentDetailResponse:
-        if not role_id.strip():
-            raise HTTPException(status_code=400, detail="role_id query parameter is required")
         try:
-            return get_kb_document(doc_id, role_id)
+            return get_kb_document(doc_id)
         except KbDocumentError as exc:
             status, detail = map_kb_document_error(exc)
             raise HTTPException(status_code=status, detail=detail) from exc
@@ -128,11 +125,9 @@ def create_app() -> FastAPI:
         status_code=204,
         tags=["kb"],
     )
-    def internal_kb_delete_document(doc_id: str, role_id: str) -> None:
-        if not role_id.strip():
-            raise HTTPException(status_code=400, detail="role_id query parameter is required")
+    def internal_kb_delete_document(doc_id: str) -> None:
         try:
-            delete_kb_document(doc_id, role_id)
+            delete_kb_document(doc_id)
         except KbDocumentError as exc:
             status, detail = map_kb_document_error(exc)
             raise HTTPException(status_code=status, detail=detail) from exc

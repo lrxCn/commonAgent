@@ -9,7 +9,7 @@ from rag.ingest import ingest_document
 def ingest_kb(body: KbIngestRequest) -> KbIngestResponse:
     """Run KB ingest and map to API response."""
     result = ingest_document(
-        role_id=body.role_id,
+        role_ids=body.role_ids,
         doc_id=body.doc_id,
         doc_name=body.doc_name,
         version=body.version,

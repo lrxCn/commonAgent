@@ -57,15 +57,25 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
+def _field_matches(payload: dict[str, Any], cond: qmodels.FieldCondition) -> bool:
+    key = cond.key
+    value = cond.match.value if cond.match else None
+    payload_val = payload.get(key)
+    if isinstance(payload_val, list):
+        return value in payload_val
+    return payload_val == value
+
+
 def _payload_matches_filter(payload: dict[str, Any], flt: qmodels.Filter | None) -> bool:
     if flt is None:
         return True
     if flt.must:
         for cond in flt.must:
-            key = cond.key
-            value = cond.match.value if cond.match else None
-            if payload.get(key) != value:
+            if not _field_matches(payload, cond):
                 return False
+    if flt.should:
+        if not any(_field_matches(payload, cond) for cond in flt.should):
+            return False
     if flt.must_not:
         for sub in flt.must_not:
             if isinstance(sub, qmodels.Filter) and _payload_matches_filter(payload, sub):
@@ -223,7 +233,7 @@ def test_ingest_then_retrieve_hits_content(fake_qdrant: FakeQdrantClient) -> Non
     )
     unique = "报销制度专项条款ALPHA"
     ingest_document(
-        role_id="role-sales",
+        role_ids=["role-sales"],
         doc_id="doc-alpha",
         doc_name="报销手册",
         version="v1",
@@ -242,14 +252,14 @@ def test_reingest_same_doc_name_removes_old_version(fake_qdrant: FakeQdrantClien
     old_marker = "旧版条款OMEGA"
     new_marker = "新版条款SIGMA"
     ingest_document(
-        role_id="role-sales",
+        role_ids=["role-sales"],
         doc_id="doc-policy",
         doc_name="政策文件",
         version="v1",
         content=f"内容：{old_marker}",
     )
     ingest_document(
-        role_id="role-sales",
+        role_ids=["role-sales"],
         doc_id="doc-policy",
         doc_name="政策文件",
         version="v2",
@@ -266,7 +276,7 @@ def test_ingest_empty_content_raises() -> None:
     set_settings_override(_settings(QDRANT_MOCK=False))
     with pytest.raises(IngestError, match="empty"):
         ingest_document(
-            role_id="role-sales",
+            role_ids=["role-sales"],
             doc_id="d1",
             doc_name="n1",
             version="v1",
@@ -282,7 +292,7 @@ def test_gateway_ingest_endpoint(fake_qdrant: FakeQdrantClient) -> None:
     response = client.post(
         "/internal/kb/ingest",
         json={
-            "role_id": "role-hr",
+            "role_ids": ["role-hr"],
             "doc_id": "doc-leave",
             "doc_name": "年假制度",
             "version": "2026-05",
@@ -302,10 +312,30 @@ def test_gateway_rejects_missing_content_and_file() -> None:
     response = client.post(
         "/internal/kb/ingest",
         json={
-            "role_id": "role-hr",
+            "role_ids": ["role-hr"],
             "doc_id": "d1",
             "doc_name": "n1",
             "version": "v1",
         },
     )
     assert response.status_code == 422
+
+
+def test_ingest_multi_role_writes_same_role_ids_on_all_points(
+    fake_qdrant: FakeQdrantClient,
+) -> None:
+    set_settings_override(
+        _settings(QDRANT_MOCK=False, QDRANT_COLLECTION_KB="kb_test")
+    )
+    ingest_document(
+        role_ids=["role-sales", "role-support"],
+        doc_id="doc-multi",
+        doc_name="多角色手册",
+        version="v1",
+        content="第一段说明。第二段补充。",
+    )
+    payloads = [row["payload"] for row in fake_qdrant.points.values()]
+    assert payloads
+    for payload in payloads:
+        assert payload["role_ids"] == ["role-sales", "role-support"]
+        assert payload["role_id"] == "role-sales"

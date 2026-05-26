@@ -21,7 +21,7 @@ def list_kb_documents(role_ids: Sequence[str]) -> KbDocumentListResponse:
                 doc_id=item.doc_id,
                 doc_name=item.doc_name,
                 version=item.version,
-                role_id=item.role_id,
+                role_ids=item.role_ids,
                 chunks_written=item.chunks_written,
             )
             for item in items
@@ -29,13 +29,13 @@ def list_kb_documents(role_ids: Sequence[str]) -> KbDocumentListResponse:
     )
 
 
-def get_kb_document(doc_id: str, role_id: str) -> KbDocumentDetailResponse:
-    detail = get_document(doc_id, role_id)
+def get_kb_document(doc_id: str) -> KbDocumentDetailResponse:
+    detail = get_document(doc_id)
     return KbDocumentDetailResponse(
         doc_id=detail.doc_id,
         doc_name=detail.doc_name,
         version=detail.version,
-        role_id=detail.role_id,
+        role_ids=detail.role_ids,
         chunks_written=detail.chunks_written,
         chunks=[
             KbChunkPreviewOut(
@@ -48,8 +48,8 @@ def get_kb_document(doc_id: str, role_id: str) -> KbDocumentDetailResponse:
     )
 
 
-def delete_kb_document(doc_id: str, role_id: str) -> None:
-    delete_document(doc_id, role_id)
+def delete_kb_document(doc_id: str) -> None:
+    delete_document(doc_id)
 
 
 def map_kb_document_error(exc: KbDocumentError) -> tuple[int, str]:

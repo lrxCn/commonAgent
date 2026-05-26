@@ -10,7 +10,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from settings.config import Settings, get_settings
 
-from infrastructure.qdrant.kb_store import get_qdrant_client, roles_filter
+from infrastructure.qdrant.kb_store import get_qdrant_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class KbDocumentSummary:
     doc_id: str
     doc_name: str
     version: str
-    role_id: str
+    role_ids: list[str]
     chunks_written: int
 
 
@@ -40,12 +40,12 @@ class KbDocumentDetail:
     doc_id: str
     doc_name: str
     version: str
-    role_id: str
+    role_ids: list[str]
     chunks_written: int
     chunks: list[KbChunkPreview]
 
 
-def _normalize_role_ids(role_ids: Sequence[str]) -> list[str]:
+def _normalize_query_role_ids(role_ids: Sequence[str]) -> list[str]:
     ids = [rid.strip() for rid in role_ids if rid and str(rid).strip()]
     if not ids:
         msg = "role_id is required"
@@ -53,17 +53,58 @@ def _normalize_role_ids(role_ids: Sequence[str]) -> list[str]:
     return ids
 
 
-def _doc_role_filter(*, doc_id: str, role_id: str) -> qmodels.Filter:
+def _payload_role_ids(payload: dict[str, object]) -> list[str]:
+    raw = payload.get("role_ids")
+    if isinstance(raw, list):
+        normalized = _normalize_role_ids_from_payload(raw)
+        if normalized:
+            return normalized
+    legacy = payload.get("role_id")
+    if legacy and str(legacy).strip():
+        return [str(legacy).strip()]
+    return []
+
+
+def _normalize_role_ids_from_payload(role_ids: Sequence[object]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in role_ids:
+        role_id = str(raw).strip()
+        if not role_id or role_id in seen:
+            continue
+        seen.add(role_id)
+        normalized.append(role_id)
+    return normalized
+
+
+def _role_ids_intersection_filter(query_role_ids: Sequence[str]) -> qmodels.Filter:
+    """Points whose payload role_ids intersect the query role set."""
+    ids = _normalize_query_role_ids(query_role_ids)
+    return qmodels.Filter(
+        should=[
+            qmodels.FieldCondition(
+                key="role_ids",
+                match=qmodels.MatchValue(value=rid),
+            )
+            for rid in ids
+        ]
+        + [
+            qmodels.FieldCondition(
+                key="role_id",
+                match=qmodels.MatchValue(value=rid),
+            )
+            for rid in ids
+        ]
+    )
+
+
+def _doc_id_filter(doc_id: str) -> qmodels.Filter:
     return qmodels.Filter(
         must=[
             qmodels.FieldCondition(
                 key="doc_id",
                 match=qmodels.MatchValue(value=doc_id.strip()),
-            ),
-            qmodels.FieldCondition(
-                key="role_id",
-                match=qmodels.MatchValue(value=role_id.strip()),
-            ),
+            )
         ]
     )
 
@@ -96,9 +137,9 @@ def list_documents(
     *,
     settings: Settings | None = None,
 ) -> list[KbDocumentSummary]:
-    """List unique documents for one or more roles from Qdrant payloads."""
+    """List unique documents whose payload role_ids intersect the query roles."""
     cfg = settings or get_settings()
-    ids = _normalize_role_ids(role_ids)
+    query_ids = set(_normalize_query_role_ids(role_ids))
     client = get_qdrant_client(cfg)
     collection = cfg.QDRANT_COLLECTION_KB
 
@@ -109,58 +150,59 @@ def list_documents(
         records = _scroll_points(
             client,
             collection=collection,
-            scroll_filter=roles_filter(ids),
+            scroll_filter=_role_ids_intersection_filter(role_ids),
         )
     except Exception as exc:
         msg = "failed to list kb documents"
         raise KbDocumentError(msg) from exc
 
-    grouped: dict[tuple[str, str], dict[str, object]] = {}
+    grouped: dict[str, dict[str, object]] = {}
     for record in records:
         payload = record.payload or {}
         doc_id = str(payload.get("doc_id") or "").strip()
-        role_id = str(payload.get("role_id") or "").strip()
-        if not doc_id or not role_id:
+        payload_roles = _payload_role_ids(payload)
+        if not doc_id or not payload_roles:
             continue
-        key = (doc_id, role_id)
+        if not query_ids.intersection(payload_roles):
+            continue
         row = grouped.setdefault(
-            key,
+            doc_id,
             {
                 "doc_name": str(payload.get("doc_name") or doc_id),
                 "version": str(payload.get("version") or "1"),
+                "role_ids": payload_roles,
                 "chunks_written": 0,
             },
         )
         row["chunks_written"] = int(row["chunks_written"]) + 1
         row["doc_name"] = str(payload.get("doc_name") or row["doc_name"])
         row["version"] = str(payload.get("version") or row["version"])
+        row["role_ids"] = payload_roles
 
     summaries = [
         KbDocumentSummary(
             doc_id=doc_id,
             doc_name=str(row["doc_name"]),
             version=str(row["version"]),
-            role_id=role_id,
+            role_ids=list(row["role_ids"]),  # type: ignore[arg-type]
             chunks_written=int(row["chunks_written"]),
         )
-        for (doc_id, role_id), row in grouped.items()
+        for doc_id, row in grouped.items()
     ]
-    summaries.sort(key=lambda item: (item.role_id, item.doc_name, item.doc_id))
+    summaries.sort(key=lambda item: (item.doc_name, item.doc_id))
     return summaries
 
 
 def get_document(
     doc_id: str,
-    role_id: str,
     *,
     settings: Settings | None = None,
 ) -> KbDocumentDetail:
     """Return chunk previews for a document (not full raw_content)."""
     cfg = settings or get_settings()
     did = doc_id.strip()
-    rid = role_id.strip()
-    if not did or not rid:
-        msg = "doc_id and role_id are required"
+    if not did:
+        msg = "doc_id is required"
         raise KbDocumentError(msg)
 
     client = get_qdrant_client(cfg)
@@ -173,7 +215,7 @@ def get_document(
         records = _scroll_points(
             client,
             collection=collection,
-            scroll_filter=_doc_role_filter(doc_id=did, role_id=rid),
+            scroll_filter=_doc_id_filter(did),
         )
     except Exception as exc:
         msg = "failed to load kb document"
@@ -186,6 +228,7 @@ def get_document(
     first = records[0].payload or {}
     doc_name = str(first.get("doc_name") or did)
     version = str(first.get("version") or "1")
+    role_ids = _payload_role_ids(first)
 
     chunks: list[KbChunkPreview] = []
     for record in records:
@@ -200,7 +243,7 @@ def get_document(
         doc_id=did,
         doc_name=doc_name,
         version=version,
-        role_id=rid,
+        role_ids=role_ids,
         chunks_written=len(chunks),
         chunks=chunks,
     )
@@ -218,16 +261,14 @@ def _chunk_index(chunk_id: str) -> int:
 
 def delete_document(
     doc_id: str,
-    role_id: str,
     *,
     settings: Settings | None = None,
 ) -> None:
-    """Delete all Qdrant points for doc_id + role_id."""
+    """Delete all Qdrant points for doc_id."""
     cfg = settings or get_settings()
     did = doc_id.strip()
-    rid = role_id.strip()
-    if not did or not rid:
-        msg = "doc_id and role_id are required"
+    if not did:
+        msg = "doc_id is required"
         raise KbDocumentError(msg)
 
     client = get_qdrant_client(cfg)
@@ -239,7 +280,7 @@ def delete_document(
         client.delete(
             collection_name=collection,
             points_selector=qmodels.FilterSelector(
-                filter=_doc_role_filter(doc_id=did, role_id=rid),
+                filter=_doc_id_filter(did),
             ),
             wait=True,
         )
@@ -247,4 +288,4 @@ def delete_document(
         msg = "failed to delete kb document"
         raise KbDocumentError(msg) from exc
 
-    logger.info("deleted kb doc_id=%s role_id=%s", did, rid)
+    logger.info("deleted kb doc_id=%s", did)
