@@ -47,3 +47,30 @@ def test_load_memory_node_does_not_write_user_memories_text(
 
     assert out["user_memories"] == ["偏好简洁回答"]
     assert "user_memories_text" not in out
+
+
+def test_load_memory_node_recovers_when_user_memory_read_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_memory_read(_uid: str, **_kwargs: object) -> list[str]:
+        raise RuntimeError("embedding provider 500")
+
+    monkeypatch.setattr("graph.nodes.fetch_user_memories", fail_memory_read)
+    monkeypatch.setattr("graph.nodes.load_thread_messages", lambda _tid: [])
+    monkeypatch.setattr("graph.nodes.get_rolling_summary", lambda _tid: None)
+
+    runtime = MagicMock()
+    runtime.context = {"user_id": "u1", "role_id": "default", "tools": []}
+
+    out = load_memory_node(
+        {"messages": [HumanMessage(content="你好")]},
+        runtime,
+        {"configurable": {"thread_id": "thread-1"}},
+    )
+
+    assert out["user_memories"] == []
+    assert out["path_metrics"]["fallback_count"] == 1
+    assert out["path_metrics"]["fallback_layer"] == "memory"
+    assert out["path_metrics"]["fallback_reason"].startswith("RuntimeError:")
+    assert out["path_metrics"]["fallback_action"] == "recoverable_error"
+    assert out["path_metrics"]["fallback_recovered"] is True

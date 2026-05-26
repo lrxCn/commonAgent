@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+import logging
 
 from langgraph.store.base import BaseStore, Item, SearchItem
 
@@ -22,6 +22,8 @@ _PROFILE_ATTRIBUTE_ORDER: tuple[str, ...] = (
     "company.address",
     "preference",
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryUserIdError(ValueError):
@@ -108,7 +110,14 @@ def search_collection_facts(
     namespace = facts_namespace(user_id)
     normalized_query = (query or "").strip()
     if normalized_query:
-        items = store.search(namespace, query=normalized_query, limit=max(limit, 1))
+        try:
+            items = store.search(namespace, query=normalized_query, limit=max(limit, 1))
+        except Exception:
+            logger.warning(
+                "semantic user memory search failed; falling back to unfiltered facts",
+                exc_info=True,
+            )
+            items = store.search(namespace, limit=max(limit, 1))
     else:
         items = store.search(namespace, limit=max(limit, 1))
 

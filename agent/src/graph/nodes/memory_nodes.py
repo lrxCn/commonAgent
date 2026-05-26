@@ -17,7 +17,11 @@ from contracts.routing import TurnType, TurnTypeDecision
 from graph.context import GraphContextSchema, request_context_from_runtime
 from graph.state import AgentState
 from intent.engine import classify_intent, turn_type_decision_from_intent
-from intent.fallback import intent_fallback_decision, policy_denied_fallback_decision
+from intent.fallback import (
+    intent_fallback_decision,
+    memory_read_error_fallback_decision,
+    policy_denied_fallback_decision,
+)
 from intent.policy import decide_fast_path_policy
 from intent.signals import extract_signals
 from memory.history import get_rolling_summary, load_thread_messages
@@ -59,7 +63,16 @@ def load_memory_node(
         )
         history_future = pool.submit(load_messages, thread_id)
         summary_future = pool.submit(load_summary, thread_id)
-        user_memories = user_memories_future.result()
+        memory_read_error = ""
+        memory_read_fallback = None
+        try:
+            user_memories = user_memories_future.result()
+        except Exception as exc:
+            memory_read_error = f"{exc.__class__.__name__}: {exc}"
+            memory_read_fallback = memory_read_error_fallback_decision(
+                memory_read_error,
+            )
+            user_memories = []
         checkpoint_messages = history_future.result()
         rolling_summary = summary_future.result()
 
@@ -86,6 +99,17 @@ def load_memory_node(
             turn_type=decision.turn_type.value,
             turn_type_reason=decision.reason,
         )
+        if memory_read_fallback is not None:
+            updates["path_metrics"] = record_fallback_decision(
+                updates.get("path_metrics"), memory_read_fallback
+            )
+            emit_event(
+                ObservabilityEventType.FALLBACK_TRIGGERED,
+                {
+                    **memory_read_fallback.to_trace_dict(),
+                    "memory.read_error": memory_read_error,
+                },
+            )
         emit_event(
             ObservabilityEventType.TURN_CLASSIFIED,
             {

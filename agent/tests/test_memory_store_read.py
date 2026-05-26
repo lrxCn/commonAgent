@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from langgraph.store.memory import InMemoryStore
@@ -167,6 +169,30 @@ def test_search_collection_facts_without_query_lists_entries() -> None:
     )
 
     assert facts == ["喜欢咖啡"]
+
+
+def test_search_collection_facts_falls_back_when_semantic_search_fails() -> None:
+    class QueryFailStore:
+        def __init__(self) -> None:
+            self.queries: list[str | None] = []
+
+        def search(self, namespace: tuple[str, ...], **kwargs: Any) -> list[Any]:
+            self.queries.append(cast(str | None, kwargs.get("query")))
+            if kwargs.get("query"):
+                raise RuntimeError("embedding provider 500")
+            return [SimpleNamespace(value={"text": "用户偏好简洁回答"})]
+
+    store = QueryFailStore()
+
+    facts = search_collection_facts(
+        cast(Any, store),
+        "user-collection",
+        query="简洁",
+        limit=5,
+    )
+
+    assert facts == ["用户偏好简洁回答"]
+    assert store.queries == ["简洁", None]
 
 
 @pytest.mark.parametrize("bad_id", [None, "", "   "])

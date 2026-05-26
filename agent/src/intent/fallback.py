@@ -101,6 +101,24 @@ def memory_query_fallback_decision(
     )
 
 
+def memory_read_error_fallback_decision(
+    reason: str,
+    *,
+    final_route: str = "continue_without_memory",
+) -> FallbackDecision:
+    """Fallback when user memory context cannot be loaded for a turn."""
+    normalized = str(reason or "").strip() or "memory_read_error"
+    return FallbackDecision(
+        layer=FallbackLayer.MEMORY,
+        reason=normalized,
+        action=FallbackAction.RECOVERABLE_ERROR,
+        user_visible=False,
+        recovered=True,
+        original_route="memory_read",
+        final_route=final_route,
+    )
+
+
 def rag_quality_fallback_decision(
     *,
     rag_skipped: bool,

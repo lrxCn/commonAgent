@@ -16,6 +16,7 @@ from contracts.events import ObservabilityEvent, ObservabilityEventType
 from intent.fallback import (
     intent_fallback_decision,
     llm_fallback_decision,
+    memory_read_error_fallback_decision,
     memory_query_fallback_decision,
     output_guard_fallback_decision,
     rag_quality_fallback_decision,
@@ -99,6 +100,17 @@ def test_memory_missing_uses_honest_reply_fallback() -> None:
     assert fallback.layer == FallbackLayer.MEMORY
     assert fallback.action == FallbackAction.HONEST_MISSING_MEMORY
     assert fallback.user_visible is True
+
+
+def test_memory_read_error_recovers_without_user_visible_error() -> None:
+    fallback = memory_read_error_fallback_decision("InternalServerError: 500")
+
+    assert fallback.layer == FallbackLayer.MEMORY
+    assert fallback.action == FallbackAction.RECOVERABLE_ERROR
+    assert fallback.user_visible is False
+    assert fallback.recovered is True
+    assert fallback.original_route == "memory_read"
+    assert fallback.final_route == "continue_without_memory"
 
 
 def test_rag_empty_and_weak_hit_fallbacks() -> None:
