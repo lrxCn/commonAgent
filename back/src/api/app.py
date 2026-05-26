@@ -17,9 +17,9 @@ from api.errors import forbidden, register_error_handlers
 from api.schemas import BackChatRequest
 from db.models import User
 from services.auth import load_user_roles
-from services.chat_threads import ensure_thread_access
+from services.chat_threads import ensure_thread_access, verify_thread_access
 from services.context import build_agent_chat_payload
-from services.forward import forward_chat_to_agent
+from services.forward import forward_chat_to_agent, forward_thread_history_to_agent
 from settings.config import Settings, get_settings
 from sqlalchemy.orm import Session
 
@@ -84,6 +84,23 @@ def create_app() -> FastAPI:
             settings=settings,
         )
         return await forward_chat_to_agent(payload, settings=settings)
+
+    @application.get("/api/threads/{thread_id}/messages", response_model=None)
+    async def api_thread_messages(
+        thread_id: str,
+        user: Annotated[User, Depends(require_current_user)],
+        db: Annotated[Session, Depends(get_db_session)],
+        settings: Annotated[Settings, Depends(get_settings)],
+        cursor: str | None = None,
+        limit: int = 20,
+    ):
+        verify_thread_access(db, user_id=user.user_id, thread_id=thread_id)
+        return await forward_thread_history_to_agent(
+            thread_id,
+            cursor=cursor,
+            limit=limit,
+            settings=settings,
+        )
 
     return application
 

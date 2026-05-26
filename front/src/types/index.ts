@@ -157,3 +157,36 @@ export type KbDocumentUpdateRequest = {
   raw_content?: string;
   version?: string;
 };
+
+export type ClientAction = {
+  tool: string;
+  args: Record<string, unknown>;
+  requires_approval: boolean;
+};
+
+export type ChatJsonResponse = {
+  text: string | null;
+  client_actions: ClientAction[] | null;
+};
+
+export type HistoryMessageItem = {
+  message_id: string | null;
+  role: "human" | "ai" | "system" | "tool" | "other";
+  content: string;
+  timestamp: string | null;
+  client_actions: ClientAction[] | null;
+};
+
+export type HistoryMessagesResponse = {
+  items: HistoryMessageItem[];
+  next_cursor: string | null;
+};
+
+export type ChatDisplayRole = "human" | "ai" | "system";
+
+export type ChatDisplayMessage = {
+  id: string;
+  role: ChatDisplayRole;
+  content: string;
+  streaming?: boolean;
+};

@@ -24,6 +24,11 @@ def _agent_chat_url(settings: Settings) -> str:
     return f"{base}/internal/chat"
 
 
+def _agent_thread_messages_url(settings: Settings, thread_id: str) -> str:
+    base = settings.AGENT_URL.rstrip("/")
+    return f"{base}/internal/threads/{thread_id}/messages"
+
+
 async def forward_chat_to_agent(
     payload: dict[str, Any],
     *,
@@ -74,3 +79,43 @@ async def forward_chat_to_agent(
     data = await response.aread()
     await response.aclose()
     return Response(content=data, media_type=content_type, status_code=response.status_code)
+
+
+async def forward_thread_history_to_agent(
+    thread_id: str,
+    *,
+    cursor: str | None = None,
+    limit: int | None = None,
+    settings: Settings | None = None,
+) -> Response:
+    """GET paginated checkpoint history from Agent."""
+    resolved = settings or get_settings()
+    url = _agent_thread_messages_url(resolved, thread_id)
+    params: dict[str, str | int] = {}
+    if cursor is not None:
+        params["cursor"] = cursor
+    if limit is not None:
+        params["limit"] = limit
+    timeout = httpx.Timeout(resolved.AGENT_TIMEOUT_SECONDS)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(
+                url,
+                params=params or None,
+                headers=_agent_headers(resolved),
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "agent_unreachable", "message": str(exc)},
+        ) from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.text,
+        )
+
+    content_type = response.headers.get("content-type", "application/json")
+    return Response(content=response.content, media_type=content_type, status_code=response.status_code)

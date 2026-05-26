@@ -9,6 +9,13 @@ from api.errors import forbidden
 from db.models import ChatThread
 
 
+def verify_thread_access(session: Session, *, user_id: str, thread_id: str) -> None:
+    """Reject when ``thread_id`` belongs to another user (read paths; no registration)."""
+    existing = session.get(ChatThread, thread_id)
+    if existing is not None and existing.user_id != user_id:
+        raise forbidden("无权访问该会话")
+
+
 def ensure_thread_access(session: Session, *, user_id: str, thread_id: str) -> None:
     """Register a new thread for ``user_id`` or verify existing ownership."""
     existing = session.get(ChatThread, thread_id)
