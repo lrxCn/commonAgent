@@ -75,6 +75,9 @@ def event_to_metadata(event: ObservabilityEvent) -> dict[str, Any]:
     if name == ObservabilityEventType.LLM_CALL_COMPLETED.value:
         return payload
 
+    if name == ObservabilityEventType.MEMORY_QUERY_POLISHED.value:
+        return payload
+
     if name == ObservabilityEventType.METADATA_ATTACHED.value:
         return payload
 

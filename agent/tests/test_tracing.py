@@ -175,6 +175,56 @@ def test_intent_event_maps_classified_metadata() -> None:
     assert meta["intent.conflict_reason"] == ""
 
 
+def test_memory_query_polished_event_maps_metadata() -> None:
+    event = ObservabilityEvent(
+        ObservabilityEventType.MEMORY_QUERY_POLISHED,
+        {
+            "memory_query.polish.enabled": True,
+            "memory_query.polish.called": True,
+            "memory_query.polish.model": "Qwen/Qwen2.5-7B-Instruct",
+            "memory_query.polish.changed": True,
+            "memory_query.polish.fallback_reason": "",
+            "memory_query.polish.validation_failed": False,
+        },
+    )
+
+    meta = event_to_metadata(event)
+
+    assert meta["memory_query.polish.called"] is True
+    assert meta["memory_query.polish.model"] == "Qwen/Qwen2.5-7B-Instruct"
+    assert meta["memory_query.polish.validation_failed"] is False
+
+
+def test_path_event_includes_memory_query_polish_metadata() -> None:
+    event = ObservabilityEvent(
+        ObservabilityEventType.PATH_METRICS_FINALIZED,
+        {
+            "path_metrics": {
+                "turn_type": "memory_query",
+                "memory_query.evidence_count": 1,
+                "memory_query.evidence_fields": ["name"],
+                "memory_query.missing_reason": "",
+                "memory_query.polish.enabled": False,
+                "memory_query.polish.called": False,
+                "memory_query.polish.fallback_reason": "disabled",
+                "memory_query.polish.validation_failed": False,
+                "memory_query_polish": {"should_call": False, "called": False},
+                "rewrite": {"should_call": False, "called": False},
+                "rag_router": {"should_call": False, "called": False},
+                "rag": {"should_call": False, "called": False},
+                "supervisor": {"should_call": False, "called": False},
+            }
+        },
+    )
+
+    meta = event_to_metadata(event)
+
+    assert meta["memory_query.evidence_count"] == 1
+    assert meta["memory_query.polish.enabled"] is False
+    assert meta["memory_query_polish.called"] is False
+    assert meta["llm_call_count"] == 0
+
+
 def test_rewrite_process_inputs_mem0_facts_from_memories() -> None:
     meta = _rewrite_process_inputs(
         {

@@ -8,6 +8,7 @@ from langgraph.runtime import Runtime
 from contracts.context import ContextBundle
 from contracts.events import ObservabilityEventType
 from contracts.execution import ExecutorDecision
+from contracts.llm import ModelUseCase
 from contracts.memory_query_polish import build_polish_input
 from graph.chitchat_executor import chitchat_reply
 from graph.client_actions import (
@@ -26,9 +27,10 @@ from graph.executors import (
 from graph.rag_subagent import max_chunk_score
 from graph.state import AgentState
 from graph.supervisor import extract_latest_ai_text, invoke_answer_executor, invoke_supervisor
+from infrastructure.llm.gateway import get_llm_gateway
 from intent.fallback import memory_query_fallback_decision, tool_fallback_decision
 from memory.query import MemoryQueryResult, answer_memory_query, memory_query_trace_metadata
-from memory.query_polish import polish_memory_query_reply
+from memory.query_polish import memory_query_polish_trace_metadata, polish_memory_query_reply
 from memory.structured_record import (
     format_structured_memory_confirmation,
     legacy_fact_update_confirmation,
@@ -128,6 +130,7 @@ def memory_query_reply_node(state: AgentState) -> dict[str, object]:
     path_metrics["turn_type"] = "memory_query"
     path_metrics["turn_type_reason"] = decision.reason
     path_metrics = mark_fast_path(path_metrics, enabled=True)
+    path_metrics.update(memory_query_trace_metadata(result))
     fallback_decision = memory_query_fallback_decision(result)
     if fallback_decision is not None:
         path_metrics = record_fallback_decision(path_metrics, fallback_decision)
@@ -165,14 +168,27 @@ def memory_query_polish_node(state: AgentState) -> dict[str, object]:
         raise RuntimeError(msg)
 
     polish_input = build_polish_input(extract_user_message(state), raw_result)
-    polish_outcome = polish_memory_query_reply(polish_input)
-
-    path_metrics = dict(state.get("path_metrics") or {})
     settings = get_settings()
-    path_metrics["memory_query_polish.enabled"] = settings.MEMORY_QUERY_POLISH_USE_LLM
-    path_metrics["memory_query_polish.used_llm"] = polish_outcome.used_llm
-    path_metrics["memory_query_polish.fallback_reason"] = polish_outcome.fallback_reason
-    path_metrics["memory_query_polish.changed"] = polish_outcome.changed
+    gateway = get_llm_gateway(settings)
+    polish_outcome = polish_memory_query_reply(
+        polish_input,
+        settings=settings,
+        gateway=gateway,
+    )
+    model_name = gateway.chat_policy(ModelUseCase.MEMORY_QUERY_POLISH).model_name
+    polish_meta = memory_query_polish_trace_metadata(
+        enabled=settings.MEMORY_QUERY_POLISH_USE_LLM,
+        outcome=polish_outcome,
+        model_name=model_name,
+    )
+
+    path_metrics = ensure_path_metrics(state.get("path_metrics"))
+    path_metrics.update(polish_meta)
+    path_metrics["memory_query_polish"] = {
+        "should_call": settings.MEMORY_QUERY_POLISH_USE_LLM,
+        "called": polish_meta["memory_query.polish.called"],
+    }
+    emit_event(ObservabilityEventType.MEMORY_QUERY_POLISHED, polish_meta)
 
     return merge_carry(
         state,

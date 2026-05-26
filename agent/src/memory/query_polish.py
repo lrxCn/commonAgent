@@ -11,6 +11,7 @@ from contracts.llm import ModelUseCase
 from contracts.memory_query_polish import (
     MemoryQueryPolishInput,
     MemoryQueryPolishResult,
+    polish_validation_failed,
     validate_polish_output,
 )
 from infrastructure.llm.gateway import LlmGateway, get_llm_gateway
@@ -141,3 +142,21 @@ def polish_memory_query_reply(
         fallback_reason="",
         changed=raw != draft,
     )
+
+
+def memory_query_polish_trace_metadata(
+    *,
+    enabled: bool,
+    outcome: MemoryQueryPolishResult,
+    model_name: str = "",
+) -> dict[str, object]:
+    """Flatten polish audit fields for path metrics and LangSmith metadata."""
+    called = bool(enabled and outcome.used_llm)
+    return {
+        "memory_query.polish.enabled": enabled,
+        "memory_query.polish.called": called,
+        "memory_query.polish.model": model_name if called else "",
+        "memory_query.polish.changed": outcome.changed,
+        "memory_query.polish.fallback_reason": outcome.fallback_reason,
+        "memory_query.polish.validation_failed": polish_validation_failed(outcome.fallback_reason),
+    }

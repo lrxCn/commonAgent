@@ -295,10 +295,11 @@ def test_memory_query_graph_polish_disabled_passthrough(
     result = _invoke("我叫什么", thread_id="thread-memory-polish-disabled")
 
     assert result["messages"][-1].content == "我记录到你叫刘日兴。"
-    assert result["path_metrics"]["memory_query_polish.enabled"] is False
-    assert result["path_metrics"]["memory_query_polish.used_llm"] is False
-    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == "disabled"
-    assert result["path_metrics"]["memory_query_polish.changed"] is False
+    assert result["path_metrics"]["memory_query.polish.enabled"] is False
+    assert result["path_metrics"]["memory_query.polish.called"] is False
+    assert result["path_metrics"]["memory_query.polish.fallback_reason"] == "disabled"
+    assert result["path_metrics"]["memory_query.polish.changed"] is False
+    assert result["path_metrics"]["memory_query.polish.validation_failed"] is False
 
 
 def test_memory_query_graph_polish_enabled_uses_mock_llm(
@@ -316,10 +317,11 @@ def test_memory_query_graph_polish_enabled_uses_mock_llm(
     result = _invoke("我叫什么", thread_id="thread-memory-polish-enabled")
 
     assert result["messages"][-1].content == "我记得你的名字是刘日兴。"
-    assert result["path_metrics"]["memory_query_polish.enabled"] is True
-    assert result["path_metrics"]["memory_query_polish.used_llm"] is True
-    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == ""
-    assert result["path_metrics"]["memory_query_polish.changed"] is True
+    assert result["path_metrics"]["memory_query.polish.enabled"] is True
+    assert result["path_metrics"]["memory_query.polish.called"] is True
+    assert result["path_metrics"]["memory_query.polish.fallback_reason"] == ""
+    assert result["path_metrics"]["memory_query.polish.changed"] is True
+    assert result["path_metrics"]["memory_query.polish.validation_failed"] is False
     mock.invoke.assert_called_once()
 
 
@@ -338,6 +340,7 @@ def test_memory_query_graph_polish_validation_failure_falls_back(
     result = _invoke("我叫什么", thread_id="thread-memory-polish-fallback")
 
     assert result["messages"][-1].content == "我记录到你叫刘日兴。"
-    assert result["path_metrics"]["memory_query_polish.used_llm"] is True
-    assert result["path_metrics"]["memory_query_polish.fallback_reason"] == "missing_evidence_value"
-    assert result["path_metrics"]["memory_query_polish.changed"] is False
+    assert result["path_metrics"]["memory_query.polish.called"] is True
+    assert result["path_metrics"]["memory_query.polish.fallback_reason"] == "missing_evidence_value"
+    assert result["path_metrics"]["memory_query.polish.changed"] is False
+    assert result["path_metrics"]["memory_query.polish.validation_failed"] is True

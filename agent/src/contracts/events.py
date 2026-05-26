@@ -26,6 +26,7 @@ class ObservabilityEventType(str, Enum):
     POST_TURN_SCHEDULED = "post_turn.scheduled"
     LLM_CALL_COMPLETED = "llm_call.completed"
     PATH_METRICS_FINALIZED = "path_metrics.finalized"
+    MEMORY_QUERY_POLISHED = "memory_query.polished"
     METADATA_ATTACHED = "metadata.attached"
 
 

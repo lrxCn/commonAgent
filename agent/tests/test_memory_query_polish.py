@@ -9,7 +9,9 @@ import pytest
 from contracts.llm import ModelUseCase
 from contracts.memory_query_polish import (
     MemoryQueryPolishInput,
+    MemoryQueryPolishResult,
     build_polish_input,
+    polish_validation_failed,
     validate_polish_output,
 )
 from infrastructure.llm.gateway import get_llm_gateway
@@ -17,6 +19,7 @@ from memory.query import MemoryQueryEvidence, answer_memory_query
 from memory.query_polish import (
     build_polish_system_prompt,
     build_polish_user_prompt,
+    memory_query_polish_trace_metadata,
     polish_memory_query_reply,
     set_memory_query_polish_llm,
 )
@@ -255,3 +258,24 @@ def test_polish_missing_memory_can_soften_wording() -> None:
     assert result.used_llm is True
     assert result.fallback_reason == ""
     assert result.changed is True
+
+
+def test_memory_query_polish_trace_metadata_marks_validation_failure() -> None:
+    meta = memory_query_polish_trace_metadata(
+        enabled=True,
+        outcome=MemoryQueryPolishResult(
+            reply="我记录到你叫刘日兴。",
+            used_llm=True,
+            fallback_reason="missing_evidence_value",
+            changed=False,
+        ),
+        model_name="polish-small",
+    )
+
+    assert meta["memory_query.polish.enabled"] is True
+    assert meta["memory_query.polish.called"] is True
+    assert meta["memory_query.polish.model"] == "polish-small"
+    assert meta["memory_query.polish.validation_failed"] is True
+    assert polish_validation_failed("missing_evidence_value") is True
+    assert polish_validation_failed("disabled") is False
+    assert polish_validation_failed("TimeoutError") is False

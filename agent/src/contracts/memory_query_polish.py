@@ -84,3 +84,19 @@ def validate_polish_output(
                 return False, "affirmative_fact_when_missing"
 
     return True, ""
+
+
+POLISH_VALIDATION_FAILURE_REASONS = frozenset(
+    {
+        "empty_output",
+        "too_long",
+        "uncertain_fact_phrasing",
+        "missing_evidence_value",
+        "affirmative_fact_when_missing",
+    }
+)
+
+
+def polish_validation_failed(fallback_reason: str) -> bool:
+    """Return whether fallback_reason indicates output validation failure."""
+    return fallback_reason in POLISH_VALIDATION_FAILURE_REASONS

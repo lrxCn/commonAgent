@@ -181,6 +181,24 @@ def path_metrics_metadata(metrics: Mapping[str, Any] | None) -> dict[str, Any]:
         "memory_write.mode": finalized.get("memory_write_mode", ""),
         "memory_write.record.attribute": finalized.get("memory_write_record_attribute", ""),
     }
+    for key in (
+        "memory_query.evidence_count",
+        "memory_query.evidence_sources",
+        "memory_query.evidence_fields",
+        "memory_query.missing_reason",
+        "memory_query.polish.enabled",
+        "memory_query.polish.called",
+        "memory_query.polish.model",
+        "memory_query.polish.changed",
+        "memory_query.polish.fallback_reason",
+        "memory_query.polish.validation_failed",
+    ):
+        if key in finalized:
+            metadata[key] = finalized[key]
+    polish_component = finalized.get("memory_query_polish")
+    if isinstance(polish_component, Mapping):
+        metadata["memory_query_polish.should_call"] = bool(polish_component.get("should_call"))
+        metadata["memory_query_polish.called"] = bool(polish_component.get("called"))
     for component in COMPONENTS:
         values = finalized.get(component) or {}
         metadata[f"{component}.should_call"] = bool(values.get("should_call"))
