@@ -162,6 +162,10 @@ export type ClientAction = {
   requires_approval: boolean;
 };
 
+export type JumpPageArgs = {
+  page: string;
+};
+
 export type ChatJsonResponse = {
   text: string | null;
   client_actions: ClientAction[] | null;

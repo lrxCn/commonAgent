@@ -134,7 +134,7 @@ function handleDrawerUpdate(show: boolean): void {
         <n-spin :show="chat.loadingHistory" class="chat-drawer__messages">
           <n-scrollbar ref="messageListRef" class="chat-messages">
             <p v-if="!chat.messages.length && !chat.loadingHistory" class="chat-empty">
-              发送消息开始对话。client_actions 将输出到浏览器 Console。
+              发送消息开始对话。可尝试「打开学生管理」等指令跳转到应用内页面。
             </p>
             <article
               v-for="msg in chat.messages"

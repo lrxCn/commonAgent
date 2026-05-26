@@ -1,11 +1,20 @@
 import { defineStore } from "pinia";
+import { createDiscreteApi } from "naive-ui";
 import { ref, watch } from "vue";
 
 import * as chatApi from "@/api/chat";
-import type { ChatDisplayMessage, ClientAction, HistoryMessageItem } from "@/types";
+import {
+  isPageAllowedForUser,
+  parsePageSlug,
+  resolveJumpPageTarget,
+} from "@/client-actions/page-registry";
+import { useAuthStore } from "@/stores/auth";
+import type { ChatDisplayMessage, ClientAction, HistoryMessageItem, JumpPageArgs } from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
 const LAST_USER_STORAGE_KEY = "common_agent_last_user_id";
+
+const { message } = createDiscreteApi(["message"]);
 
 type SseEvent = {
   type?: string;
@@ -48,6 +57,54 @@ function segmentsToText(state: StreamingSegments): string {
   return state.plain;
 }
 
+async function executeJumpPage(action: ClientAction): Promise<void> {
+  const args = action.args as JumpPageArgs;
+  const rawPage = typeof args.page === "string" ? args.page : "";
+  const slug = parsePageSlug(rawPage);
+  if (!slug) {
+    message.warning("未知页面，无法跳转");
+    return;
+  }
+
+  const auth = useAuthStore();
+  if (!auth.isAuthenticated) {
+    message.warning("请先登录后再跳转页面");
+    return;
+  }
+
+  if (!isPageAllowedForUser(slug, auth.isAdmin)) {
+    message.warning("当前账号无权访问该页面");
+    return;
+  }
+
+  const target = resolveJumpPageTarget(rawPage);
+  if (!target) {
+    message.warning("未知页面，无法跳转");
+    return;
+  }
+
+  if (action.requires_approval) {
+    const prompt = `跳转到「${slug}」？\n参数：${JSON.stringify(action.args ?? {}, null, 2)}`;
+    if (!window.confirm(prompt)) {
+      if (import.meta.env.DEV) {
+        console.log("[client_actions] skipped (user declined)", action);
+      }
+      return;
+    }
+  }
+
+  const { default: router } = await import("@/router");
+  try {
+    await router.push(target);
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] jumpPage navigated", { page: slug, target });
+    }
+  } catch (err) {
+    console.error("[client_actions] jumpPage navigation failed", err);
+    message.warning("页面跳转失败");
+  }
+}
+
 function handleClientActions(actions: unknown): void {
   if (!Array.isArray(actions)) {
     console.warn("[client_actions] expected array, got", actions);
@@ -58,14 +115,23 @@ function handleClientActions(actions: unknown): void {
       continue;
     }
     const record = action as ClientAction;
+    if (record.tool === "jumpPage") {
+      void executeJumpPage(record);
+      continue;
+    }
+
     const tool = record.tool ?? "(unknown)";
     const needsApproval = Boolean(record.requires_approval);
     const prompt = `执行工具「${tool}」？\n参数：${JSON.stringify(record.args ?? {}, null, 2)}`;
     if (needsApproval && !window.confirm(prompt)) {
-      console.log("[client_actions] skipped (user declined)", action);
+      if (import.meta.env.DEV) {
+        console.log("[client_actions] skipped (user declined)", action);
+      }
       continue;
     }
-    console.log("[client_actions]", action);
+    if (import.meta.env.DEV) {
+      console.log("[client_actions] unhandled tool", action);
+    }
   }
 }
 
