@@ -60,13 +60,13 @@ def _validate_role_ids(db: Session, role_ids: list[str]) -> list[str]:
 def _assert_admin_constraints(user: User, *, role_ids: list[str], is_admin: bool) -> None:
     if user.user_id != ADMIN_SEED_USER_ID:
         return
-    if not is_admin:
-        raise forbidden("不可取消 admin 用户的管理员标记")
     if ADMIN_SEED_ROLE_ID not in role_ids:
         raise conflict(
             "admin 用户必须绑定 role-admin",
             field_errors={"role_ids": "需包含 role-admin"},
         )
+    if not is_admin:
+        raise forbidden("不可取消 admin 用户的管理员标记")
 
 
 def list_users(db: Session) -> list[dict[str, object]]:
@@ -90,9 +90,9 @@ def create_user(
     password: str,
     display_name: str,
     role_ids: list[str],
-    is_admin: bool = False,
 ) -> dict[str, object]:
     normalized_roles = _validate_role_ids(db, role_ids)
+    is_admin = ADMIN_SEED_ROLE_ID in normalized_roles
     user = User(
         user_id=_new_user_id(),
         username=username.strip(),
@@ -124,16 +124,13 @@ def update_user(
     if user is None:
         raise not_found("用户不存在")
 
-    next_is_admin = user.is_admin
-    if "is_admin" in updates and updates["is_admin"] is not None:
-        next_is_admin = bool(updates["is_admin"])
-
     next_role_ids: list[str] | None = None
     if "role_ids" in updates and updates["role_ids"] is not None:
         next_role_ids = _validate_role_ids(db, list(updates["role_ids"]))
     else:
         next_role_ids = [role.role_id for role in load_user_roles(db, user_id)]
 
+    next_is_admin = ADMIN_SEED_ROLE_ID in next_role_ids
     _assert_admin_constraints(user, role_ids=next_role_ids, is_admin=next_is_admin)
 
     if "display_name" in updates and updates["display_name"] is not None:

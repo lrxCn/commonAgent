@@ -6,18 +6,18 @@
 
 ## 总览
 
-**当前建议下一步**：**101** [role-admin 推导 is_admin](./prompts/101-admin-role-derived-is-admin.md)。
+**当前建议下一步**：全部 101 项任务已完成；可按 [demo-walkthrough.md](./demo-walkthrough.md) 做端到端验收。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 101 |
-| 已完成 | 100（01–80 Agent 核心 + 81–92 演示平台 + 93–98 KB 多角色 + 99–100 Front 小迭代） |
+| 已完成 | 101（01–80 Agent 核心 + 81–92 演示平台 + 93–98 KB 多角色 + 99–101 Front/Back 小迭代） |
 | 进行中 | — |
 | 阻塞 | 0 |
 
 **演示平台批次（81–92）**：✅ 已完成；见 [demo-walkthrough.md](./demo-walkthrough.md) 与 [demo-platform.md](./maps/demo-platform.md)。
 
-**KB 多角色批次（93–98）**：✅ 已完成；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) 落地状态与 [demo-walkthrough.md](./demo-walkthrough.md) 脚本 B。**Front/Back 小迭代（99–101）**：**99–100** ✅；**101** ⬜ 待开始，无 KB 依赖。
+**KB 多角色批次（93–98）**：✅ 已完成；见 [kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) 落地状态与 [demo-walkthrough.md](./demo-walkthrough.md) 脚本 B。**Front/Back 小迭代（99–101）**：**99–101** ✅；101 项任务全部完成。
 
 
 ---
@@ -129,7 +129,7 @@
 | 98 | [KB 多角色：README、演示手册与文档最终对齐](./prompts/98-kb-multi-role-docs-final.md) | ✅ | 2026-05-26 | README KB API/payload、demo-walkthrough 多角色脚本、maps、PRD 落地状态；smoke 测试通过 |
 | 99 | [Front：换用户登录后重置 thread_id](./prompts/99-front-thread-reset-on-user-switch.md) | ✅ | 2026-05-26 | `ensureThreadForUser`/`resetOnLogout`；`common_agent_last_user_id` sessionStorage |
 | 100 | [Front：登录页用户名 Enter 聚焦密码](./prompts/100-front-login-enter-focus-password.md) | ✅ | 2026-05-26 | 用户名 Enter → `focusPassword()`；密码 Enter/按钮仍 `onSubmit`；front build 绿 |
-| 101 | [管理员身份由 role-admin 推导，移除重复开关](./prompts/101-admin-role-derived-is-admin.md) | ⬜ 待开始 | - | 独立；UsersView + Back users API |
+| 101 | [管理员身份由 role-admin 推导，移除重复开关](./prompts/101-admin-role-derived-is-admin.md) | ✅ | 2026-05-26 | Back 写接口由 role_ids 推导 is_admin；UsersView 移除开关；test_demo_admin 15 用例 |
 
 ---
 
@@ -259,4 +259,5 @@
 | 2026-05-26 | 完成任务 97：Back `services/kb_migration.py` 合并逻辑 + `scripts/migrate_kb_multi_role.py`（dry-run/apply，Postgres 委托 Alembic 002）；Agent `rag/kb_payload_migration.py` + `scripts/migrate_kb_role_ids.py`；`test_kb_migration` 4 + `test_kb_payload_migration` 3 用例 |
 | 2026-05-26 | 完成任务 99：Front `common_agent_last_user_id` + `ensureThreadForUser`/`resetOnLogout`；login/initialize/logout/clearSession 挂钩；换账号不复用 thread；front build 绿 |
 | 2026-05-26 | 完成任务 98：README 同步 KB `role_ids[]` API、Qdrant payload M1 双读、Back junction；demo-walkthrough 多角色共享文档演示；maps `rag-flow`/`demo-platform`；PRD 落地状态与开放问题决议；KB 多角色批次 93–98 全部收口 |
+| 2026-05-26 | 完成任务 101：`is_admin` 由 `role-admin ∈ role_ids` 推导；Front 用户表单移除管理员开关；Back 写 API 不再接受客户端 `is_admin`；种子 admin 不可去掉 `role-admin`；101/101 全部完成 |
 | 2026-05-26 | 完成任务 100：`LoginView` 用户名 Enter 聚焦密码框（`passwordInputRef.focus()`），不再触发校验 toast；密码 Enter/登录按钮行为不变；front build 绿 |

@@ -60,14 +60,12 @@ class UserCreateRequest(BaseModel):
     password: str = Field(..., min_length=1)
     display_name: str = Field(..., min_length=1, max_length=128)
     role_ids: list[str] = Field(..., min_length=1)
-    is_admin: bool = False
 
 
 class UserUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=128)
     password: str | None = Field(default=None, min_length=1)
     role_ids: list[str] | None = Field(default=None, min_length=1)
-    is_admin: bool | None = None
 
 
 @router.get("/roles", response_model=list[RoleOut])
@@ -161,7 +159,6 @@ def create_user(
         password=body.password,
         display_name=body.display_name,
         role_ids=body.role_ids,
-        is_admin=body.is_admin,
     )
     return UserOut.model_validate(user)
 

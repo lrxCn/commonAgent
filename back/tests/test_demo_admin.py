@@ -216,13 +216,52 @@ def test_cannot_delete_admin_user(admin_client: TestClient) -> None:
     assert response.json()["code"] == "FORBIDDEN"
 
 
-def test_cannot_remove_admin_flag_from_admin(admin_client: TestClient) -> None:
+def test_is_admin_derived_from_role_ids_on_create(admin_client: TestClient) -> None:
     _login(admin_client, "admin", "123456")
-    response = admin_client.patch(
-        f"/api/admin/users/{ADMIN_SEED_USER_ID}",
-        json={"is_admin": False},
+
+    sales_only = admin_client.post(
+        "/api/admin/users",
+        json={
+            "username": "sales-only",
+            "password": "demo123",
+            "display_name": "Sales Only",
+            "role_ids": ["role-sales"],
+        },
     )
-    assert response.status_code == 403
+    assert sales_only.status_code == 201
+    assert sales_only.json()["is_admin"] is False
+
+    with_admin = admin_client.post(
+        "/api/admin/users",
+        json={
+            "username": "ops-admin",
+            "password": "demo123",
+            "display_name": "Ops Admin",
+            "role_ids": ["role-sales", "role-admin"],
+        },
+    )
+    assert with_admin.status_code == 201
+    assert with_admin.json()["is_admin"] is True
+
+
+def test_is_admin_derived_from_role_ids_on_update(admin_client: TestClient) -> None:
+    _login(admin_client, "admin", "123456")
+    users = admin_client.get("/api/admin/users").json()
+    alice = next(item for item in users if item["username"] == "alice")
+
+    grant = admin_client.patch(
+        f"/api/admin/users/{alice['user_id']}",
+        json={"role_ids": ["role-sales", "role-admin"]},
+    )
+    assert grant.status_code == 200
+    assert grant.json()["is_admin"] is True
+
+    revoke = admin_client.patch(
+        f"/api/admin/users/{alice['user_id']}",
+        json={"role_ids": ["role-sales"]},
+    )
+    assert revoke.status_code == 200
+    assert revoke.json()["is_admin"] is False
 
 
 def test_cannot_remove_role_admin_from_admin(admin_client: TestClient) -> None:

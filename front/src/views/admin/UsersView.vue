@@ -12,7 +12,6 @@ import {
   NPopconfirm,
   NSelect,
   NSpace,
-  NSwitch,
   NTag,
   useMessage,
   type DataTableColumns,
@@ -41,7 +40,6 @@ const formUsername = ref("");
 const formPassword = ref("");
 const formDisplayName = ref("");
 const formRoleIds = ref<string[]>([]);
-const formIsAdmin = ref(false);
 
 const columns = computed<DataTableColumns<AdminUser>>(() => [
   { title: "用户名", key: "username", width: 120 },
@@ -64,7 +62,8 @@ const columns = computed<DataTableColumns<AdminUser>>(() => [
     title: "管理员",
     key: "is_admin",
     width: 90,
-    render: (row) => (row.is_admin ? "是" : "否"),
+    render: (row) =>
+      row.is_admin || row.role_ids.includes("role-admin") ? "是" : "否",
   },
   {
     title: "操作",
@@ -124,7 +123,6 @@ function resetForm(): void {
   formPassword.value = "";
   formDisplayName.value = "";
   formRoleIds.value = [];
-  formIsAdmin.value = false;
 }
 
 function openCreate(): void {
@@ -139,7 +137,6 @@ function openEdit(row: AdminUser): void {
   formPassword.value = "";
   formDisplayName.value = row.display_name;
   formRoleIds.value = [...row.role_ids];
-  formIsAdmin.value = row.is_admin;
   drawerVisible.value = true;
 }
 
@@ -175,12 +172,10 @@ async function onSubmit(): Promise<void> {
       const payload: {
         display_name: string;
         role_ids: string[];
-        is_admin: boolean;
         password?: string;
       } = {
         display_name: formDisplayName.value.trim(),
         role_ids: formRoleIds.value,
-        is_admin: formIsAdmin.value,
       };
       if (formPassword.value.trim()) {
         payload.password = formPassword.value.trim();
@@ -193,7 +188,6 @@ async function onSubmit(): Promise<void> {
         password: formPassword.value.trim(),
         display_name: formDisplayName.value.trim(),
         role_ids: formRoleIds.value,
-        is_admin: formIsAdmin.value,
       });
       message.success("用户已创建");
     }
@@ -281,12 +275,6 @@ onMounted(async () => {
               multiple
               filterable
               placeholder="至少选择一个角色"
-            />
-          </n-form-item>
-          <n-form-item label="管理员">
-            <n-switch
-              v-model:value="formIsAdmin"
-              :disabled="editing?.user_id === ADMIN_USER_ID"
             />
           </n-form-item>
         </n-form>

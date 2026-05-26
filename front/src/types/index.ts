@@ -96,14 +96,12 @@ export type AdminUserCreateRequest = {
   password: string;
   display_name: string;
   role_ids: string[];
-  is_admin?: boolean;
 };
 
 export type AdminUserUpdateRequest = {
   display_name?: string;
   password?: string;
   role_ids?: string[];
-  is_admin?: boolean;
 };
 
 export type KbChunk = {
