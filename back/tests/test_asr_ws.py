@@ -82,7 +82,6 @@ def _make_settings(database_url: str, *, access_key: str | None = "test-access-k
         SESSION_SECRET="test-session-secret",
         CORS_ORIGINS="http://127.0.0.1:5173,http://localhost:5173",
         VOLC_ASR_ACCESS_KEY=access_key,
-        VOLC_ASR_APP_KEY="test-app-key",
     )
 
 

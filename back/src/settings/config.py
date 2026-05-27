@@ -78,19 +78,24 @@ class Settings(BaseSettings):
     )
     VOLC_ASR_ACCESS_KEY: str | None = Field(
         default=None,
-        description="Volcengine SAUC access key (X-Api-Access-Key); Back-only secret.",
+        description=(
+            "Volcengine SAUC API key for new console (X-Api-Key header); Back-only secret."
+        ),
     )
     VOLC_ASR_APP_KEY: str | None = Field(
         default=None,
-        description="Volcengine SAUC app key (X-Api-App-Key); defaults to access key when unset.",
+        description="Deprecated: legacy X-Api-App-Key; not sent upstream (use VOLC_ASR_ACCESS_KEY).",
     )
     VOLC_ASR_WS_URL: str = Field(
         default="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel",
         description="Volcengine SAUC upstream WebSocket URL.",
     )
     VOLC_ASR_RESOURCE_ID: str = Field(
-        default="volc.bigasr.sauc.duration",
-        description="Volcengine SAUC resource id header (X-Api-Resource-Id).",
+        default="volc.seedasr.sauc.duration",
+        description=(
+            "Volcengine SAUC resource id (X-Api-Resource-Id); "
+            "ASR 1.0: volc.bigasr.sauc.duration."
+        ),
     )
     VOLC_ASR_SEGMENT_MS: int = Field(
         default=200,

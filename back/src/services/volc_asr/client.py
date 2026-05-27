@@ -35,13 +35,12 @@ class VolcAsrClient:
         return self._ws is not None
 
     def _auth_headers(self) -> dict[str, str]:
-        access_key = (self._settings.VOLC_ASR_ACCESS_KEY or "").strip()
-        app_key = (self._settings.VOLC_ASR_APP_KEY or access_key).strip()
+        api_key = (self._settings.VOLC_ASR_ACCESS_KEY or "").strip()
         return {
+            "X-Api-Key": api_key,
             "X-Api-Resource-Id": self._settings.VOLC_ASR_RESOURCE_ID,
             "X-Api-Request-Id": str(uuid.uuid4()),
-            "X-Api-Access-Key": access_key,
-            "X-Api-App-Key": app_key,
+            "X-Api-Sequence": "-1",
         }
 
     async def connect(self) -> None:
