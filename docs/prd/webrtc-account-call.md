@@ -327,12 +327,25 @@ Back 若需 CORS / WS 同源：开发时 Vite proxy 将 `/api` 代理到 `8080`�
 
 | ID | 任务卡 | 范围 | 依赖 | 落地状态 |
 |----|--------|------|------|----------|
-| 111 | [111-webrtc-back-signaling.md](../prompts/111-webrtc-back-signaling.md) | Back：`GET /api/calls/peers` + `WS /api/calls/ws` + 测试 | 110 | ⬜ |
-| 112 | [112-webrtc-front-calls-page.md](../prompts/112-webrtc-front-calls-page.md) | Front：call store、WS、通话页、侧边栏 | 111 | ⬜ |
-| 113 | [113-webrtc-front-incoming-audio.md](../prompts/113-webrtc-front-incoming-audio.md) | 左下角来电、WebRTC 音频、挂断 | 112 | ⬜ |
-| 114 | [114-webrtc-docs-final-alignment.md](../prompts/114-webrtc-docs-final-alignment.md) | README、demo-walkthrough B5、demo-platform 地图 | 111–113 | ⬜ |
+| 111 | [111-webrtc-back-signaling.md](../prompts/111-webrtc-back-signaling.md) | Back：`GET /api/calls/peers` + `WS /api/calls/ws` + 测试 | 110 | ✅ |
+| 112 | [112-webrtc-front-calls-page.md](../prompts/112-webrtc-front-calls-page.md) | Front：call store、WS、通话页、侧边栏 | 111 | ✅ |
+| 113 | [113-webrtc-front-incoming-audio.md](../prompts/113-webrtc-front-incoming-audio.md) | 左下角来电、WebRTC 音频、挂断 | 112 | ✅ |
+| 114 | [114-webrtc-docs-final-alignment.md](../prompts/114-webrtc-docs-final-alignment.md) | README、demo-walkthrough B5、demo-platform 地图 | 111–113 | ✅ |
 
 进度总览：[docs/progress.md](../progress.md)。
+
+---
+
+## 落地状态
+
+| 能力 | 状态 | 说明 |
+|------|------|------|
+| Back 信令 | ✅ | `GET /api/calls/peers`、`WS /api/calls/ws`；`test_call_signaling.py` |
+| Front 通话页 | ✅ | `/app/calls`、`CallsView`、主叫 invite/cancel |
+| 全局来电 + 音频 | ✅ | `IncomingCallToast`、`RTCPeerConnection` 音频、挂断清理 |
+| 文档与演示 | ✅ | README、demo-platform、demo-walkthrough **B5**、progress **111–114** |
+
+信令路径固定为 **`/api/calls/ws`**（非 `/api/ws/calls`）。消息 `type` 以 [front/src/types/call.ts](../../front/src/types/call.ts) 与 Back 实现为准。
 
 ---
 
@@ -350,10 +363,10 @@ Back 若需 CORS / WS 同源：开发时 Vite proxy 将 `/api` 代理到 `8080`�
 
 ## 文档与契约变更清单（实现后）
 
-- [README.md](../../README.md)：新增「通话」模块说明、WS 路径、环境变量；明确 Agent 不参与。
-- [docs/maps/demo-platform.md](./maps/demo-platform.md)：路由表 + 信令序列。
-- [docs/demo-walkthrough.md](./demo-walkthrough.md)：B5 双账号通话脚本。
-- [docs/progress.md](./progress.md)：任务 111–114 与 PRD 链接。
+- [x] [README.md](../../README.md)：通话模块、WS 路径、Front 环境变量；明确 Agent 不参与。
+- [x] [docs/maps/demo-platform.md](../maps/demo-platform.md)：路由表 + 信令序列。
+- [x] [docs/demo-walkthrough.md](../demo-walkthrough.md)：B5 双账号通话脚本（原边界核对移至 B6）。
+- [x] [docs/progress.md](../progress.md)：任务 111–114 完成。
 
 ---
 
@@ -363,3 +376,4 @@ Back 若需 CORS / WS 同源：开发时 Vite proxy 将 `/api` 代理到 `8080`�
 |------|------|
 | 2026-05-27 | 初稿：通话页、左下角来电、接听/拒接/挂断、Back WS 信令、任务拆分建议 |
 | 2026-05-27 | 规划：任务卡 **111–114** 与 progress 登记 |
+| 2026-05-27 | 落地：111–114 完成；PRD 落地状态表；demo-walkthrough **B5** |

@@ -27,10 +27,11 @@
 | `/app/admin/roles` | 角色管理 | admin |
 | `/app/admin/users` | 用户管理 | admin |
 | `/app/admin/kb` | RAG 文档 | admin |
+| `/app/calls` | 账号 WebRTC 音频通话 | 登录 |
 
-全局 **ChatFab** + **ChatDrawer**（`AppLayout`）在所有 `/app/*` 页可用。
+全局 **ChatFab** + **ChatDrawer**（`AppLayout`）在所有 `/app/*` 页可用；**IncomingCallToast**（左下角来电）与信令 WS 亦在 `AppLayout` 挂载。
 
-状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）。
+状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）、`call`（通话状态机 + WebRTC）。
 
 ## Back 业务 API（摘要）
 
@@ -42,6 +43,36 @@
 | `/api/admin/kb/documents` | KB ingest 代理 Agent + `kb_document_meta` 双写 |
 | `/api/chat` | 对话 SSE/JSON 转发 Agent |
 | `/api/threads/{id}/messages` | 历史分页（thread 归属 403） |
+| `GET /api/calls/peers` | 可呼叫用户列表（排除当前 Session 用户） |
+| `WS /api/calls/ws` | WebRTC 信令中继（Cookie Session；单进程内存 hub） |
+
+## 通话信令（WebRTC 批次 111–114）
+
+**Agent 不参与**。媒体为浏览器 `RTCPeerConnection` P2P；信令仅经 Back。
+
+```mermaid
+sequenceDiagram
+  participant FA as Front A (caller)
+  participant B as Back WS hub
+  participant FB as Front B (callee)
+
+  FA->>B: WS /api/calls/ws (Cookie)
+  FB->>B: WS /api/calls/ws (Cookie)
+  FA->>B: call.invite { to_user_id }
+  B->>FB: call.incoming
+  Note over FB: IncomingCallToast 接听/拒接
+  FB->>B: call.accept
+  B->>FA: call.accepted
+  FA->>B: rtc.offer / rtc.ice
+  B->>FB: rtc.offer / rtc.ice
+  FB->>B: rtc.answer / rtc.ice
+  B->>FA: rtc.answer / rtc.ice
+  Note over FA,FB: 音频 P2P（STUN）
+  FA->>B: call.hangup
+  B->>FB: call.ended
+```
+
+实现：[call_routes.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/api/call_routes.py)、[call_signaling.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/call_signaling.py)、[stores/call.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/call.ts)、[useCallSignaling.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/composables/useCallSignaling.ts)。
 
 ## 对话数据流
 
@@ -95,12 +126,12 @@ flowchart LR
 
 ## 演示手册
 
-逐步操作：[demo-walkthrough.md](../demo-walkthrough.md)（脚本 A/B）。
+逐步操作：[demo-walkthrough.md](../demo-walkthrough.md)（脚本 A/B；WebRTC 双账号见 **B5**）。
 
 ## 测试入口
 
 ```bash
-cd back && uv run pytest tests/test_demo_auth.py tests/test_demo_students.py tests/test_demo_admin.py tests/test_demo_kb.py tests/test_demo_chat_context.py tests/test_demo_chat_history.py -v
+cd back && uv run pytest tests/test_demo_auth.py tests/test_demo_students.py tests/test_demo_admin.py tests/test_demo_kb.py tests/test_demo_chat_context.py tests/test_demo_chat_history.py tests/test_call_signaling.py -v
 cd front && npm run build
 cd agent && uv run pytest tests/test_role_ids_filter.py tests/test_schemas.py -v
 ```

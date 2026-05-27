@@ -67,9 +67,9 @@ rg -n "webrtc|/app/calls|/api/calls" README.md docs/demo-walkthrough.md docs/map
 
 ## 完成标准
 
-- [ ] README/maps/demo-walkthrough/PRD 与 111–113 实现一致。
-- [ ] B5 手工验收通过。
-- [ ] progress **114** → `✅`；WebRTC 批次 111–114 全部完成。
+- [x] README/maps/demo-walkthrough/PRD 与 111–113 实现一致。
+- [ ] B5 手工验收通过（双浏览器 alice↔bob，需本地服务运行）。
+- [x] progress **114** → `✅`；WebRTC 批次 111–114 全部完成。
 - [ ] git commit。
 
 ## 进度更新

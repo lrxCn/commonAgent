@@ -8,10 +8,11 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-110 已完成（含对话内学生表单/列表，见 [student-in-chat PRD](docs/prd/student-in-chat-client-actions.md)） |
-| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
-| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`，单进程内存 hub） |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent` 对话内表单、`listStudents` 对话内列表）；**计划** 账号 WebRTC 通话页 + 全局来电（任务 [111–114](docs/progress.md)，[PRD](docs/prd/webrtc-account-call.md)） |
+| 核心任务 | 01-114 已完成（含对话内学生工具与账号 WebRTC 通话，见 [progress](docs/progress.md)） |
+| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令与媒体 |
+| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`，单进程内存 hub，多 worker 不支持） |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电、`AppLayout` 信令 WS，[PRD](docs/prd/webrtc-account-call.md)） |
+| 通话能力 | ✅ 已实现：双账号 1:1 音频；信令经 Back WebSocket；媒体浏览器 P2P（STUN）；演示脚本 [demo-walkthrough B5](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -445,7 +446,7 @@ Back（演示平台，库 `common_agent_back`）：
 - 认证：`POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/me`（Cookie Session）。
 - 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
 - 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
-- 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；媒体 P2P，不经 Agent；单进程内存 hub，多 worker 不支持）。Front 对接见任务 [112–114](docs/progress.md)；详见 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)。
+- 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；消息类型见 [call.ts](front/src/types/call.ts) 与 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)；媒体 P2P，**不经 Agent**；单进程内存 hub，多 worker 不支持）。
 - `GET /health`：存活检查。
 - 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 
@@ -454,7 +455,7 @@ Front（Vue SPA）：
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
 - `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
-- **计划**：`/app/calls` 通话页；任意 `/app/*` 左下角来电弹窗（接听/拒接）；信令 WebSocket 在 `AppLayout` 建立（实现见任务 111–114）。
+- 通话：`/app/calls`（`CallsView` + 侧边栏「通话」）；任意 `/app/*` 左下角 `IncomingCallToast`（接听/拒接）；信令 WebSocket 在 `AppLayout` 经 `useCallSignaling` 建立（指数退避重连，断线不恢复通话）；可选环境变量见 [front/.env.example](front/.env.example)（`VITE_WEBRTC_STUN_URL`、`VITE_CALL_WS_PATH`）。
 
 ## 可观测与评测
 
@@ -660,6 +661,8 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
 
 Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：`AGENT_URL`、`SESSION_SECRET`、`CORS_ORIGINS`（含 `5173`）、`AGENT_DATABASE_URL` / `DATABASE_URL`（`common_agent_back`）、`ADMIN_SEED_PASSWORD`、`DEMO_*`（无 Session 时的转发回退）、`AGENT_TIMEOUT_SECONDS`。
+
+Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。
 
 ## 验证入口
 

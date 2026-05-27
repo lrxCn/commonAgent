@@ -98,9 +98,25 @@ cd front && npm install && npm run dev
 5. 关闭并重新打开对话抽屉 → 历史中的表单/列表为 **historical**（只读，不可提交或翻页）。
 6. 侧栏进入 `/app/students` → 传统 CRUD 表格仍可用（与对话内工具独立）。
 
-### B5 — 边界核对（可选，1 分钟）
+### B5 — 账号 WebRTC 音频通话（双浏览器，约 3–5 分钟）
 
-- 浏览器 Network：请求仅指向 Back（`:8080` 或 dev proxy），**无** 直连 Agent `:18080`。
+**目标**：演示系统内两账号 1:1 语音通话；信令经 Back WebSocket，**不经过 Agent**。
+
+**准备**：两个浏览器（或两个 Profile / 无痕 + 普通窗口），均访问 `http://127.0.0.1:5173`。允许麦克风权限（接听时需用户手势）。
+
+1. **浏览器 A**：**alice** / `demo123` 登录 → 侧边栏 **通话**（`/app/calls`）→ 列表中找到 **bob** → 点击 **呼叫**。
+2. **期望（A）**：状态为「正在呼叫 bob…」；可点 **取消呼叫** 恢复 idle。
+3. **浏览器 B**：**bob** / `demo123` 登录 → 停留在 **学生管理**（`/app/students`，不必打开通话页）。
+4. **期望（B）**：左下角出现来电条（`IncomingCallToast`）：显示 Alice 来电、「语音通话」、**接听** / **拒接**。
+5. **拒接路径**：B 点 **拒接** → 弹窗消失、不申请麦克风；A 显示「对方已拒接」并回到 idle。
+6. **接听路径**：B 再次由 A 呼叫 → B 点 **接听** → B 跳转 `/app/calls`；A 进入「通话中」并显示计时。
+7. **音频**：双方对着麦克风说话（可选戴耳机防回声）；确认能听到对方声音（依赖 NAT/STUN，极少数网络需自建 TURN，一期未包含）。
+8. **挂断**：任一方点 **挂断** → 双方 UI 回到 idle，麦克风释放。
+9. **Network 核对**：仅 `GET /api/calls/peers`、升级 `WS /api/calls/ws`（dev 下经 Vite proxy）；**无** 请求 Agent `:18080`。
+
+### B6 — 边界核对（可选，1 分钟）
+
+- 浏览器 Network：对话与学生 API 仅指向 Back（`:8080` 或 dev proxy），**无** 直连 Agent `:18080`。
 - 用另一用户 thread_id 拉历史应 **403**（`chat_threads` 归属校验）。
 
 ---
@@ -117,5 +133,9 @@ cd front && npm install && npm run dev
 | createStudent 无反应 | 是否点击表单「确定」；Console 是否有参数校验 toast；POST `/api/students` 是否 2xx |
 | listStudents 无数据 | create 成功后是否自动出现列表卡片；单独 list 话术是否产出 action；Network 是否 GET `/api/students` |
 | admin 无 RAG 菜单 | 当前用户 `is_admin`；种子 admin 绑定 `role-admin` |
+| 通话无来电弹窗 | bob 是否已登录且 WS 已连（`AppLayout`）；Console 是否有 WS 错误；Back 是否单进程 |
+| 呼叫一直响铃 | 被叫是否拒接/离线；A 是否收到 `call.failed`；检查 `test_call_signaling.py` 是否绿 |
+| 接通无声音 | 浏览器麦克风权限；是否 HTTPS/localhost；对称 NAT 下可试配置 `VITE_WEBRTC_STUN_URL` |
+| 多标签同账号 | 后连 WS 会踢前者（`session.replaced`）；仅保留一个活跃标签通话 |
 
 更细的 Back/Front 路由与数据流见 [docs/maps/demo-platform.md](./maps/demo-platform.md)。
