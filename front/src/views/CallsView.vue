@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, onUnmounted, watch } from "vue";
+import { computed, h, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
   NAlert,
@@ -7,6 +7,7 @@ import {
   NDataTable,
   NSpace,
   NTag,
+  NText,
   useMessage,
   type DataTableColumns,
 } from "naive-ui";
@@ -24,7 +25,67 @@ const {
   wsConnected,
   notice,
   isOutgoing,
+  isInCall,
+  remoteStream,
+  callStartedAt,
 } = storeToRefs(callStore);
+
+const remoteAudioRef = ref<HTMLAudioElement | null>(null);
+const elapsedLabel = ref("00:00");
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+function formatElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+function startElapsedTimer(): void {
+  stopElapsedTimer();
+  const update = (): void => {
+    if (callStartedAt.value === null) {
+      elapsedLabel.value = "00:00";
+      return;
+    }
+    elapsedLabel.value = formatElapsed(Date.now() - callStartedAt.value);
+  };
+  update();
+  elapsedTimer = setInterval(update, 1000);
+}
+
+function stopElapsedTimer(): void {
+  if (elapsedTimer !== null) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+  elapsedLabel.value = "00:00";
+}
+
+watch(
+  remoteStream,
+  (stream) => {
+    const el = remoteAudioRef.value;
+    if (!el) {
+      return;
+    }
+    el.srcObject = stream;
+    if (stream) {
+      void el.play().catch(() => {
+        // autoplay may require user gesture; accept button satisfies this
+      });
+    }
+  },
+  { immediate: true },
+);
+
+watch(isInCall, (inCall) => {
+  if (inCall) {
+    startElapsedTimer();
+  } else {
+    stopElapsedTimer();
+  }
+});
 
 const statusAlert = computed(() => {
   if (isOutgoing.value && activeCall.value) {
@@ -34,7 +95,7 @@ const statusAlert = computed(() => {
       showCancel: true,
     };
   }
-  if (phase.value === "in_call" && activeCall.value) {
+  if (isInCall.value && activeCall.value) {
     return {
       type: "success" as const,
       title: `与 ${activeCall.value.peerDisplayName} 通话中`,
@@ -99,6 +160,15 @@ function onCancelOutgoing(): void {
   }
 }
 
+function onHangup(): void {
+  try {
+    callStore.hangup();
+  } catch (error: unknown) {
+    const text = error instanceof Error ? error.message : "挂断失败";
+    message.error(text);
+  }
+}
+
 watch(notice, (text) => {
   if (text) {
     message.warning(text);
@@ -106,13 +176,10 @@ watch(notice, (text) => {
   }
 });
 
-onMounted(async () => {
-  callStore.connectSignaling();
-  await loadPeers();
-});
+void loadPeers();
 
 onUnmounted(() => {
-  callStore.disconnectSignaling();
+  stopElapsedTimer();
 });
 </script>
 
@@ -137,6 +204,12 @@ onUnmounted(() => {
         </n-button>
       </n-space>
 
+      <n-space v-if="isInCall" vertical :size="8" class="in-call-panel">
+        <n-text>通话时长 {{ elapsedLabel }}</n-text>
+        <n-button type="error" size="small" @click="onHangup">挂断</n-button>
+        <audio ref="remoteAudioRef" autoplay playsinline class="remote-audio" />
+      </n-space>
+
       <n-data-table
         :columns="columns"
         :data="peers"
@@ -156,5 +229,20 @@ onUnmounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.in-call-panel {
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--n-border-color);
+}
+
+.remote-audio {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 </style>

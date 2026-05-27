@@ -30,7 +30,10 @@ export type ClientCallMessage =
   | { type: "call.cancel"; call_id: string }
   | { type: "call.accept"; call_id: string }
   | { type: "call.reject"; call_id: string }
-  | { type: "call.hangup"; call_id: string };
+  | { type: "call.hangup"; call_id: string }
+  | { type: "rtc.offer"; call_id: string; sdp: string }
+  | { type: "rtc.answer"; call_id: string; sdp: string }
+  | { type: "rtc.ice"; call_id: string; candidate: RTCIceCandidateInit };
 
 /** Server → client WebSocket payloads (subset used in task 112). */
 export type ServerCallMessage =

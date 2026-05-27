@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from "node:url";
 
 import vue from "@vitejs/plugin-vue";
@@ -19,5 +20,9 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.{test,spec}.ts"],
   },
 });

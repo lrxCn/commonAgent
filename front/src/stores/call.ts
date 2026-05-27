@@ -14,6 +14,7 @@ import type {
   IncomingCall,
   ServerCallMessage,
 } from "@/types/call";
+import { getIceServers } from "@/utils/webrtc";
 
 function peerLabel(peer: CallPeer): string {
   return peer.display_name?.trim() || peer.username;
@@ -28,11 +29,20 @@ export const useCallStore = defineStore("call", () => {
   const wsConnected = ref(false);
   const pendingInvitePeer = ref<CallPeer | null>(null);
   const notice = ref<string | null>(null);
+  const remoteStream = ref<MediaStream | null>(null);
+  const callStartedAt = ref<number | null>(null);
 
   let signaling: CallSignalingConnection | null = null;
+  let peerConnection: RTCPeerConnection | null = null;
+  let localStream: MediaStream | null = null;
+  const pendingIceCandidates: RTCIceCandidateInit[] = [];
+  let suppressEndedNotice = false;
 
   const isOutgoing = computed(() => phase.value === "outgoing");
   const isInCall = computed(() => phase.value === "in_call");
+  const hasIncoming = computed(
+    () => phase.value === "incoming" && incomingCall.value !== null,
+  );
 
   function clearNotice(): void {
     notice.value = null;
@@ -42,11 +52,37 @@ export const useCallStore = defineStore("call", () => {
     notice.value = text;
   }
 
+  function cleanupMedia(): void {
+    if (peerConnection) {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.close();
+      peerConnection = null;
+    }
+    if (localStream) {
+      for (const track of localStream.getTracks()) {
+        track.stop();
+      }
+      localStream = null;
+    }
+    remoteStream.value = null;
+    pendingIceCandidates.length = 0;
+    callStartedAt.value = null;
+  }
+
   function resetCallState(): void {
+    cleanupMedia();
     phase.value = "idle";
     activeCall.value = null;
     incomingCall.value = null;
     pendingInvitePeer.value = null;
+  }
+
+  function markInCall(): void {
+    phase.value = "in_call";
+    if (callStartedAt.value === null) {
+      callStartedAt.value = Date.now();
+    }
   }
 
   function ensureSignaling(): CallSignalingConnection {
@@ -70,6 +106,142 @@ export const useCallStore = defineStore("call", () => {
       throw new Error("信令未连接，请稍后重试");
     }
     conn.send(message);
+  }
+
+  async function ensureLocalAudio(): Promise<MediaStream> {
+    if (localStream) {
+      return localStream;
+    }
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return localStream;
+  }
+
+  function ensurePeerConnection(callId: string): RTCPeerConnection {
+    if (peerConnection) {
+      return peerConnection;
+    }
+    const pc = new RTCPeerConnection({ iceServers: getIceServers() });
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendMessage({
+          type: "rtc.ice",
+          call_id: callId,
+          candidate: event.candidate.toJSON(),
+        });
+      }
+    };
+    pc.ontrack = (event) => {
+      const stream =
+        event.streams[0] ?? new MediaStream([event.track]);
+      remoteStream.value = stream;
+    };
+    peerConnection = pc;
+    return pc;
+  }
+
+  function addLocalTracks(pc: RTCPeerConnection): void {
+    if (!localStream) {
+      return;
+    }
+    for (const track of localStream.getTracks()) {
+      pc.addTrack(track, localStream);
+    }
+  }
+
+  async function flushPendingIce(pc: RTCPeerConnection): Promise<void> {
+    while (pendingIceCandidates.length > 0) {
+      const candidate = pendingIceCandidates.shift();
+      if (candidate) {
+        await pc.addIceCandidate(candidate);
+      }
+    }
+  }
+
+  async function handleRtcOffer(callId: string, sdp: string): Promise<void> {
+    try {
+      const pc = ensurePeerConnection(callId);
+      addLocalTracks(pc);
+      await pc.setRemoteDescription({ type: "offer", sdp });
+      await flushPendingIce(pc);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      if (!answer.sdp) {
+        throw new Error("无法创建 answer SDP");
+      }
+      sendMessage({ type: "rtc.answer", call_id: callId, sdp: answer.sdp });
+    } catch {
+      setNotice("建立媒体连接失败");
+      hangup();
+    }
+  }
+
+  async function handleRtcAnswer(callId: string, sdp: string): Promise<void> {
+    try {
+      const pc = ensurePeerConnection(callId);
+      await pc.setRemoteDescription({ type: "answer", sdp });
+      await flushPendingIce(pc);
+    } catch {
+      setNotice("建立媒体连接失败");
+      hangup();
+    }
+  }
+
+  async function handleRtcIce(
+    _callId: string,
+    candidate: Record<string, unknown>,
+  ): Promise<void> {
+    const init = candidate as RTCIceCandidateInit;
+    const pc = peerConnection;
+    if (!pc || !pc.remoteDescription) {
+      pendingIceCandidates.push(init);
+      return;
+    }
+    try {
+      await pc.addIceCandidate(init);
+    } catch {
+      // ignore late/duplicate ICE in demo
+    }
+  }
+
+  async function startCallerWebRtc(callId: string): Promise<void> {
+    try {
+      await ensureLocalAudio();
+      const pc = ensurePeerConnection(callId);
+      addLocalTracks(pc);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      if (!offer.sdp) {
+        throw new Error("无法创建 offer SDP");
+      }
+      sendMessage({ type: "rtc.offer", call_id: callId, sdp: offer.sdp });
+    } catch {
+      setNotice("无法访问麦克风或建立通话");
+      hangup();
+    }
+  }
+
+  async function onCallAccepted(message: { call_id: string }): Promise<void> {
+    if (activeCall.value) {
+      activeCall.value = {
+        ...activeCall.value,
+        callId: message.call_id,
+      };
+      markInCall();
+      if (activeCall.value.role === "caller") {
+        await startCallerWebRtc(message.call_id);
+      }
+      return;
+    }
+    if (incomingCall.value) {
+      activeCall.value = {
+        callId: message.call_id,
+        peerUserId: incomingCall.value.fromUserId,
+        peerDisplayName: incomingCall.value.fromDisplayName,
+        role: "callee",
+      };
+      incomingCall.value = null;
+      markInCall();
+    }
   }
 
   function handleServerMessage(message: ServerCallMessage): void {
@@ -101,18 +273,7 @@ export const useCallStore = defineStore("call", () => {
         return;
 
       case "call.accepted":
-        if (activeCall.value) {
-          phase.value = "in_call";
-        } else if (incomingCall.value) {
-          activeCall.value = {
-            callId: message.call_id,
-            peerUserId: incomingCall.value.fromUserId,
-            peerDisplayName: incomingCall.value.fromDisplayName,
-            role: "callee",
-          };
-          incomingCall.value = null;
-          phase.value = "in_call";
-        }
+        void onCallAccepted(message);
         return;
 
       case "call.rejected":
@@ -121,7 +282,9 @@ export const useCallStore = defineStore("call", () => {
         return;
 
       case "call.canceled":
-        setNotice("呼叫已取消");
+        if (phase.value === "incoming" || incomingCall.value) {
+          setNotice("已取消呼叫");
+        }
         resetCallState();
         return;
 
@@ -136,7 +299,10 @@ export const useCallStore = defineStore("call", () => {
         return;
 
       case "call.ended":
-        setNotice(endedMessage(message.reason));
+        if (!suppressEndedNotice) {
+          setNotice(endedMessage(message.reason));
+        }
+        suppressEndedNotice = false;
         resetCallState();
         return;
 
@@ -147,6 +313,18 @@ export const useCallStore = defineStore("call", () => {
 
       case "error":
         setNotice(message.message || message.code);
+        return;
+
+      case "rtc.offer":
+        void handleRtcOffer(message.call_id, message.sdp);
+        return;
+
+      case "rtc.answer":
+        void handleRtcAnswer(message.call_id, message.sdp);
+        return;
+
+      case "rtc.ice":
+        void handleRtcIce(message.call_id, message.candidate);
         return;
 
       default:
@@ -166,7 +344,7 @@ export const useCallStore = defineStore("call", () => {
 
   function endedMessage(reason: string): string {
     if (reason === "hangup") {
-      return "通话已结束";
+      return "对方已挂断";
     }
     if (reason === "peer_disconnected") {
       return "对方已断开连接";
@@ -189,8 +367,19 @@ export const useCallStore = defineStore("call", () => {
   }
 
   function disconnectSignaling(): void {
+    suppressEndedNotice = true;
+    const callId = activeCall.value?.callId;
+    if (callId && phase.value === "in_call") {
+      try {
+        sendMessage({ type: "call.hangup", call_id: callId });
+      } catch {
+        // WS may already be closed during logout
+      }
+    }
     signaling?.disconnect();
     wsConnected.value = false;
+    resetCallState();
+    suppressEndedNotice = false;
   }
 
   function invitePeer(peer: CallPeer): void {
@@ -218,15 +407,56 @@ export const useCallStore = defineStore("call", () => {
     if (callId) {
       sendMessage({ type: "call.cancel", call_id: callId });
     }
+    suppressEndedNotice = true;
     resetCallState();
+    suppressEndedNotice = false;
+  }
+
+  function rejectIncoming(): void {
+    const inc = incomingCall.value;
+    if (!inc) {
+      return;
+    }
+    try {
+      sendMessage({ type: "call.reject", call_id: inc.callId });
+    } catch {
+      // best effort
+    }
+    incomingCall.value = null;
+    phase.value = "idle";
+  }
+
+  async function acceptIncoming(): Promise<void> {
+    const inc = incomingCall.value;
+    if (!inc) {
+      throw new Error("没有待接听的来电");
+    }
+    try {
+      await ensureLocalAudio();
+      sendMessage({ type: "call.accept", call_id: inc.callId });
+    } catch (error) {
+      cleanupMedia();
+      incomingCall.value = null;
+      phase.value = "idle";
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        throw new Error("需要麦克风权限才能接听");
+      }
+      throw error instanceof Error ? error : new Error("接听失败");
+    }
   }
 
   function hangup(): void {
     const callId = activeCall.value?.callId;
     if (callId) {
-      sendMessage({ type: "call.hangup", call_id: callId });
+      try {
+        sendMessage({ type: "call.hangup", call_id: callId });
+      } catch {
+        // ignore if WS gone
+      }
     }
+    suppressEndedNotice = true;
     resetCallState();
+    suppressEndedNotice = false;
   }
 
   return {
@@ -237,14 +467,19 @@ export const useCallStore = defineStore("call", () => {
     incomingCall,
     wsConnected,
     notice,
+    remoteStream,
+    callStartedAt,
     isOutgoing,
     isInCall,
+    hasIncoming,
     clearNotice,
     loadPeers,
     connectSignaling,
     disconnectSignaling,
     invitePeer,
     cancelOutgoing,
+    rejectIncoming,
+    acceptIncoming,
     hangup,
     resetCallState,
   };

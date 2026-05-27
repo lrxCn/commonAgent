@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   NButton,
@@ -10,15 +11,29 @@ import {
   NText,
 } from "naive-ui";
 
+import IncomingCallToast from "@/components/call/IncomingCallToast.vue";
 import ChatDrawer from "@/components/chat/ChatDrawer.vue";
 import ChatFab from "@/components/chat/ChatFab.vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import { useAuthStore } from "@/stores/auth";
+import { useCallStore } from "@/stores/call";
 
 const router = useRouter();
 const auth = useAuthStore();
+const callStore = useCallStore();
+
+onMounted(() => {
+  if (auth.isAuthenticated) {
+    callStore.connectSignaling();
+  }
+});
+
+onUnmounted(() => {
+  callStore.disconnectSignaling();
+});
 
 async function onLogout(): Promise<void> {
+  callStore.disconnectSignaling();
   await auth.logout();
   await router.replace("/login");
 }
@@ -55,6 +70,7 @@ async function onLogout(): Promise<void> {
 
     <chat-fab />
     <chat-drawer />
+    <incoming-call-toast />
   </n-layout>
 </template>
 

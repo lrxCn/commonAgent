@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import * as authApi from "@/api/auth";
+import { useCallStore } from "@/stores/call";
 import { useChatStore } from "@/stores/chat";
 import type { MeResponse } from "@/types";
 
@@ -34,6 +35,7 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       await authApi.logout();
     } finally {
+      useCallStore().disconnectSignaling();
       useChatStore().resetOnLogout();
       user.value = null;
     }
