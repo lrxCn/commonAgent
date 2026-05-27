@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -16,6 +17,11 @@ from settings.config import Settings, get_settings
 
 AsrTrack = Literal["local", "remote"]
 SessionKey = tuple[str, AsrTrack]
+
+# Volcengine SAUC: wait-for-audio timeout; harmless when the browser never sent PCM.
+UPSTREAM_CODE_PACKET_TIMEOUT = 45000081
+
+logger = logging.getLogger(__name__)
 
 
 def parse_asr_ws_json(raw: str) -> dict[str, Any]:
@@ -86,6 +92,7 @@ class AsrTrackSession:
     upstream: VolcAsrClient | None = None
     audio_buffer: bytearray = field(default_factory=bytearray)
     closed: bool = False
+    has_received_pcm: bool = False
 
     @property
     def segment_size(self) -> int:
@@ -122,15 +129,36 @@ class AsrTrackSession:
         self.upstream = self.client_factory(self.settings)
         try:
             await self.upstream.connect()
-            await self.upstream.send_full_request(self.user_id)
-        except Exception:
+            full_response = await self.upstream.send_full_request(self.user_id)
+        except Exception as exc:
+            logger.warning(
+                "upstream connect/full_request failed track=%s error_type=%s message=%s",
+                self.track,
+                type(exc).__name__,
+                exc,
+            )
             await self.send_error(code="upstream_connect_failed", message="连接语音识别服务失败")
+            await self.cleanup()
+            return
+
+        if full_response is not None and full_response.code != 0:
+            logger.warning(
+                "upstream full_request rejected track=%s upstream_code=%s",
+                self.track,
+                full_response.code,
+            )
+            await self.send_error(
+                code="upstream_error",
+                message=f"上游错误 code={full_response.code}",
+            )
             await self.cleanup()
             return
 
     async def append_audio(self, pcm: bytes) -> None:
         if self.closed or self.upstream is None:
             return
+        if pcm:
+            self.has_received_pcm = True
         self.audio_buffer.extend(pcm)
         while len(self.audio_buffer) >= self.segment_size:
             segment = bytes(self.audio_buffer[: self.segment_size])
@@ -141,6 +169,10 @@ class AsrTrackSession:
     async def stop(self) -> None:
         if self.closed or self.upstream is None:
             return
+        if not self.has_received_pcm:
+            await self.cleanup()
+            return
+
         remainder = bytes(self.audio_buffer)
         self.audio_buffer.clear()
         if remainder:
@@ -152,8 +184,21 @@ class AsrTrackSession:
             await self.send_json({"type": "asr.ended", "track": self.track})
         await self.cleanup()
 
+    def _should_suppress_upstream_error(self, code: int) -> bool:
+        # Inactive tracks (asr.start but no browser PCM) hit packet-timeout on hangup;
+        # suppress UI toast — see volc-asr-fix-handoff §2.4 / §7.
+        return code == UPSTREAM_CODE_PACKET_TIMEOUT and not self.has_received_pcm
+
     async def _emit_response(self, response: VolcAsrResponse) -> bool:
         if response.code != 0:
+            if self._should_suppress_upstream_error(response.code):
+                logger.debug(
+                    "suppressed upstream error track=%s upstream_code=%s had_browser_pcm=%s",
+                    self.track,
+                    response.code,
+                    self.has_received_pcm,
+                )
+                return response.is_last_package
             await self.send_error(
                 code="upstream_error",
                 message=f"上游错误 code={response.code}",
@@ -184,7 +229,13 @@ class AsrTrackSession:
                 if wait_last:
                     continue
                 break
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "upstream recv failed track=%s error_type=%s message=%s",
+                    self.track,
+                    type(exc).__name__,
+                    exc,
+                )
                 await self.send_error(code="upstream_recv_failed", message="接收识别结果失败")
                 return True
 

@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：执行任务 **[121](./prompts/121-volc-asr-fix-proxy-lifecycle.md)**（火山 SAUC 修复：asr_proxy 响应与挂断清理）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
+**当前建议下一步**：执行任务 **[122](./prompts/122-volc-asr-fix-front-track-start.md)**（火山 SAUC 修复：Front 分轨延迟 asr.start）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 123 |
-| 已完成 | 120 |
+| 已完成 | 121 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -29,7 +29,7 @@
 
 **火山 SAUC 通话字幕批次（115–118）**：✅ 文档与骨架已落地；联调发现鉴权/协议/Front 时序回归，见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
 
-**火山 SAUC 修复批次（119–123）**：🔄 进行中（**119–120** ✅ → **121** proxy 生命周期 → **122** Front 分轨 start → **123** 文档收口）。
+**火山 SAUC 修复批次（119–123）**：🔄 进行中（**119–121** ✅ → **122** Front 分轨 start → **123** 文档收口）。
 
 
 ---
@@ -161,7 +161,7 @@
 | 118 | [火山 SAUC：README、演示手册与文档收口](./prompts/118-volc-asr-docs-final-alignment.md) | ✅ | 2026-05-27 | README/demo B6/maps/PRD 落地状态；smoke 绿；**联调后见 handoff 回归说明** |
 | 119 | [火山 SAUC 修复：新控制台鉴权与 env 契约](./prompts/119-volc-asr-fix-auth-env.md) | ✅ | 2026-05-27 | `X-Api-Key` + `X-Api-Sequence: -1`；`test_volc_asr_client`；建议 **120** |
 | 120 | [火山 SAUC 修复：PCM 首包与 audio-only ser=0](./prompts/120-volc-asr-fix-protocol-pcm.md) | ✅ | 2026-05-27 | `format: pcm`；audio-only `SERIALIZATION_NONE`；`test_volc_asr_protocol`；建议 **121** |
-| 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ⬜ | — | 依赖 **119–120**；full_request 检查、45000081 过滤 |
+| 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ✅ | 2026-05-27 | full_request `code` 检查；无 PCM 静默 stop；45000081 抑制；`test_asr_ws`；建议 **122** |
 | 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ⬜ | — | 依赖 **121**；local/remote stream 就绪后再 start |
 | 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ⬜ | — | 依赖 **119–122**；修复批次文档与契约最终对齐 |
 
@@ -171,6 +171,7 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-05-27 | 完成任务 121：`asr_proxy` 检查 full_request `code`、记录 upstream 异常类型；`has_received_pcm` 无 PCM 时 stop 跳过上游等待；45000081 不向 UI 抛错；`test_asr_ws` 增补；建议 **122** |
 | 2026-05-19 | 初始化进度文档与 23 项任务卡 |
 | 2026-05-19 | 文档：任务 01 固化 .env 契约（SiliconFlow LLM/Embedding/Rerank、LangSmith、Qdrant）；同步根 README 环境变量表、任务 02 字段列表 |
 | 2026-05-19 | 完成任务 01：三目录 + uv/deepagents 骨架 + `.env.example` 契约 |

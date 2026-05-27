@@ -23,6 +23,7 @@ from settings.config import Settings, set_settings_override
 
 class FakeVolcAsrClient:
     created: list["FakeVolcAsrClient"] = []
+    full_request_code: int | None = None
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -34,12 +35,15 @@ class FakeVolcAsrClient:
     @classmethod
     def reset(cls) -> None:
         cls.created.clear()
+        cls.full_request_code = None
 
     async def connect(self) -> None:
         return None
 
     async def send_full_request(self, user_id: str) -> VolcAsrResponse | None:
         self.user_id = user_id
+        if FakeVolcAsrClient.full_request_code is not None:
+            return VolcAsrResponse(code=FakeVolcAsrClient.full_request_code)
         return None
 
     async def send_audio(self, pcm: bytes, *, is_last: bool = False) -> None:
@@ -174,6 +178,62 @@ def test_asr_ws_start_audio_stop_flow(asr_client: TestClient) -> None:
     assert upstream.user_id == "u-alice"
     assert upstream.audio_chunks
     assert upstream.audio_chunks[-1][1] is True
+
+
+def test_asr_ws_full_request_upstream_error(asr_client: TestClient) -> None:
+    _login(asr_client, "alice", "demo123")
+    FakeVolcAsrClient.full_request_code = 40000001
+
+    with asr_client.websocket_connect("/api/asr/ws") as ws:
+        ws.receive_json()
+        _send_json(
+            ws,
+            {"type": "asr.start", "scene": "call", "track": "local", "call_id": "call-1"},
+        )
+        err = ws.receive_json()
+        assert err == {
+            "type": "asr.error",
+            "code": "upstream_error",
+            "message": "上游错误 code=40000001",
+        }
+
+    assert len(FakeVolcAsrClient.created) == 1
+    assert FakeVolcAsrClient.created[0].audio_chunks == []
+
+
+def test_asr_ws_stop_without_pcm_skips_upstream(asr_client: TestClient) -> None:
+    _login(asr_client, "alice", "demo123")
+
+    with asr_client.websocket_connect("/api/asr/ws") as ws:
+        ws.receive_json()
+        _send_json(
+            ws,
+            {"type": "asr.start", "scene": "call", "track": "local", "call_id": "call-1"},
+        )
+        _send_json(ws, {"type": "asr.stop", "track": "local"})
+
+    assert len(FakeVolcAsrClient.created) == 1
+    assert FakeVolcAsrClient.created[0].audio_chunks == []
+
+
+def test_suppresses_packet_timeout_without_browser_pcm() -> None:
+    from unittest.mock import MagicMock
+
+    from services.asr_proxy import (
+        UPSTREAM_CODE_PACKET_TIMEOUT,
+        AsrTrackSession,
+    )
+
+    session = AsrTrackSession(
+        user_id="u-alice",
+        track="local",
+        websocket=MagicMock(),
+        settings=_make_settings("sqlite:///:memory:"),
+    )
+    assert session._should_suppress_upstream_error(UPSTREAM_CODE_PACKET_TIMEOUT) is True
+    session.has_received_pcm = True
+    assert session._should_suppress_upstream_error(UPSTREAM_CODE_PACKET_TIMEOUT) is False
+    assert session._should_suppress_upstream_error(45000151) is False
 
 
 def test_asr_ws_credentials_missing(tmp_path: Path) -> None:
