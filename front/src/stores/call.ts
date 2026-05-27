@@ -31,11 +31,11 @@ export const useCallStore = defineStore("call", () => {
   const pendingInvitePeer = ref<CallPeer | null>(null);
   const notice = ref<string | null>(null);
   const remoteStream = ref<MediaStream | null>(null);
+  const localStream = ref<MediaStream | null>(null);
   const callStartedAt = ref<number | null>(null);
 
   let signaling: CallSignalingConnection | null = null;
   let peerConnection: RTCPeerConnection | null = null;
-  let localStream: MediaStream | null = null;
   const pendingIceCandidates: RTCIceCandidateInit[] = [];
   let suppressEndedNotice = false;
 
@@ -99,11 +99,11 @@ export const useCallStore = defineStore("call", () => {
       peerConnection.close();
       peerConnection = null;
     }
-    if (localStream) {
-      for (const track of localStream.getTracks()) {
+    if (localStream.value) {
+      for (const track of localStream.value.getTracks()) {
         track.stop();
       }
-      localStream = null;
+      localStream.value = null;
     }
     remoteStream.value = null;
     pendingIceCandidates.length = 0;
@@ -149,11 +149,12 @@ export const useCallStore = defineStore("call", () => {
   }
 
   async function ensureLocalAudio(): Promise<MediaStream> {
-    if (localStream) {
-      return localStream;
+    if (localStream.value) {
+      return localStream.value;
     }
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    return localStream;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStream.value = stream;
+    return stream;
   }
 
   function ensurePeerConnection(callId: string): RTCPeerConnection {
@@ -180,11 +181,12 @@ export const useCallStore = defineStore("call", () => {
   }
 
   function addLocalTracks(pc: RTCPeerConnection): void {
-    if (!localStream) {
+    const stream = localStream.value;
+    if (!stream) {
       return;
     }
-    for (const track of localStream.getTracks()) {
-      pc.addTrack(track, localStream);
+    for (const track of stream.getTracks()) {
+      pc.addTrack(track, stream);
     }
   }
 
@@ -505,7 +507,7 @@ export const useCallStore = defineStore("call", () => {
   }
 
   function getLocalStream(): MediaStream | null {
-    return localStream;
+    return localStream.value;
   }
 
   function hangup(): void {
@@ -533,6 +535,7 @@ export const useCallStore = defineStore("call", () => {
     isPeerOnline,
     notice,
     remoteStream,
+    localStream,
     callStartedAt,
     isOutgoing,
     isInCall,

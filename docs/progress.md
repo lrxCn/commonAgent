@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：执行任务 **[122](./prompts/122-volc-asr-fix-front-track-start.md)**（火山 SAUC 修复：Front 分轨延迟 asr.start）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
+**当前建议下一步**：执行任务 **[123](./prompts/123-volc-asr-fix-docs-final.md)**（火山 SAUC 修复：README、PRD 与 progress 收口）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 123 |
-| 已完成 | 121 |
+| 已完成 | 122 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -29,7 +29,7 @@
 
 **火山 SAUC 通话字幕批次（115–118）**：✅ 文档与骨架已落地；联调发现鉴权/协议/Front 时序回归，见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
 
-**火山 SAUC 修复批次（119–123）**：🔄 进行中（**119–121** ✅ → **122** Front 分轨 start → **123** 文档收口）。
+**火山 SAUC 修复批次（119–123）**：🔄 进行中（**119–122** ✅ → **123** 文档收口）。
 
 
 ---
@@ -162,7 +162,7 @@
 | 119 | [火山 SAUC 修复：新控制台鉴权与 env 契约](./prompts/119-volc-asr-fix-auth-env.md) | ✅ | 2026-05-27 | `X-Api-Key` + `X-Api-Sequence: -1`；`test_volc_asr_client`；建议 **120** |
 | 120 | [火山 SAUC 修复：PCM 首包与 audio-only ser=0](./prompts/120-volc-asr-fix-protocol-pcm.md) | ✅ | 2026-05-27 | `format: pcm`；audio-only `SERIALIZATION_NONE`；`test_volc_asr_protocol`；建议 **121** |
 | 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ✅ | 2026-05-27 | full_request `code` 检查；无 PCM 静默 stop；45000081 抑制；`test_asr_ws`；建议 **122** |
-| 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ⬜ | — | 依赖 **121**；local/remote stream 就绪后再 start |
+| 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ✅ | 2026-05-27 | `localStream` ref + 分轨 watch；stream 就绪后 idempotent `asr.start`；`stopAll` 仅停已 start 轨；front build 绿；建议 **123** |
 | 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ⬜ | — | 依赖 **119–122**；修复批次文档与契约最终对齐 |
 
 ---
@@ -299,6 +299,7 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
+| 2026-05-27 | 完成任务 122：Front `localStream` ref + 分轨 watch；MediaStream 就绪后再 `asr.start`/采集；`stopAll` 仅对已 start 轨发送 stop；front build 绿；建议 **123** |
 | 2026-05-27 | 完成任务 120：`build_full_client_payload` `format: pcm`；`build_audio_only_request` `SERIALIZATION_NONE`（ser=0）；`describe_frame_header` + `test_volc_asr_protocol`；建议 **121** |
 | 2026-05-27 | 完成任务 119：Back `VolcAsrClient` 新控制台鉴权（`X-Api-Key`/`X-Api-Sequence: -1`）；`VOLC_ASR_*` env 契约与默认 `volc.seedasr.sauc.duration`；`test_volc_asr_client`；建议 **120** |
 | 2026-05-27 | 规划：基于 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md) 拆分修复任务 **119–123**（鉴权 → 协议 → proxy → Front 时序 → 文档）；总任务数 123；115–118 标注联调回归；建议下一步 **119** |

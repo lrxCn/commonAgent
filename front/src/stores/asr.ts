@@ -45,8 +45,9 @@ export const useAsrStore = defineStore("asr", () => {
   let callBindingStop: WatchStopHandle | null = null;
   let localCapture: AsrCaptureHandle | null = null;
   let remoteCapture: AsrCaptureHandle | null = null;
-  let remoteStreamStop: WatchStopHandle | null = null;
+  let streamWatchStop: WatchStopHandle | null = null;
   let seq = 0;
+  const startedTracks = new Set<AsrTrack>();
 
   let sessionCallId = "";
   let sessionLocalLabel = "";
@@ -186,8 +187,57 @@ export const useAsrStore = defineStore("asr", () => {
     localCapture = null;
     remoteCapture?.stop();
     remoteCapture = null;
-    remoteStreamStop?.();
-    remoteStreamStop = null;
+  }
+
+  function stopStreamWatch(): void {
+    streamWatchStop?.();
+    streamWatchStop = null;
+  }
+
+  function maybeStartTrack(track: AsrTrack, stream: MediaStream): void {
+    if (
+      !active.value ||
+      !sessionCallId ||
+      startedTracks.has(track) ||
+      !socket ||
+      socket.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    sendJson({
+      type: "asr.start",
+      scene: "call",
+      track,
+      call_id: sessionCallId,
+    });
+    startedTracks.add(track);
+
+    if (track === "local") {
+      startLocalCapture(stream);
+    } else {
+      startRemoteCapture(stream);
+    }
+  }
+
+  function watchTrackStreams(): void {
+    stopStreamWatch();
+    const callStore = useCallStore();
+    streamWatchStop = watch(
+      () => [callStore.localStream, callStore.remoteStream] as const,
+      ([local, remote]) => {
+        if (!active.value) {
+          return;
+        }
+        if (local) {
+          maybeStartTrack("local", local);
+        }
+        if (remote) {
+          maybeStartTrack("remote", remote);
+        }
+      },
+      { immediate: true },
+    );
   }
 
   function startLocalCapture(stream: MediaStream): void {
@@ -198,21 +248,6 @@ export const useAsrStore = defineStore("asr", () => {
   function startRemoteCapture(stream: MediaStream): void {
     remoteCapture?.stop();
     remoteCapture = startAsrCapture(stream, "remote", sendAudio);
-  }
-
-  function watchRemoteStream(): void {
-    remoteStreamStop?.();
-    const callStore = useCallStore();
-    remoteStreamStop = watch(
-      () => callStore.remoteStream,
-      (stream) => {
-        if (!active.value || !stream) {
-          return;
-        }
-        startRemoteCapture(stream);
-      },
-      { immediate: true },
-    );
   }
 
   function dumpTranscriptToConsole(): void {
@@ -246,7 +281,7 @@ export const useAsrStore = defineStore("asr", () => {
 
   async function stopAll(options: { dump?: boolean } = {}): Promise<void> {
     const shouldDump = options.dump ?? true;
-    if (!active.value && !localCapture && !remoteCapture) {
+    if (!active.value && startedTracks.size === 0 && !localCapture && !remoteCapture) {
       if (shouldDump) {
         dumpTranscriptToConsole();
       }
@@ -254,10 +289,13 @@ export const useAsrStore = defineStore("asr", () => {
     }
 
     active.value = false;
+    stopStreamWatch();
     stopCaptures();
 
-    sendJson({ type: "asr.stop", track: "local" });
-    sendJson({ type: "asr.stop", track: "remote" });
+    for (const track of startedTracks) {
+      sendJson({ type: "asr.stop", track });
+    }
+    startedTracks.clear();
 
     if (shouldDump) {
       dumpTranscriptToConsole();
@@ -275,6 +313,8 @@ export const useAsrStore = defineStore("asr", () => {
   ): void {
     const callStore = useCallStore();
     resetTranscriptState();
+    startedTracks.clear();
+    stopStreamWatch();
     active.value = true;
     sessionCallId = callId;
     sessionLocalLabel = labels.localLabel;
@@ -283,29 +323,14 @@ export const useAsrStore = defineStore("asr", () => {
 
     openSocket();
 
-    const startTracks = (): void => {
-      sendJson({
-        type: "asr.start",
-        scene: "call",
-        track: "local",
-        call_id: callId,
-      });
-      sendJson({
-        type: "asr.start",
-        scene: "call",
-        track: "remote",
-        call_id: callId,
-      });
-
-      const localStream = callStore.getLocalStream();
-      if (localStream) {
-        startLocalCapture(localStream);
+    const beginTrackWatch = (): void => {
+      if (active.value) {
+        watchTrackStreams();
       }
-      watchRemoteStream();
     };
 
     if (socket?.readyState === WebSocket.OPEN) {
-      startTracks();
+      beginTrackWatch();
       return;
     }
 
@@ -320,12 +345,10 @@ export const useAsrStore = defineStore("asr", () => {
 
     const onOpen = (): void => {
       target.removeEventListener("open", onOpen);
-      if (active.value) {
-        startTracks();
-      }
+      beginTrackWatch();
     };
     if (target.readyState === WebSocket.OPEN) {
-      startTracks();
+      beginTrackWatch();
     } else {
       target.addEventListener("open", onOpen);
     }
@@ -370,6 +393,7 @@ export const useAsrStore = defineStore("asr", () => {
     callBindingStop?.();
     callBindingStop = null;
     void stopAll({ dump: false });
+    stopStreamWatch();
     stopCaptures();
     disconnect();
   }
