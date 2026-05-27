@@ -6,6 +6,7 @@ import HomeView from "@/views/HomeView.vue";
 import LoginView from "@/views/LoginView.vue";
 import KbDocumentsView from "@/views/admin/KbDocumentsView.vue";
 import RolesView from "@/views/admin/RolesView.vue";
+import CallsView from "@/views/CallsView.vue";
 import StudentsView from "@/views/StudentsView.vue";
 import UsersView from "@/views/admin/UsersView.vue";
 
@@ -45,6 +46,12 @@ const router = createRouter({
           path: "students",
           name: "app-students",
           component: StudentsView,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "calls",
+          name: "app-calls",
+          component: CallsView,
           meta: { requiresAuth: true },
         },
         {
