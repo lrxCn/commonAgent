@@ -5,6 +5,8 @@ export interface CallPeer {
   user_id: string;
   username: string;
   display_name: string;
+  /** Whether the peer has an active signaling WebSocket (from REST or presence events). */
+  online?: boolean;
 }
 
 export interface ActiveCall {
@@ -38,6 +40,9 @@ export type ClientCallMessage =
 /** Server → client WebSocket payloads (subset used in task 112). */
 export type ServerCallMessage =
   | { type: "connected"; user_id: string }
+  | { type: "presence.snapshot"; online_user_ids: string[] }
+  | { type: "presence.online"; user_id: string }
+  | { type: "presence.offline"; user_id: string }
   | { type: "call.ringing"; call_id: string; to_user_id: string }
   | {
       type: "call.incoming";

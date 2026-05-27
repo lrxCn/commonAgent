@@ -27,6 +27,7 @@ export const useCallStore = defineStore("call", () => {
   const activeCall = ref<ActiveCall | null>(null);
   const incomingCall = ref<IncomingCall | null>(null);
   const wsConnected = ref(false);
+  const onlineUserIds = ref<Set<string>>(new Set());
   const pendingInvitePeer = ref<CallPeer | null>(null);
   const notice = ref<string | null>(null);
   const remoteStream = ref<MediaStream | null>(null);
@@ -46,6 +47,45 @@ export const useCallStore = defineStore("call", () => {
 
   function clearNotice(): void {
     notice.value = null;
+  }
+
+  function sortPeersForDisplay(list: CallPeer[]): CallPeer[] {
+    return [...list].sort((a, b) => {
+      const aOnline = onlineUserIds.value.has(a.user_id);
+      const bOnline = onlineUserIds.value.has(b.user_id);
+      if (aOnline !== bOnline) {
+        return aOnline ? -1 : 1;
+      }
+      return a.username.localeCompare(b.username);
+    });
+  }
+
+  function syncPeersOnlineFlags(): void {
+    const updated = peers.value.map((peer) => ({
+      ...peer,
+      online: onlineUserIds.value.has(peer.user_id),
+    }));
+    peers.value = sortPeersForDisplay(updated);
+  }
+
+  function applyOnlineSnapshot(userIds: string[]): void {
+    onlineUserIds.value = new Set(userIds);
+    syncPeersOnlineFlags();
+  }
+
+  function setPeerOnline(userId: string, online: boolean): void {
+    const next = new Set(onlineUserIds.value);
+    if (online) {
+      next.add(userId);
+    } else {
+      next.delete(userId);
+    }
+    onlineUserIds.value = next;
+    syncPeersOnlineFlags();
+  }
+
+  function isPeerOnline(userId: string): boolean {
+    return onlineUserIds.value.has(userId);
   }
 
   function setNotice(text: string): void {
@@ -249,6 +289,18 @@ export const useCallStore = defineStore("call", () => {
       case "connected":
         return;
 
+      case "presence.snapshot":
+        applyOnlineSnapshot(message.online_user_ids);
+        return;
+
+      case "presence.online":
+        setPeerOnline(message.user_id, true);
+        return;
+
+      case "presence.offline":
+        setPeerOnline(message.user_id, false);
+        return;
+
       case "call.ringing": {
         const peer = pendingInvitePeer.value;
         activeCall.value = {
@@ -357,6 +409,9 @@ export const useCallStore = defineStore("call", () => {
     try {
       const data = await fetchPeers();
       peers.value = data.items;
+      applyOnlineSnapshot(
+        data.items.filter((p) => p.online).map((p) => p.user_id),
+      );
     } finally {
       peersLoading.value = false;
     }
@@ -378,6 +433,7 @@ export const useCallStore = defineStore("call", () => {
     }
     signaling?.disconnect();
     wsConnected.value = false;
+    onlineUserIds.value = new Set();
     resetCallState();
     suppressEndedNotice = false;
   }
@@ -385,6 +441,9 @@ export const useCallStore = defineStore("call", () => {
   function invitePeer(peer: CallPeer): void {
     if (phase.value !== "idle") {
       throw new Error("当前有进行中的呼叫");
+    }
+    if (!isPeerOnline(peer.user_id)) {
+      throw new Error("对方当前不在线");
     }
     pendingInvitePeer.value = peer;
     phase.value = "outgoing";
@@ -466,6 +525,8 @@ export const useCallStore = defineStore("call", () => {
     activeCall,
     incomingCall,
     wsConnected,
+    onlineUserIds,
+    isPeerOnline,
     notice,
     remoteStream,
     callStartedAt,

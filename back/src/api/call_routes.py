@@ -22,6 +22,7 @@ class CallPeerItem(BaseModel):
     user_id: str
     username: str
     display_name: str
+    online: bool = False
 
 
 class CallPeersResponse(BaseModel):
@@ -61,8 +62,9 @@ async def call_signaling_ws(
         return
 
     await websocket.accept()
-    await call_signaling_hub.register(user_id, websocket)
     await websocket.send_json({"type": "connected", "user_id": user_id})
+    await call_signaling_hub.register(user_id, websocket)
+    await call_signaling_hub.send_presence_snapshot(user_id)
 
     try:
         while True:

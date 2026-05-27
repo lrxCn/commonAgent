@@ -76,6 +76,14 @@ class CallSignalingHub:
     ) -> None:
         await self._send(user_id, {"type": "error", "code": code, "message": message})
 
+    async def _broadcast_presence(self, subject_id: str, *, online: bool) -> None:
+        msg_type = "presence.online" if online else "presence.offline"
+        payload = {"type": msg_type, "user_id": subject_id}
+        for uid in list(self._connections):
+            if uid == subject_id:
+                continue
+            await self._send(uid, payload)
+
     async def register(self, user_id: str, websocket: WebSocket) -> None:
         old = self._connections.get(user_id)
         if old is not None and old is not websocket:
@@ -88,11 +96,20 @@ class CallSignalingHub:
             except Exception:
                 pass
         self._connections[user_id] = websocket
+        await self._broadcast_presence(user_id, online=True)
+
+    async def send_presence_snapshot(self, user_id: str) -> None:
+        online_ids = [uid for uid in self._connections if uid != user_id]
+        await self._send(
+            user_id,
+            {"type": "presence.snapshot", "online_user_ids": online_ids},
+        )
 
     async def unregister(self, user_id: str, websocket: WebSocket) -> None:
         if self._connections.get(user_id) is not websocket:
             return
         del self._connections[user_id]
+        await self._broadcast_presence(user_id, online=False)
         ended_calls: list[str] = []
         for call_id, call in list(self._calls.items()):
             if call.state == "ended":
@@ -378,7 +395,7 @@ class CallSignalingHub:
         )
 
 
-def list_call_peers(db: Session, current_user_id: str) -> list[dict[str, str]]:
+def list_call_peers(db: Session, current_user_id: str) -> list[dict[str, str | bool]]:
     users = db.scalars(
         select(User)
         .where(User.user_id != current_user_id)
@@ -389,6 +406,7 @@ def list_call_peers(db: Session, current_user_id: str) -> list[dict[str, str]]:
             "user_id": user.user_id,
             "username": user.username,
             "display_name": user.display_name,
+            "online": call_signaling_hub.is_online(user.user_id),
         }
         for user in users
     ]

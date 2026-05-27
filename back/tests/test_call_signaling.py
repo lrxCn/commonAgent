@@ -80,6 +80,45 @@ def test_peers_excludes_current_user(call_client: TestClient) -> None:
     assert "u-admin" in user_ids
     usernames = [item["username"] for item in items]
     assert usernames == sorted(usernames)
+    assert all(item["online"] is False for item in items)
+
+
+def _ws_connect_handshake(ws, user_id: str) -> None:
+    assert ws.receive_json() == {"type": "connected", "user_id": user_id}
+    snapshot = ws.receive_json()
+    assert snapshot["type"] == "presence.snapshot"
+    assert isinstance(snapshot["online_user_ids"], list)
+
+
+def test_peers_reflects_online_ws(call_client: TestClient) -> None:
+    _login(call_client, "alice", "demo123")
+    bob_client = TestClient(call_client.app)
+    _login(bob_client, "bob", "demo123")
+
+    with bob_client.websocket_connect("/api/calls/ws") as bob_ws:
+        _ws_connect_handshake(bob_ws, "u-bob")
+
+        response = call_client.get("/api/calls/peers")
+        bob_item = next(i for i in response.json()["items"] if i["user_id"] == "u-bob")
+        assert bob_item["online"] is True
+
+
+def test_presence_online_offline_broadcast(call_client: TestClient) -> None:
+    alice_client = TestClient(call_client.app)
+    bob_client = TestClient(call_client.app)
+    _login(alice_client, "alice", "demo123")
+    _login(bob_client, "bob", "demo123")
+
+    with alice_client.websocket_connect("/api/calls/ws") as alice_ws:
+        _ws_connect_handshake(alice_ws, "u-alice")
+
+        with bob_client.websocket_connect("/api/calls/ws") as bob_ws:
+            _ws_connect_handshake(bob_ws, "u-bob")
+            online = alice_ws.receive_json()
+            assert online == {"type": "presence.online", "user_id": "u-bob"}
+
+        offline = alice_ws.receive_json()
+        assert offline == {"type": "presence.offline", "user_id": "u-bob"}
 
 
 def test_ws_requires_login(call_client: TestClient) -> None:
@@ -94,6 +133,9 @@ def test_ws_connected_after_login(call_client: TestClient) -> None:
     with call_client.websocket_connect("/api/calls/ws") as ws:
         msg = ws.receive_json()
         assert msg == {"type": "connected", "user_id": "u-alice"}
+        snapshot = ws.receive_json()
+        assert snapshot["type"] == "presence.snapshot"
+        assert snapshot["online_user_ids"] == []
 
 
 def test_invite_incoming_reject(call_client: TestClient) -> None:
@@ -103,9 +145,13 @@ def test_invite_incoming_reject(call_client: TestClient) -> None:
     _login(bob, "bob", "demo123")
 
     with alice.websocket_connect("/api/calls/ws") as alice_ws:
-        assert alice_ws.receive_json()["type"] == "connected"
+        _ws_connect_handshake(alice_ws, "u-alice")
         with bob.websocket_connect("/api/calls/ws") as bob_ws:
-            assert bob_ws.receive_json()["type"] == "connected"
+            _ws_connect_handshake(bob_ws, "u-bob")
+            assert alice_ws.receive_json() == {
+                "type": "presence.online",
+                "user_id": "u-bob",
+            }
 
             _send_json(alice_ws, {"type": "call.invite", "to_user_id": "u-bob"})
             ringing = alice_ws.receive_json()
@@ -132,9 +178,10 @@ def test_invite_accept_rtc_forward(call_client: TestClient) -> None:
     _login(bob, "bob", "demo123")
 
     with alice.websocket_connect("/api/calls/ws") as alice_ws:
-        alice_ws.receive_json()
+        _ws_connect_handshake(alice_ws, "u-alice")
         with bob.websocket_connect("/api/calls/ws") as bob_ws:
-            bob_ws.receive_json()
+            _ws_connect_handshake(bob_ws, "u-bob")
+            assert alice_ws.receive_json()["type"] == "presence.online"
 
             _send_json(alice_ws, {"type": "call.invite", "to_user_id": "u-bob"})
             call_id = alice_ws.receive_json()["call_id"]
@@ -187,7 +234,7 @@ def test_invite_callee_offline(call_client: TestClient) -> None:
     _login(alice, "alice", "demo123")
 
     with alice.websocket_connect("/api/calls/ws") as alice_ws:
-        alice_ws.receive_json()
+        _ws_connect_handshake(alice_ws, "u-alice")
         _send_json(alice_ws, {"type": "call.invite", "to_user_id": "u-bob"})
         failed = alice_ws.receive_json()
         assert failed["type"] == "call.failed"
@@ -204,9 +251,10 @@ def test_invite_busy_when_callee_in_call(call_client: TestClient) -> None:
     _login(charlie, "admin", "123456")
 
     with alice.websocket_connect("/api/calls/ws") as alice_ws:
-        alice_ws.receive_json()
+        _ws_connect_handshake(alice_ws, "u-alice")
         with bob.websocket_connect("/api/calls/ws") as bob_ws:
-            bob_ws.receive_json()
+            _ws_connect_handshake(bob_ws, "u-bob")
+            assert alice_ws.receive_json()["type"] == "presence.online"
 
             _send_json(alice_ws, {"type": "call.invite", "to_user_id": "u-bob"})
             call_id = alice_ws.receive_json()["call_id"]
@@ -216,7 +264,9 @@ def test_invite_busy_when_callee_in_call(call_client: TestClient) -> None:
             bob_ws.receive_json()
 
             with charlie.websocket_connect("/api/calls/ws") as charlie_ws:
-                charlie_ws.receive_json()
+                _ws_connect_handshake(charlie_ws, "u-admin")
+                assert alice_ws.receive_json()["type"] == "presence.online"
+                assert bob_ws.receive_json()["type"] == "presence.online"
                 _send_json(charlie_ws, {"type": "call.invite", "to_user_id": "u-bob"})
                 busy = charlie_ws.receive_json()
                 assert busy == {"type": "call.busy", "call_id": busy["call_id"]}
@@ -225,7 +275,7 @@ def test_invite_busy_when_callee_in_call(call_client: TestClient) -> None:
 def test_invalid_json_returns_error(call_client: TestClient) -> None:
     _login(call_client, "alice", "demo123")
     with call_client.websocket_connect("/api/calls/ws") as ws:
-        ws.receive_json()
+        _ws_connect_handshake(ws, "u-alice")
         ws.send_text("not-json")
         error = ws.receive_json()
         assert error["type"] == "error"
@@ -235,8 +285,8 @@ def test_invalid_json_returns_error(call_client: TestClient) -> None:
 def test_session_replaced_on_duplicate_connection(call_client: TestClient) -> None:
     _login(call_client, "alice", "demo123")
     with call_client.websocket_connect("/api/calls/ws") as first_ws:
-        first_ws.receive_json()
+        _ws_connect_handshake(first_ws, "u-alice")
         with call_client.websocket_connect("/api/calls/ws") as second_ws:
-            second_ws.receive_json()
+            _ws_connect_handshake(second_ws, "u-alice")
             replaced = first_ws.receive_json()
             assert replaced == {"type": "session.replaced"}

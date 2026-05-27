@@ -109,6 +109,14 @@ function peerDisplayName(peer: CallPeer): string {
   return peer.display_name?.trim() || peer.username;
 }
 
+function canCallPeer(peer: CallPeer): boolean {
+  return (
+    phase.value === "idle" &&
+    wsConnected.value &&
+    callStore.isPeerOnline(peer.user_id)
+  );
+}
+
 const columns = computed<DataTableColumns<CallPeer>>(() => [
   {
     title: "显示名",
@@ -116,6 +124,24 @@ const columns = computed<DataTableColumns<CallPeer>>(() => [
     render: (row) => peerDisplayName(row),
   },
   { title: "用户名", key: "username", width: 140 },
+  {
+    title: "状态",
+    key: "online",
+    width: 88,
+    render: (row) =>
+      h(
+        NTag,
+        {
+          size: "small",
+          round: true,
+          type: callStore.isPeerOnline(row.user_id) ? "success" : "default",
+        },
+        {
+          default: () =>
+            callStore.isPeerOnline(row.user_id) ? "在线" : "离线",
+        },
+      ),
+  },
   {
     title: "操作",
     key: "actions",
@@ -126,7 +152,7 @@ const columns = computed<DataTableColumns<CallPeer>>(() => [
         {
           size: "small",
           type: "primary",
-          disabled: phase.value !== "idle" || !wsConnected.value,
+          disabled: !canCallPeer(row),
           onClick: () => onInvite(row),
         },
         { default: () => "呼叫" },
