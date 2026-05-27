@@ -212,11 +212,20 @@ export type JumpPagePrompt = {
   statusDetail?: string;
 };
 
+export type CreateStudentFormStatus =
+  | "editable"
+  | "submitting"
+  | "success"
+  | "error"
+  | "cancelled"
+  | "historical";
+
 /** createStudent inline form message (in-chat). */
 export type CreateStudentFormMessage = {
   prefill: Partial<StudentCreateRequest>;
-  status: "editable" | "submitting" | "success" | "error" | "historical";
+  status: CreateStudentFormStatus;
   errorDetail?: string;
+  fieldErrors?: Record<string, string>;
   createdStudent?: Student;
 };
 

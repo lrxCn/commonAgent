@@ -1,8 +1,10 @@
+import axios from "axios";
 import { defineStore } from "pinia";
 import { createDiscreteApi } from "naive-ui";
 import { ref, watch } from "vue";
 
 import * as chatApi from "@/api/chat";
+import * as studentsApi from "@/api/students";
 import { validateCreateStudentAction } from "@/client-actions/create-student";
 import { validateListStudentsAction } from "@/client-actions/list-students";
 import {
@@ -13,13 +15,16 @@ import {
 } from "@/client-actions/page-registry";
 import { useAuthStore } from "@/stores/auth";
 import type {
+  ApiErrorBody,
   ChatDisplayMessage,
   ClientAction,
+  CreateStudentFormStatus,
   HistoryMessageItem,
   JumpPageArgs,
   JumpPagePrompt,
   JumpPagePromptStatus,
   PageSlug,
+  StudentCreateRequest,
 } from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
@@ -106,6 +111,44 @@ function buildJumpPagePromptMessage(
   };
 }
 
+function buildCreateStudentFormMessage(
+  action: ClientAction,
+  initialStatus: CreateStudentFormStatus,
+  prefillOverride?: Partial<StudentCreateRequest>,
+): ChatDisplayMessage | null {
+  const validation = validateCreateStudentAction(action);
+  if (!validation.ok) {
+    return null;
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    role: "ai",
+    content: "",
+    createStudentForm: {
+      prefill: prefillOverride ?? validation.args,
+      status: initialStatus,
+    },
+  };
+}
+
+function extractApiFieldErrors(error: unknown): {
+  message: string;
+  fieldErrors: Record<string, string>;
+} {
+  if (axios.isAxiosError(error) && error.response?.data) {
+    const body = error.response.data as ApiErrorBody;
+    return {
+      message: body.message || "创建学生失败",
+      fieldErrors: body.field_errors ?? {},
+    };
+  }
+  if (error instanceof Error) {
+    return { message: error.message, fieldErrors: {} };
+  }
+  return { message: "创建学生失败", fieldErrors: {} };
+}
+
 function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
   if (item.role === "tool" || item.role === "other") {
     return [];
@@ -125,8 +168,16 @@ function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
     for (const action of item.client_actions) {
       if (action.tool === "jumpPage") {
         items.push(buildJumpPagePromptMessage(action, "historical"));
+        continue;
       }
-      // createStudent / listStudents historical cards: task 110
+      if (action.tool === "createStudent") {
+        const formMessage = buildCreateStudentFormMessage(action, "historical");
+        if (formMessage) {
+          items.push(formMessage);
+        }
+        continue;
+      }
+      // listStudents historical cards: task 109/110
     }
   }
 
@@ -172,25 +223,7 @@ async function navigateJumpPage(action: ClientAction): Promise<boolean> {
   }
 }
 
-function logPendingStudentAction(tool: "createStudent" | "listStudents", action: ClientAction): void {
-  if (tool === "createStudent") {
-    const validation = validateCreateStudentAction(action);
-    if (!validation.ok) {
-      message.warning(validation.detail);
-      if (import.meta.env.DEV) {
-        console.warn("[client_actions] createStudent validation failed", validation.detail, action);
-      }
-      return;
-    }
-    if (import.meta.env.DEV) {
-      console.info("[client_actions] createStudent received (UI wired in 108)", {
-        action,
-        prefill: validation.args,
-      });
-    }
-    return;
-  }
-
+function logPendingListStudentsAction(action: ClientAction): void {
   const validation = validateListStudentsAction(action);
   if (!validation.ok) {
     message.warning(validation.detail);
@@ -246,6 +279,81 @@ export const useChatStore = defineStore("chat", () => {
     abortStreaming();
   }
 
+  function enqueueCreateStudentForm(action: ClientAction): void {
+    const validation = validateCreateStudentAction(action);
+    if (!validation.ok) {
+      message.warning(validation.detail);
+      if (import.meta.env.DEV) {
+        console.warn("[client_actions] createStudent validation failed", validation.detail, action);
+      }
+      return;
+    }
+
+    const formMessage = buildCreateStudentFormMessage(action, "editable");
+    if (!formMessage) {
+      return;
+    }
+    messages.value.push(formMessage);
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] createStudent form enqueued", {
+        action,
+        prefill: validation.args,
+      });
+    }
+  }
+
+  async function submitCreateStudentForm(
+    messageId: string,
+    payload: StudentCreateRequest,
+  ): Promise<void> {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const form = entry?.createStudentForm;
+    if (!entry || !form || (form.status !== "editable" && form.status !== "error")) {
+      return;
+    }
+
+    if (!payload.student_no.trim() || !payload.name.trim()) {
+      message.warning("请填写学号和姓名");
+      return;
+    }
+
+    form.status = "submitting";
+    form.errorDetail = undefined;
+    form.fieldErrors = undefined;
+
+    try {
+      const created = await studentsApi.createStudent({
+        student_no: payload.student_no.trim(),
+        name: payload.name.trim(),
+        class_name: payload.class_name?.trim() || null,
+        status: payload.status ?? "active",
+      });
+      form.status = "success";
+      form.createdStudent = created;
+      if (import.meta.env.DEV) {
+        console.info("[client_actions] createStudent succeeded", created);
+      }
+    } catch (err) {
+      const { message: detail, fieldErrors } = extractApiFieldErrors(err);
+      form.status = "error";
+      form.errorDetail = detail;
+      form.fieldErrors = fieldErrors;
+      console.error("[client_actions] createStudent failed", err);
+    }
+  }
+
+  function cancelCreateStudentForm(messageId: string): void {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const form = entry?.createStudentForm;
+    if (!entry || !form || (form.status !== "editable" && form.status !== "error")) {
+      return;
+    }
+    form.status = "cancelled";
+    if (import.meta.env.DEV) {
+      console.log("[client_actions] createStudent cancelled");
+    }
+  }
+
   function enqueueJumpPagePrompt(action: ClientAction): void {
     const promptMessage = buildJumpPagePromptMessage(action, "pending");
     messages.value.push(promptMessage);
@@ -271,8 +379,12 @@ export const useChatStore = defineStore("chat", () => {
         enqueueJumpPagePrompt(record);
         continue;
       }
-      if (record.tool === "createStudent" || record.tool === "listStudents") {
-        logPendingStudentAction(record.tool, record);
+      if (record.tool === "createStudent") {
+        enqueueCreateStudentForm(record);
+        continue;
+      }
+      if (record.tool === "listStudents") {
+        logPendingListStudentsAction(record);
         continue;
       }
 
@@ -595,6 +707,8 @@ export const useChatStore = defineStore("chat", () => {
     sendMessage,
     confirmJumpPage,
     cancelJumpPage,
+    submitCreateStudentForm,
+    cancelCreateStudentForm,
     abortStreaming,
     clearError,
   };
