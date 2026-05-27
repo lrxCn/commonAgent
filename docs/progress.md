@@ -2,17 +2,17 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **Bug 清单**：[buglist.md](./buglist.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md) · **账号 WebRTC 通话 PRD**：[webrtc-account-call.md](./prd/webrtc-account-call.md) · **火山 SAUC 通话字幕 PRD**：[volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **Bug 清单**：[buglist.md](./buglist.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md) · **账号 WebRTC 通话 PRD**：[webrtc-account-call.md](./prd/webrtc-account-call.md) · **火山 SAUC 通话字幕 PRD**：[volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md) · **通话转写持久化 PRD**：[call-transcript-persistence.md](./prd/call-transcript-persistence.md)
 
 ## 总览
 
-**当前建议下一步**：手工回归 [demo-walkthrough B6](./demo-walkthrough.md)（双浏览器通话字幕）；或处理 [buglist](./buglist.md)（BUG-001 / BUG-002）。
+**当前建议下一步**：[124 - Back 表结构与 POST 持久化](./prompts/124-call-transcript-back-persist.md)（通话转写批次 **124–127**）；或手工回归 [demo-walkthrough B6](./demo-walkthrough.md)；或处理 [buglist](./buglist.md)（BUG-001 / BUG-002）。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 123 |
+| 总任务数 | 127 |
 | 已完成 | 123 |
 | 进行中 | — |
 | 阻塞 | 0 |
@@ -30,6 +30,8 @@
 **火山 SAUC 通话字幕批次（115–118）**：✅ 骨架与首版文档；联调曾发现鉴权/协议/Front 时序问题（见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md) 历史记录）。
 
 **火山 SAUC 修复批次（119–123）**：✅ 已完成（新控制台鉴权、pcm/ser=0、proxy 生命周期、分轨延迟 `asr.start`、文档收口）。
+
+**通话转写持久化批次（124–127）**：⬜ 待开始；PRD [call-transcript-persistence.md](./prd/call-transcript-persistence.md)；Back Postgres 原文（不向量）→ Front 挂断 POST → Agent 只读 tool 经 Back internal 查询；建议下一步 **124**。
 
 
 ---
@@ -164,6 +166,10 @@
 | 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ✅ | 2026-05-27 | full_request `code` 检查；无 PCM 静默 stop；45000081 抑制；`test_asr_ws`；建议 **122** |
 | 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ✅ | 2026-05-27 | `localStream` ref + 分轨 watch；stream 就绪后 idempotent `asr.start`；`stopAll` 仅停已 start 轨；front build 绿；建议 **123** |
 | 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ✅ | 2026-05-27 | README env/ASR 边界、PRD 落地 119–123、handoff 归档；smoke 绿；修复批次收口 |
+| 124 | [通话转写：Back 表结构与 POST 持久化](./prompts/124-call-transcript-back-persist.md) | ⬜ 待开始 | — | Alembic `call_transcripts` + `POST /api/calls/{call_id}/transcript`；依赖 **117**；建议下一步 |
+| 125 | [通话转写：Front 挂断上报](./prompts/125-call-transcript-front-upload.md) | ⬜ 待开始 | — | `buildTranscriptPayload` + POST；依赖 **124** |
+| 126 | [通话转写：Back internal 与 Agent 只读 tool](./prompts/126-call-transcript-agent-tools.md) | ⬜ 待开始 | — | `/internal/calls/transcripts` + `list/get` tool（DEEPAGENTS）；依赖 **124**；可与 **125** 并行 |
+| 127 | [通话转写：README、PRD 与演示收口](./prompts/127-call-transcript-docs-final.md) | ⬜ 待开始 | — | 依赖 **124–126**；可选 demo B7 |
 
 ---
 
@@ -300,6 +306,8 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
+| 2026-05-27 | 规划：基于 [call-transcript-persistence PRD](./prd/call-transcript-persistence.md) 拆分任务 **124–127**（Back POST → Front 上报 → internal+Agent tool → 文档收口）；总任务数 127；建议下一步 **124** |
+| 2026-05-27 | 文档：新增 [通话转写持久化 PRD](./prd/call-transcript-persistence.md)（Back Postgres 结构化原文、不向量、挂断 Front POST、Agent tool 按需查） |
 | 2026-05-27 | 完成任务 122：Front `localStream` ref + 分轨 watch；MediaStream 就绪后再 `asr.start`/采集；`stopAll` 仅对已 start 轨发送 stop；front build 绿；建议 **123** |
 | 2026-05-27 | 完成任务 120：`build_full_client_payload` `format: pcm`；`build_audio_only_request` `SERIALIZATION_NONE`（ser=0）；`describe_frame_header` + `test_volc_asr_protocol`；建议 **121** |
 | 2026-05-27 | 完成任务 119：Back `VolcAsrClient` 新控制台鉴权（`X-Api-Key`/`X-Api-Sequence: -1`）；`VOLC_ASR_*` env 契约与默认 `volc.seedasr.sauc.duration`；`test_volc_asr_client`；建议 **120** |
