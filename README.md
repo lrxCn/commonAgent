@@ -8,10 +8,10 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-105 已完成（Agent 核心 01-80 + 演示平台 81-92 + KB 多角色 93-98 + jumpPage 102-105） |
+| 核心任务 | 01-105 已完成；**106-110 规划中**（对话内学生表单/列表，见 [student-in-chat PRD](docs/prd/student-in-chat-client-actions.md)） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
-| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `jumpPage` 工具 catalog 并转发 Agent |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA（dev `5173`，proxy → Back）；全局 ChatDrawer SSE + `client_actions`（`jumpPage` 路由跳转；`createStudent` 打开新建表单并预填） |
+| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage` 已落地；`createStudent` **第一代**确认卡片+跳转 **106-110 将改为对话内表单**） |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -318,29 +318,54 @@ Gateway 负责：
       "tool": "jumpPage",
       "args": { "page": "students" },
       "requires_approval": false
-    },
-    {
-      "tool": "createStudent",
-      "args": { "student_no": "2024004", "name": "张三", "class_name": "高一(1)班" },
-      "requires_approval": true
     }
   ]
 }
 ```
 
+（`createStudent` / `listStudents` 契约见上表「计划契约」；110 完成前代码仍为第一代 createStudent。）
+
 演示平台外部工具（`back/config/tools.demo.json`）：
 
-- **`jumpPage`**：`args.page` 必须是 Back 注入 ToolSpec 中 `parameters.page.enum` 的 **slug**（`home`、`students`、`admin-roles`、`admin-users`、`admin-kb`）；Front [page-registry.ts](front/src/client-actions/page-registry.ts) 映射为 Vue route name 并 `router.push`。
-- **`createStudent`**：可选预填 `student_no`、`name`、`class_name`、`status`（`active`/`inactive`）；Front 确认后跳转学生页、打开新建抽屉并写入表单，**不代用户提交**；见 [create-student.ts](front/src/client-actions/create-student.ts) 与 [student-ui.ts](front/src/stores/student-ui.ts)。
+| 工具 | 当前落地 | 目标（106–110，[PRD](docs/prd/student-in-chat-client-actions.md)） |
+|------|----------|---------------------------------------------------------------------|
+| **jumpPage** | ✅ slug → Vue Router | 不变 |
+| **createStudent** | 第一代：确认卡片 → 跳转学生页抽屉预填 | 第二代：对话内嵌表单，可选预填，用户点确定 POST |
+| **listStudents** | 未实现 | 对话内嵌表格 + 翻页搜索；create 成功后 Front 自动刷新列表 |
 
-未知 slug、无权限或参数无效时 Naive UI toast，不静默跳转。
+**当前已落地**（第一代 createStudent，110 完成后删除）：
+
+- **`jumpPage`**：`args.page` slug → [page-registry.ts](front/src/client-actions/page-registry.ts) → `router.push`。
+- **`createStudent`**：确认卡片 → [student-ui.ts](front/src/stores/student-ui.ts) → [StudentsView](front/src/views/StudentsView.vue) 抽屉预填；**不代提交**。
+
+**计划契约**（110 完成后 README 以本段为准）：
+
+```json
+{
+  "client_actions": [
+    {
+      "tool": "createStudent",
+      "args": { "name": "张三", "student_no": "2025001" },
+      "requires_approval": false
+    },
+    {
+      "tool": "listStudents",
+      "args": { "search": "张", "offset": 0, "limit": 10 },
+      "requires_approval": false
+    }
+  ]
+}
+```
+
+- HTTP 读写由 Front 在 ChatDrawer 内直接调 Back `/api/students`；Agent 不执行、不等待。
+- 侧边栏 [StudentsView](front/src/views/StudentsView.vue) 传统 CRUD **保留**。
 
 边界规则：
 
 - Agent 只产出结构化动作，不执行工具，也不等待结果。
 - Back 注入 `tools[]` 白名单，并把 `requires_approval` 透传给 Front。
 - Agent 的动作路径同时受 intent route、executor router、工具白名单和解析校验约束；未授权、不可构造或 schema 无效时走 tool fallback。
-- Front 负责确认、执行以及本地 UI 后果（`jumpPage` 路由跳转；`createStudent` 专用确认卡片 + 表单预填；其他 `requires_approval=true` 工具可用浏览器 confirm）。
+- Front 负责确认、执行以及本地 UI 后果（`jumpPage` 路由跳转；`createStudent`/`listStudents` 对话内嵌 UI，见 [106–110 任务卡](docs/progress.md)）。
 - 带 `tools[]` 的回合禁用 live token streaming，避免 `client_actions` JSON 被拆成自然语言 token。
 
 ## API
