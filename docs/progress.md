@@ -2,17 +2,17 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **Bug 清单**：[buglist.md](./buglist.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md) · **账号 WebRTC 通话 PRD**：[webrtc-account-call.md](./prd/webrtc-account-call.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **Bug 清单**：[buglist.md](./buglist.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md) · **账号 WebRTC 通话 PRD**：[webrtc-account-call.md](./prd/webrtc-account-call.md) · **火山 SAUC 通话字幕 PRD**：[volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)
 
 ## 总览
 
-**当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) **B5** 做双账号 WebRTC 通话回归；或处理 [buglist.md](./buglist.md) / backlog（如 Playwright 双浏览器 CI）。
+**当前建议下一步**：执行 [115-volc-asr-protocol-client.md](./prompts/115-volc-asr-protocol-client.md)（火山 SAUC Back 协议客户端）；或按 [demo-walkthrough.md](./demo-walkthrough.md) **B5** 做 WebRTC 通话回归。
 
-**已知缺陷**：[buglist.md](./buglist.md)（当前 **1** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失) 刷新后创建成功链式列表消失）。
+**已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 114 |
+| 总任务数 | 118 |
 | 已完成 | 114 |
 | 进行中 | — |
 | 阻塞 | 0 |
@@ -26,6 +26,8 @@
 **对话内学生工具批次（106–110）**：✅ 已完成；PRD [student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)；对话内 createStudent + listStudents + 创建后链式列表 + 文档收口。
 
 **WebRTC 账号通话批次（111–114）**：✅ 已完成；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md) 含落地状态；演示见 [demo-walkthrough.md](./demo-walkthrough.md) **B5**。
+
+**火山 SAUC 通话字幕批次（115–118）**：⬜ 待开始；PRD [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)；**CallsView 实时字幕 + 挂断控制台分角色 transcript**（非 Chat）；建议下一步 **115**。
 
 
 ---
@@ -151,6 +153,10 @@
 | 112 | [WebRTC 通话：Front 信令连接、call store 与通话页](./prompts/112-webrtc-front-calls-page.md) | ✅ | 2026-05-27 | `/app/calls`、call store + WS 重连、主叫 invite/cancel；front build 绿；建议 **113** |
 | 113 | [WebRTC 通话：全局来电弹窗与音频全流程](./prompts/113-webrtc-front-incoming-audio.md) | ✅ | 2026-05-27 | 全局来电 toast、WebRTC 音频、挂断清理；vitest + build 绿；建议 **114** |
 | 114 | [WebRTC 通话：README、演示脚本与地图收口](./prompts/114-webrtc-docs-final-alignment.md) | ✅ | 2026-05-27 | README/maps/demo-walkthrough B5/PRD 落地状态；`test_call_signaling` + front build 绿 |
+| 115 | [火山 SAUC：协议编解码与上游客户端](./prompts/115-volc-asr-protocol-client.md) | ⬜ | — | Back `volc_asr/` + Settings + 单元测试；依赖 82+ |
+| 116 | [火山 SAUC：Back WebSocket 代理与会话](./prompts/116-volc-asr-back-ws-proxy.md) | ⬜ | — | `WS /api/asr/ws`；依赖 **115** |
+| 117 | [火山 SAUC：CallsView 实时字幕与控制台 transcript](./prompts/117-volc-asr-front-mic-ui.md) | ⬜ | — | 双轨 PCM + CallsView UI；依赖 **116** |
+| 118 | [火山 SAUC：README、演示手册与文档收口](./prompts/118-volc-asr-docs-final-alignment.md) | ⬜ | — | demo-walkthrough B6；依赖 **115–117** |
 
 ---
 
@@ -285,7 +291,7 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
-| 2026-05-27 | 完成任务 114：README 通话能力/Front 环境变量；demo-platform 路由+信令图；demo-walkthrough **B5**（原边界核对→B6）；PRD 落地状态 **111–114** ✅；WebRTC 批次全部完成 |
+| 2026-05-27 | 文档：新增 [火山 SAUC 通话字幕 PRD](./prd/volcengine-streaming-asr.md)，拆分任务 **115–118**（Back 协议 → WS 代理 → CallsView 字幕/控制台 transcript → 文档收口）；`back/.env` 配置 `VOLC_ASR_ACCESS_KEY`；明确 **非 Chat 维度** |
 | 2026-05-27 | 完成任务 112：Front `CallsView` + `call` store + `useCallSignaling`（WS 指数退避重连）；`/app/calls` 路由与侧边栏；主叫 invite/cancel 与 rejected/failed/busy 回 idle；Vite proxy `ws: true`；front build 绿；建议 **113** |
 | 2026-05-27 | 完成任务 111：Back `GET /api/calls/peers` + `WS /api/calls/ws`（Cookie Session、`CallSignalingHub` 内存路由、invite/accept/reject/hangup/rtc 转发、session.replaced）；`test_call_signaling.py` 10 用例；README Back API 同步；建议 **112** |
 | 2026-05-27 | 完成任务 110：`appendListStudents(DEFAULT_LIST_AFTER_CREATE)` 于 create POST 成功；README/client-actions map/demo-walkthrough/PRD 落地状态同步第二代语义；smoke 测试绿；对话内学生工具批次 106–110 全部完成 |

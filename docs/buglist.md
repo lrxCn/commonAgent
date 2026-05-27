@@ -19,6 +19,7 @@
 | ID | 状态 | 模块 | 摘要 | 记录日期 |
 |----|------|------|------|----------|
 | [BUG-001](#bug-001-刷新后创建成功链式列表消失) | open | Front / Chat | 刷新后对话内「创建成功」自动追加的学生列表消失 | 2026-05-27 |
+| [BUG-002](#bug-002-无单点登录) | open | Back / Front / Auth | 演示平台仅用户名密码 Cookie 登录，无企业单点登录（SSO） | 2026-05-27 |
 
 ---
 
@@ -60,3 +61,31 @@
 **备注**
 
 - Agent 直接下发的 `listStudents` 刷新后会出现历史卡片，但一般为只读摘要、不自动拉行数据（109 `historical` 设计）；与本 bug 不同。
+
+---
+
+### BUG-002：无单点登录
+
+| 字段 | 内容 |
+|------|------|
+| **状态** | open |
+| **模块** | `back` 认证（`POST /api/auth/login`、Session Cookie）、`front` `LoginView` / `auth` store |
+| **严重程度** | 中（演示可用；对接企业 IdP 前阻塞上线） |
+
+**现象**
+
+- 用户只能通过演示账号 **用户名 + 密码** 登录（`LoginView` → `POST /api/auth/login`）。
+- 无法通过企业 IdP（OAuth2/OIDC、SAML 等）**单点登录**；无 SSO 回调、无按 IdP 身份映射 `user_id` / `role_id` 的流程。
+
+**期望**
+
+- 支持企业单点登录：从 IdP 完成认证后建立与现有 Session / `GET /api/me` 一致的登录态，Front 401 仍跳转登录页的逻辑可复用或扩展。
+
+**相关**
+
+- PRD：[demo-admin-console.md](./prd/demo-admin-console.md)（OAuth / SSO 列为非目标，与本条缺口一致）
+- 代码：`front/src/views/LoginView.vue`、`front/src/stores/auth.ts`、`front/src/api/auth.ts`
+
+**备注**
+
+- 需产品确认 IdP 类型（OIDC / SAML）、账号绑定规则及是否仍保留本地演示账号。
