@@ -7,6 +7,7 @@ import * as chatApi from "@/api/chat";
 import * as studentsApi from "@/api/students";
 import { validateCreateStudentAction } from "@/client-actions/create-student";
 import {
+  DEFAULT_LIST_AFTER_CREATE,
   sanitizeListStudentsArgs,
   validateListStudentsAction,
 } from "@/client-actions/list-students";
@@ -339,6 +340,7 @@ export const useChatStore = defineStore("chat", () => {
       });
       form.status = "success";
       form.createdStudent = created;
+      appendListStudents(DEFAULT_LIST_AFTER_CREATE);
       if (import.meta.env.DEV) {
         console.info("[client_actions] createStudent succeeded", created);
       }
@@ -360,6 +362,16 @@ export const useChatStore = defineStore("chat", () => {
     form.status = "cancelled";
     if (import.meta.env.DEV) {
       console.log("[client_actions] createStudent cancelled");
+    }
+  }
+
+  /** Front-only chain after create success; does not call Agent. */
+  function appendListStudents(query: StudentListParams = DEFAULT_LIST_AFTER_CREATE): void {
+    const listMessage = buildListStudentsMessage(query, "loading");
+    messages.value.push(listMessage);
+    void refreshListStudents(listMessage.id, query);
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] listStudents appended after create", { query });
     }
   }
 

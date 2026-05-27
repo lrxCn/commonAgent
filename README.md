@@ -8,10 +8,10 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-105 已完成；**106-110 规划中**（对话内学生表单/列表，见 [student-in-chat PRD](docs/prd/student-in-chat-client-actions.md)） |
+| 核心任务 | 01-110 已完成（含对话内学生表单/列表，见 [student-in-chat PRD](docs/prd/student-in-chat-client-actions.md)） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage` 已落地；`createStudent` **第一代**确认卡片+跳转 **106-110 将改为对话内表单**） |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent` 对话内表单、`listStudents` 对话内列表） |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -81,7 +81,7 @@ commonAgent/
 
 | 层级 | 职责 |
 |------|------|
-| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent` → 学生页抽屉预填） |
+| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表） |
 | Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent |
 | Agent | 记忆装配、RAG（`role_ids[]` 交集过滤 + 迁移期 payload fallback）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
 
@@ -323,22 +323,13 @@ Gateway 负责：
 }
 ```
 
-（`createStudent` / `listStudents` 契约见上表「计划契约」；110 完成前代码仍为第一代 createStudent。）
-
 演示平台外部工具（`back/config/tools.demo.json`）：
 
-| 工具 | 当前落地 | 目标（106–110，[PRD](docs/prd/student-in-chat-client-actions.md)） |
-|------|----------|---------------------------------------------------------------------|
-| **jumpPage** | ✅ slug → Vue Router | 不变 |
-| **createStudent** | 第一代：确认卡片 → 跳转学生页抽屉预填 | 第二代：对话内嵌表单，可选预填，用户点确定 POST |
-| **listStudents** | 未实现 | 对话内嵌表格 + 翻页搜索；create 成功后 Front 自动刷新列表 |
-
-**当前已落地**（第一代 createStudent，110 完成后删除）：
-
-- **`jumpPage`**：`args.page` slug → [page-registry.ts](front/src/client-actions/page-registry.ts) → `router.push`。
-- **`createStudent`**：确认卡片 → [student-ui.ts](front/src/stores/student-ui.ts) → [StudentsView](front/src/views/StudentsView.vue) 抽屉预填；**不代提交**。
-
-**计划契约**（110 完成后 README 以本段为准）：
+| 工具 | 落地 |
+|------|------|
+| **jumpPage** | slug → [page-registry.ts](front/src/client-actions/page-registry.ts) → `router.push` |
+| **createStudent** | 对话内嵌表单，可选预填，`requires_approval: false`；用户点确定后 Front POST `/api/students` |
+| **listStudents** | 对话内嵌表格 + 翻页/搜索；create 成功后 Front 自动 `appendListStudents`（默认 `offset:0, limit:10`），不回流 Agent |
 
 ```json
 {
@@ -357,8 +348,11 @@ Gateway 负责：
 }
 ```
 
+- **`jumpPage`**：确认卡片后 `router.push`（跳转后关闭 ChatDrawer）。
+- **`createStudent`** / **`listStudents`**：校验与 UI 在 [create-student.ts](front/src/client-actions/create-student.ts)、[list-students.ts](front/src/client-actions/list-students.ts)；执行在 [stores/chat.ts](front/src/stores/chat.ts)。
 - HTTP 读写由 Front 在 ChatDrawer 内直接调 Back `/api/students`；Agent 不执行、不等待。
 - 侧边栏 [StudentsView](front/src/views/StudentsView.vue) 传统 CRUD **保留**。
+- 历史回放：`createStudent` / `listStudents` 卡片为 `historical`，不可提交或翻页。
 
 边界规则：
 
@@ -457,7 +451,7 @@ Back（演示平台，库 `common_agent_back`）：
 Front（Vue SPA）：
 
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
-- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（确认后关闭抽屉并应用 UI 副作用）。
+- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 
 ## 可观测与评测
