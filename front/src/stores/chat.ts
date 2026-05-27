@@ -19,6 +19,7 @@ import {
 } from "@/client-actions/page-registry";
 import { useAuthStore } from "@/stores/auth";
 import { useStudentsStore } from "@/stores/students";
+import { randomId } from "@/utils/randomId";
 import type {
   ApiErrorBody,
   ChatDisplayMessage,
@@ -56,7 +57,7 @@ type StreamingSegments = {
 function getOrCreateThreadId(): string {
   let id = sessionStorage.getItem(THREAD_STORAGE_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = randomId();
     sessionStorage.setItem(THREAD_STORAGE_KEY, id);
   }
   return id;
@@ -111,7 +112,7 @@ function buildJumpPagePromptMessage(
       };
 
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     role: "ai",
     content: "",
     jumpPagePrompt,
@@ -129,7 +130,7 @@ function buildCreateStudentFormMessage(
   }
 
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     role: "ai",
     content: "",
     createStudentForm: {
@@ -144,7 +145,7 @@ function buildListStudentsMessage(
   initialStatus: ListStudentsMessage["status"],
 ): ChatDisplayMessage {
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     role: "ai",
     content: "",
     listStudents: {
@@ -180,7 +181,7 @@ function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
   const content = item.content?.trim() ?? "";
   if (content || item.role === "human") {
     items.push({
-      id: item.message_id ?? crypto.randomUUID(),
+      id: item.message_id ?? randomId(),
       role: item.role,
       content: item.content,
     });
@@ -532,7 +533,7 @@ export const useChatStore = defineStore("chat", () => {
 
   function startNewThread(): void {
     abortStreaming();
-    const id = crypto.randomUUID();
+    const id = randomId();
     persistThreadId(id);
     messages.value = [];
     error.value = null;
@@ -552,7 +553,7 @@ export const useChatStore = defineStore("chat", () => {
     error.value = null;
     sessionStorage.removeItem(THREAD_STORAGE_KEY);
     sessionStorage.removeItem(LAST_USER_STORAGE_KEY);
-    threadId.value = crypto.randomUUID();
+    threadId.value = randomId();
   }
 
   async function copyThreadId(): Promise<void> {
@@ -560,7 +561,7 @@ export const useChatStore = defineStore("chat", () => {
   }
 
   function beginAssistantMessage(): string {
-    const id = crypto.randomUUID();
+    const id = randomId();
     messages.value.push({
       id,
       role: "ai",
@@ -696,7 +697,7 @@ export const useChatStore = defineStore("chat", () => {
     abortStreaming();
     error.value = null;
     messages.value.push({
-      id: crypto.randomUUID(),
+      id: randomId(),
       role: "human",
       content: trimmed,
     });
@@ -723,7 +724,7 @@ export const useChatStore = defineStore("chat", () => {
         const data = chatApi.parseChatJsonResponse(await response.json());
         if (data.text) {
           messages.value.push({
-            id: crypto.randomUUID(),
+            id: randomId(),
             role: "ai",
             content: data.text,
           });

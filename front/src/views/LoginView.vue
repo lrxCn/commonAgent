@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import axios from "axios";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
@@ -46,8 +47,14 @@ async function onSubmit(): Promise<void> {
   try {
     await auth.login(username.value.trim(), password.value);
     await router.replace(redirectPath.value);
-  } catch {
-    message.error("用户名或密码错误");
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 401) {
+      message.error("用户名或密码错误");
+      return;
+    }
+    const detail =
+      err instanceof Error ? err.message : "请检查网络或稍后重试";
+    message.error(`登录失败：${detail}`);
   } finally {
     loading.value = false;
   }

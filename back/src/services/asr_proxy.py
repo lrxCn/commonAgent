@@ -80,6 +80,14 @@ def extract_transcript_events(
     return events
 
 
+def final_event_key(event: dict[str, Any]) -> str:
+    """Stable key for a definite utterance (Volcengine resends full history each response)."""
+    start = event.get("start_time")
+    end = event.get("end_time")
+    text = event.get("text")
+    return f"{event.get('track')}:{start}:{end}:{text}"
+
+
 @dataclass
 class AsrTrackSession:
     user_id: str
@@ -93,6 +101,7 @@ class AsrTrackSession:
     audio_buffer: bytearray = field(default_factory=bytearray)
     closed: bool = False
     has_received_pcm: bool = False
+    emitted_final_keys: set[str] = field(default_factory=set)
 
     @property
     def segment_size(self) -> int:
@@ -126,6 +135,7 @@ class AsrTrackSession:
             await self.send_error(code="credentials_missing", message="ASR 凭证未配置")
             return
 
+        self.emitted_final_keys.clear()
         self.upstream = self.client_factory(self.settings)
         try:
             await self.upstream.connect()
@@ -206,6 +216,11 @@ class AsrTrackSession:
             return True
 
         for event in extract_transcript_events(response.payload_msg, track=self.track):
+            if event.get("type") == "asr.final":
+                key = final_event_key(event)
+                if key in self.emitted_final_keys:
+                    continue
+                self.emitted_final_keys.add(key)
             await self.send_json(event)
         return response.is_last_package
 

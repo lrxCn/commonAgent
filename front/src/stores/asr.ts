@@ -27,6 +27,15 @@ function trackRoleLabel(track: AsrTrack, localLabel: string, remoteLabel: string
   return track === "local" ? `本地 · ${localLabel}` : `对方 · ${remoteLabel}`;
 }
 
+function finalLineKey(line: {
+  track: AsrTrack;
+  text: string;
+  startTime?: number;
+  endTime?: number;
+}): string {
+  return `${line.track}:${line.startTime ?? ""}:${line.endTime ?? ""}:${line.text}`;
+}
+
 function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const min = Math.floor(totalSec / 60);
@@ -53,6 +62,7 @@ export const useAsrStore = defineStore("asr", () => {
   let sessionLocalLabel = "";
   let sessionRemoteLabel = "";
   let sessionStartedAt = 0;
+  const emittedFinalKeys = new Set<string>();
 
   const hasSubtitles = computed(
     () =>
@@ -75,6 +85,7 @@ export const useAsrStore = defineStore("asr", () => {
     finalLines.value = [];
     error.value = null;
     seq = 0;
+    emittedFinalKeys.clear();
   }
 
   function sendJson(message: AsrClientMessage): void {
@@ -109,16 +120,21 @@ export const useAsrStore = defineStore("asr", () => {
           ...partials.value,
           [message.track]: "",
         };
-        seq += 1;
-        finalLines.value.push({
+        const line = {
           track: message.track,
           text: message.text,
           startTime:
             typeof message.start_time === "number" ? message.start_time : undefined,
           endTime:
             typeof message.end_time === "number" ? message.end_time : undefined,
-          seq,
-        });
+        };
+        const key = finalLineKey(line);
+        if (emittedFinalKeys.has(key)) {
+          return;
+        }
+        emittedFinalKeys.add(key);
+        seq += 1;
+        finalLines.value.push({ ...line, seq });
         return;
       }
 

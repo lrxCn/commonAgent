@@ -9,6 +9,10 @@
 #   ./dev.sh status   # show infra + app health
 #   ./dev.sh logs [agent|back|front|all]
 #
+# LAN access (default on): Front binds 0.0.0.0; use http://<your-ip>:5173 from other devices.
+#   DEV_LAN=0 ./dev.sh up          # Front only on 127.0.0.1 (no LAN)
+#   FRONT_BIND_HOST=0.0.0.0 ./dev.sh up   # override bind address (default when DEV_LAN≠0)
+#
 # Prerequisites: uv, pnpm (or npm), agent/.env, back/.env configured.
 
 set -euo pipefail
@@ -24,11 +28,61 @@ AGENT_PORT="${AGENT_PORT:-18080}"
 BACK_PORT="${BACK_PORT:-8080}"
 FRONT_PORT="${FRONT_PORT:-5173}"
 
+# DEV_LAN=1 (default): Front on all interfaces; Back CORS extended with LAN origin for this session.
+# Agent/Back still bind 127.0.0.1 — API is reached via Vite /api proxy on the Front port.
+DEV_LAN="${DEV_LAN:-1}"
+if [[ "$DEV_LAN" == "1" || "$DEV_LAN" == "true" || "$DEV_LAN" == "yes" ]]; then
+  FRONT_BIND_HOST="${FRONT_BIND_HOST:-0.0.0.0}"
+else
+  FRONT_BIND_HOST="${FRONT_BIND_HOST:-127.0.0.1}"
+fi
+
 mkdir -p "$DEV_DIR"
 
 log() { printf '[dev] %s\n' "$*"; }
 warn() { printf '[dev][warn] %s\n' "$*" >&2; }
 die() { printf '[dev][error] %s\n' "$*" >&2; exit 1; }
+
+# Prefer Wi‑Fi (en0), then common alternate (en1). Empty if unavailable.
+primary_lan_ip() {
+  local iface ip
+  for iface in en0 en1; do
+    ip="$(ipconfig getifaddr "$iface" 2>/dev/null || true)"
+    if [[ -n "$ip" ]]; then
+      printf '%s' "$ip"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lan_front_origin() {
+  local ip
+  ip="$(primary_lan_ip)" || return 1
+  printf 'http://%s:%s' "$ip" "$FRONT_PORT"
+}
+
+# Merge LAN Front origin into CORS_ORIGINS for this Back process (does not edit back/.env).
+back_cors_origins_for_dev() {
+  local base="${CORS_ORIGINS:-}"
+  if [[ -z "$base" && -f "$ROOT/back/.env" ]]; then
+    base="$(grep -E '^CORS_ORIGINS=' "$ROOT/back/.env" | head -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  fi
+  if [[ -z "$base" ]]; then
+    base="http://127.0.0.1:${FRONT_PORT},http://localhost:${FRONT_PORT}"
+  fi
+  if [[ "$DEV_LAN" == "1" || "$DEV_LAN" == "true" || "$DEV_LAN" == "yes" ]]; then
+    local origin
+    if origin="$(lan_front_origin)"; then
+      local needle=",${origin},"
+      local haystack=",${base},"
+      if [[ "$haystack" != *"$needle"* ]]; then
+        base="${base},${origin}"
+      fi
+    fi
+  fi
+  printf '%s' "$base"
+}
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"
@@ -237,41 +291,80 @@ prepare_front() {
   fi
 }
 
+start_bg_with_env() {
+  local name="$1"
+  local dir="$2"
+  shift 2
+  local pidfile="$DEV_DIR/${name}.pid"
+  local logfile="$DEV_DIR/${name}.log"
+
+  if pid_alive "$pidfile"; then
+    log "$name already running (pid $(cat "$pidfile"))."
+    return 0
+  fi
+
+  log "Starting $name → $logfile"
+  (
+    cd "$dir"
+    exec env "$@"
+  ) >>"$logfile" 2>&1 &
+  echo $! >"$pidfile"
+}
+
 start_apps() {
+  local lan_ip="" lan_front_url="" cors_for_dev
+
   prepare_agent
   prepare_back
   prepare_front
 
+  cors_for_dev="$(back_cors_origins_for_dev)"
+  if [[ "$DEV_LAN" == "1" || "$DEV_LAN" == "true" || "$DEV_LAN" == "yes" ]]; then
+    if lan_ip="$(primary_lan_ip)"; then
+      lan_front_url="http://${lan_ip}:${FRONT_PORT}"
+      log "LAN Front URL: ${lan_front_url} (bind ${FRONT_BIND_HOST}:${FRONT_PORT})"
+    else
+      warn "DEV_LAN enabled but no en0/en1 IPv4 found; other devices may not reach Front."
+    fi
+    log "Back CORS (this session): ${cors_for_dev}"
+  fi
+
   start_bg agent "$ROOT/agent" \
     uv run uvicorn src.main:app --host 127.0.0.1 --port "$AGENT_PORT"
 
-  start_bg back "$ROOT/back" \
+  start_bg_with_env back "$ROOT/back" \
+    CORS_ORIGINS="$cors_for_dev" \
     uv run uvicorn src.main:app --host 127.0.0.1 --port "$BACK_PORT"
 
   if command -v pnpm >/dev/null 2>&1; then
-    start_bg front "$ROOT/front" pnpm dev --host 127.0.0.1 --port "$FRONT_PORT"
+    start_bg front "$ROOT/front" \
+      pnpm dev --host "$FRONT_BIND_HOST" --port "$FRONT_PORT"
   else
-    start_bg front "$ROOT/front" npm run dev -- --host 127.0.0.1 --port "$FRONT_PORT"
+    start_bg front "$ROOT/front" \
+      npm run dev -- --host "$FRONT_BIND_HOST" --port "$FRONT_PORT"
   fi
 
   wait_service_http agent "http://127.0.0.1:${AGENT_PORT}/health"
   wait_service_http back "http://127.0.0.1:${BACK_PORT}/health"
   wait_service_http front "http://127.0.0.1:${FRONT_PORT}/"
 
-  cat <<EOF
-
-========================================
-commonAgent dev stack is running
-
-  Front : http://127.0.0.1:${FRONT_PORT}
-  Back  : http://127.0.0.1:${BACK_PORT}/health
-  Agent : http://127.0.0.1:${AGENT_PORT}/health
-
-  Logs  : ./dev.sh logs [agent|back|front|all]
-  Stop  : ./dev.sh down
-========================================
-
-EOF
+  {
+    printf '\n========================================\n'
+    printf 'commonAgent dev stack is running\n\n'
+    printf '  Front (local) : http://127.0.0.1:%s\n' "$FRONT_PORT"
+    if [[ -n "$lan_front_url" ]]; then
+      printf '  Front (LAN)   : %s\n' "$lan_front_url"
+      printf '                  (same Wi‑Fi; /api proxied to Back on this machine)\n'
+    fi
+    printf '  Back          : http://127.0.0.1:%s/health\n' "$BACK_PORT"
+    printf '  Agent         : http://127.0.0.1:%s/health\n' "$AGENT_PORT"
+    printf '\n  Logs  : ./dev.sh logs [agent|back|front|all]\n'
+    printf '  Stop  : ./dev.sh down\n'
+    if [[ "$DEV_LAN" != "0" && "$DEV_LAN" != "false" && "$DEV_LAN" != "no" ]]; then
+      printf '  LAN off: DEV_LAN=0 ./dev.sh restart\n'
+    fi
+    printf '========================================\n\n'
+  }
 }
 
 cmd_up() {
@@ -320,7 +413,7 @@ cmd_status() {
   for item in \
     "Agent|http://127.0.0.1:${AGENT_PORT}/health" \
     "Back|http://127.0.0.1:${BACK_PORT}/health" \
-    "Front|http://127.0.0.1:${FRONT_PORT}/"; do
+    "Front (local)|http://127.0.0.1:${FRONT_PORT}/"; do
     local label="${item%%|*}"
     local url="${item##*|}"
     if curl -sf "$url" >/dev/null 2>&1; then
@@ -329,6 +422,14 @@ cmd_status() {
       printf '  [fail] %s %s\n' "$label" "$url"
     fi
   done
+  local lan_url
+  if lan_url="$(lan_front_origin 2>/dev/null)"; then
+    if curl -sf "${lan_url}/" >/dev/null 2>&1; then
+      printf '  [ok]   Front (LAN) %s\n' "$lan_url"
+    else
+      printf '  [fail] Front (LAN) %s\n' "$lan_url"
+    fi
+  fi
   printf '\n'
 }
 
@@ -369,7 +470,7 @@ main() {
       cmd_up
       ;;
     -h|--help|help)
-      sed -n '2,12p' "$0"
+      sed -n '2,18p' "$0"
       ;;
     *)
       die "Unknown command: $cmd (try: up | down | status | logs | restart)"
