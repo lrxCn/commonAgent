@@ -114,3 +114,27 @@ export function validateListStudentsAction(action: ClientAction): ListStudentsVa
 
   return { ok: true, query: sanitizeListStudentsArgs(record) };
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  active: "在读",
+  inactive: "休学",
+};
+
+/** Human-readable query summary for historical list cards without row data. */
+export function formatListStudentsQuerySummary(query: StudentListParams): string {
+  const parts: string[] = [];
+  if (query.search) {
+    parts.push(`搜索「${query.search}」`);
+  }
+  if (query.status) {
+    parts.push(`状态：${STATUS_LABELS[query.status] ?? query.status}`);
+  }
+  if (query.class_name) {
+    parts.push(`班级：${query.class_name}`);
+  }
+  const limit = query.limit ?? DEFAULT_LIMIT;
+  const offset = query.offset ?? 0;
+  const page = Math.floor(offset / limit) + 1;
+  parts.push(`第 ${page} 页（每页 ${limit} 条）`);
+  return parts.length > 0 ? parts.join("，") : "全部学生";
+}

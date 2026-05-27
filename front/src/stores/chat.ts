@@ -6,7 +6,10 @@ import { ref, watch } from "vue";
 import * as chatApi from "@/api/chat";
 import * as studentsApi from "@/api/students";
 import { validateCreateStudentAction } from "@/client-actions/create-student";
-import { validateListStudentsAction } from "@/client-actions/list-students";
+import {
+  sanitizeListStudentsArgs,
+  validateListStudentsAction,
+} from "@/client-actions/list-students";
 import {
   isPageAllowedForUser,
   PAGE_SLUG_LABELS,
@@ -23,8 +26,10 @@ import type {
   JumpPageArgs,
   JumpPagePrompt,
   JumpPagePromptStatus,
+  ListStudentsMessage,
   PageSlug,
   StudentCreateRequest,
+  StudentListParams,
 } from "@/types";
 
 const THREAD_STORAGE_KEY = "common_agent_thread_id";
@@ -132,6 +137,21 @@ function buildCreateStudentFormMessage(
   };
 }
 
+function buildListStudentsMessage(
+  query: StudentListParams,
+  initialStatus: ListStudentsMessage["status"],
+): ChatDisplayMessage {
+  return {
+    id: crypto.randomUUID(),
+    role: "ai",
+    content: "",
+    listStudents: {
+      query,
+      status: initialStatus,
+    },
+  };
+}
+
 function extractApiFieldErrors(error: unknown): {
   message: string;
   fieldErrors: Record<string, string>;
@@ -177,7 +197,13 @@ function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
         }
         continue;
       }
-      // listStudents historical cards: task 109/110
+      if (action.tool === "listStudents") {
+        const validation = validateListStudentsAction(action);
+        if (validation.ok) {
+          items.push(buildListStudentsMessage(validation.query, "historical"));
+        }
+        continue;
+      }
     }
   }
 
@@ -220,23 +246,6 @@ async function navigateJumpPage(action: ClientAction): Promise<boolean> {
     console.error("[client_actions] jumpPage navigation failed", err);
     message.warning("页面跳转失败");
     return false;
-  }
-}
-
-function logPendingListStudentsAction(action: ClientAction): void {
-  const validation = validateListStudentsAction(action);
-  if (!validation.ok) {
-    message.warning(validation.detail);
-    if (import.meta.env.DEV) {
-      console.warn("[client_actions] listStudents validation failed", validation.detail, action);
-    }
-    return;
-  }
-  if (import.meta.env.DEV) {
-    console.info("[client_actions] listStudents received (UI wired in 109)", {
-      action,
-      query: validation.query,
-    });
   }
 }
 
@@ -354,6 +363,59 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  function enqueueListStudents(action: ClientAction): void {
+    const validation = validateListStudentsAction(action);
+    if (!validation.ok) {
+      message.warning(validation.detail);
+      if (import.meta.env.DEV) {
+        console.warn("[client_actions] listStudents validation failed", validation.detail, action);
+      }
+      return;
+    }
+
+    const listMessage = buildListStudentsMessage(validation.query, "loading");
+    messages.value.push(listMessage);
+    void refreshListStudents(listMessage.id, validation.query);
+    if (import.meta.env.DEV) {
+      console.info("[client_actions] listStudents enqueued", {
+        action,
+        query: validation.query,
+      });
+    }
+  }
+
+  async function refreshListStudents(
+    messageId: string,
+    rawQuery: StudentListParams,
+  ): Promise<void> {
+    const entry = messages.value.find((item) => item.id === messageId);
+    const list = entry?.listStudents;
+    if (!entry || !list || list.status === "historical") {
+      return;
+    }
+
+    const query = sanitizeListStudentsArgs(rawQuery as Record<string, unknown>);
+    list.query = query;
+    list.status = "loading";
+    list.errorDetail = undefined;
+
+    try {
+      list.data = await studentsApi.fetchStudents(query);
+      list.status = "ready";
+      if (import.meta.env.DEV) {
+        console.info("[client_actions] listStudents ready", {
+          messageId,
+          total: list.data.total,
+        });
+      }
+    } catch (err) {
+      const { message: detail } = extractApiFieldErrors(err);
+      list.status = "error";
+      list.errorDetail = detail;
+      console.error("[client_actions] listStudents fetch failed", err);
+    }
+  }
+
   function enqueueJumpPagePrompt(action: ClientAction): void {
     const promptMessage = buildJumpPagePromptMessage(action, "pending");
     messages.value.push(promptMessage);
@@ -384,7 +446,7 @@ export const useChatStore = defineStore("chat", () => {
         continue;
       }
       if (record.tool === "listStudents") {
-        logPendingListStudentsAction(record);
+        enqueueListStudents(record);
         continue;
       }
 
@@ -709,6 +771,7 @@ export const useChatStore = defineStore("chat", () => {
     cancelJumpPage,
     submitCreateStudentForm,
     cancelCreateStudentForm,
+    refreshListStudents,
     abortStreaming,
     clearError,
   };

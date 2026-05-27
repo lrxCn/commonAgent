@@ -6,12 +6,12 @@
 
 ## 总览
 
-**当前建议下一步**：执行 **[109 - StudentListCard](./prompts/109-student-chat-list-card.md)**（可与 **108** ✅ 并行，均需 **107** ✅）。
+**当前建议下一步**：执行 **[110 - 创建后链式列表与文档收口](./prompts/110-student-chat-docs-final-alignment.md)**（依赖 **106** ✅、**108** ✅、**109** ✅）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 110 |
-| 已完成 | 108 |
+| 已完成 | 109 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -21,7 +21,7 @@
 
 **jumpPage 批次（102–105）**：✅ 全部完成；PRD [jumpPage-client-action.md](./prd/jumpPage-client-action.md) 含落地状态。
 
-**对话内学生工具批次（106–110）**：🔄 进行中（**106–108** ✅）；PRD [student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)；重构 createStudent（对话内表单）+ 新增 listStudents + 创建后链式列表。
+**对话内学生工具批次（106–110）**：🔄 进行中（**106–109** ✅）；PRD [student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)；重构 createStudent（对话内表单）+ 新增 listStudents + 创建后链式列表（**110** 收口）。
 
 
 ---
@@ -141,7 +141,7 @@
 | 106 | [对话内学生工具：Back schema 与 Agent 白名单测试](./prompts/106-student-chat-back-tool-schema.md) | ✅ | 2026-05-27 | `tools.demo.json` 修订 createStudent + 新增 listStudents；Back/Agent 测试同步 |
 | 107 | [对话内学生工具：Front 类型、校验与第一代链路拆除](./prompts/107-student-chat-front-foundation.md) | ✅ | 2026-05-27 | 新类型 + list-students.ts；删 confirm/store/跨页意图；build 绿；建议 **108/109** |
 | 108 | [对话内学生工具：CreateStudentFormCard 与 createStudent 执行](./prompts/108-student-chat-create-form-card.md) | ✅ | 2026-05-27 | 对话内嵌表单 + POST 提交；历史 historical；front build 绿；建议 **109** |
-| 109 | [对话内学生工具：StudentListCard 与 listStudents 执行](./prompts/109-student-chat-list-card.md) | ⬜ 待开始 | - | 对话内嵌列表+翻页搜索；依赖 **107** |
+| 109 | [对话内学生工具：StudentListCard 与 listStudents 执行](./prompts/109-student-chat-list-card.md) | ✅ | 2026-05-27 | `StudentListCard` + enqueue/refresh；历史 `historical`；无操作列；front build 绿；建议 **110** |
 | 110 | [对话内学生工具：创建后链式列表、历史回放与文档收口](./prompts/110-student-chat-docs-final-alignment.md) | ⬜ 待开始 | - | create→list 链式 + README/maps/demo；依赖 **106,108,109** |
 
 ---
@@ -277,6 +277,7 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
+| 2026-05-27 | 完成任务 109：`StudentListCard.vue` + `chat.ts` `enqueueListStudents`/`refreshListStudents`；`handleClientActions` listStudents 入队并 GET `/api/students`；历史 `historical` 只读 + `formatListStudentsQuerySummary`；无操作列；front build 绿；建议 **110** |
 | 2026-05-27 | 完成任务 108：`CreateStudentFormCard.vue` + `chat.ts` enqueue/submit/cancel；`handleClientActions` createStudent 入队表单；历史 `historical` 回放；`cancelled` 状态；无第一代确认卡片残留；front build 绿；建议 **109** |
 | 2026-05-27 | 完成任务 107：Front 新增 `CreateStudentFormMessage`/`ListStudentsMessage` + `list-students.ts`；删除 `CreateStudentConfirmCard`、`student-ui`、第一代 chat/StudentsView 链路；`handleClientActions` create/list 暂 DEV 日志；front build 绿；建议 **108/109** |
 | 2026-05-27 | 完成任务 106：`tools.demo.json` 修订 `createStudent`（inline form、`requires_approval: false`）+ 新增 `listStudents`；`test_demo_chat_context.py` / `test_client_actions.py` 三工具白名单与解析用例；建议下一步 **107** |

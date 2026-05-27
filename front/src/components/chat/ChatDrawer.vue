@@ -15,6 +15,7 @@ import {
 
 import CreateStudentFormCard from "@/components/chat/CreateStudentFormCard.vue";
 import JumpPageConfirmCard from "@/components/chat/JumpPageConfirmCard.vue";
+import StudentListCard from "@/components/chat/StudentListCard.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useChatStore } from "@/stores/chat";
 
@@ -163,6 +164,14 @@ function handleDrawerUpdate(show: boolean): void {
                   :created-student="msg.createStudentForm.createdStudent"
                   @submit="(payload) => void chat.submitCreateStudentForm(msg.id, payload)"
                   @cancel="chat.cancelCreateStudentForm(msg.id)"
+                />
+                <StudentListCard
+                  v-else-if="msg.listStudents"
+                  :query="msg.listStudents.query"
+                  :status="msg.listStudents.status"
+                  :data="msg.listStudents.data"
+                  :error-detail="msg.listStudents.errorDetail"
+                  @refresh="(query) => void chat.refreshListStudents(msg.id, query)"
                 />
                 <p
                   v-else-if="msg.content || msg.streaming"
