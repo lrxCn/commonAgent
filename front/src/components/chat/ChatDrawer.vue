@@ -13,7 +13,6 @@ import {
   NText,
 } from "naive-ui";
 
-import CreateStudentConfirmCard from "@/components/chat/CreateStudentConfirmCard.vue";
 import JumpPageConfirmCard from "@/components/chat/JumpPageConfirmCard.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useChatStore } from "@/stores/chat";
@@ -136,7 +135,7 @@ function handleDrawerUpdate(show: boolean): void {
         <n-spin :show="chat.loadingHistory" class="chat-drawer__messages">
           <n-scrollbar ref="messageListRef" class="chat-messages">
             <p v-if="!chat.messages.length && !chat.loadingHistory" class="chat-empty">
-              发送消息开始对话。可尝试「打开学生管理」跳转页面，或「新建学生张三」打开表单。
+              发送消息开始对话。可尝试「打开学生管理」跳转页面，或「新建学生张三」「查学生列表」。
             </p>
             <article
               v-for="msg in chat.messages"
@@ -153,14 +152,6 @@ function handleDrawerUpdate(show: boolean): void {
                   :status-detail="msg.jumpPagePrompt.statusDetail"
                   @confirm="() => void chat.confirmJumpPage(msg.id)"
                   @cancel="chat.cancelJumpPage(msg.id)"
-                />
-                <CreateStudentConfirmCard
-                  v-else-if="msg.createStudentPrompt"
-                  :prefill-lines="msg.createStudentPrompt.prefillLines"
-                  :status="msg.createStudentPrompt.status"
-                  :status-detail="msg.createStudentPrompt.statusDetail"
-                  @confirm="() => void chat.confirmCreateStudent(msg.id)"
-                  @cancel="chat.cancelCreateStudent(msg.id)"
                 />
                 <p
                   v-else-if="msg.content || msg.streaming"

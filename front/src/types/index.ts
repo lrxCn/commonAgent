@@ -212,14 +212,20 @@ export type JumpPagePrompt = {
   statusDetail?: string;
 };
 
-export type CreateStudentPromptStatus = JumpPagePromptStatus;
-
-export type CreateStudentPrompt = {
-  action: ClientAction;
+/** createStudent inline form message (in-chat). */
+export type CreateStudentFormMessage = {
   prefill: Partial<StudentCreateRequest>;
-  prefillLines: string[];
-  status: CreateStudentPromptStatus;
-  statusDetail?: string;
+  status: "editable" | "submitting" | "success" | "error" | "historical";
+  errorDetail?: string;
+  createdStudent?: Student;
+};
+
+/** listStudents inline list message (in-chat). */
+export type ListStudentsMessage = {
+  query: StudentListParams;
+  status: "loading" | "ready" | "error" | "historical";
+  data?: StudentListResponse;
+  errorDetail?: string;
 };
 
 export type ChatDisplayMessage = {
@@ -229,6 +235,8 @@ export type ChatDisplayMessage = {
   streaming?: boolean;
   /** In-chat jumpPage confirmation card (not plain text). */
   jumpPagePrompt?: JumpPagePrompt;
-  /** In-chat createStudent confirmation card (not plain text). */
-  createStudentPrompt?: CreateStudentPrompt;
+  /** In-chat createStudent form card (not plain text). */
+  createStudentForm?: CreateStudentFormMessage;
+  /** In-chat listStudents table card (not plain text). */
+  listStudents?: ListStudentsMessage;
 };
