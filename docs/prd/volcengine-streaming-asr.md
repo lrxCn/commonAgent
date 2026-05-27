@@ -276,15 +276,16 @@ console.groupEnd();
 
 | type | 方向 | 说明 |
 |------|------|------|
+| `connected` | S→C | 连接成功 `{ user_id }` |
 | `asr.start` | C→S | `{ scene: "call", track: "local" \| "remote", call_id?: string }` |
-| `asr.audio` | C→S | 二进制 PCM 帧 |
-| `asr.stop` | C→S | 结束该 track 采集 |
-| `asr.partial` | S→C | 中间转写 `{ track, text, ... }` |
+| `asr.track` | C→S | `{ track }` — 紧随其后的 **binary** 帧为该 track 的 PCM |
+| `asr.stop` | C→S | `{ track?: "local" \| "remote" }` — 省略则结束该用户全部 track |
+| `asr.partial` | S→C | 中间转写 `{ track, text, start_time?, end_time? }` |
 | `asr.final` | S→C | 稳定句 `{ track, text, start_time?, end_time? }` |
 | `asr.error` | S→C | `{ code, message }` |
-| `asr.ended` | S→C | 该 track 上游结束 |
+| `asr.ended` | S→C | 该 track 上游结束 `{ track }` |
 
-未登录 → 关闭 WS（与通话信令一致）。
+未登录 → 关闭 WS（与通话信令一致）。PCM 为 WebSocket **binary** 帧（16 kHz、16 bit、单声道），非 JSON `asr.audio`。
 
 ---
 
@@ -341,23 +342,49 @@ console.groupEnd();
 
 ## 开放问题
 
-| # | 问题 | 一期决议 |
-|---|------|----------|
-| 1 | 用户 UUID 是否即 Access Key？ | 写入 `VOLC_ASR_ACCESS_KEY`；App Key 联调时补全 |
+| # | 问题 | 一期决议（已落地） |
+|---|------|-------------------|
+| 1 | 用户 UUID 是否即 Access Key？ | 写入 `VOLC_ASR_ACCESS_KEY`；`VOLC_ASR_APP_KEY` 未设时回退为 Access Key |
 | 2 | UI 在 Chat 还是 Calls？ | **仅 CallsView**；Chat 语音输入不在本批次 |
-| 3 | 分角色方案 | **双轨 ASR + 本地/对方 display_name**；火山 `enable_speaker_info` 可选 |
-| 4 | transcript 存哪？ | **仅 console**；不落库 |
+| 3 | 分角色方案 | **双轨 ASR + 本地/对方 display_name**；火山 `enable_speaker_info` 未强开 |
+| 4 | transcript 存哪？ | **仅 console**；不落库、不自动 chat |
 | 5 | 多 worker Back | 单进程内存会话；与通话信令一致 |
+
+---
+
+## 落地状态
+
+| ID | 任务卡 | 完成日期 | 说明 |
+|----|--------|----------|------|
+| 115 | （废弃，无卡） | 2026-05-27 | 协议客户端并入 116 |
+| 116 | [116-volc-asr-back-ws-proxy.md](../prompts/116-volc-asr-back-ws-proxy.md) | 2026-05-27 | `WS /api/asr/ws`、`volc_asr/`、`test_asr_ws` + `test_volc_asr_protocol` |
+| 117 | [117-volc-asr-front-mic-ui.md](../prompts/117-volc-asr-front-mic-ui.md) | 2026-05-27 | `asr` store、`useAsrCapture`、CallsView 字幕 + 挂断 console dump |
+| 118 | [118-volc-asr-docs-final-alignment.md](../prompts/118-volc-asr-docs-final-alignment.md) | 2026-05-27 | README、demo-walkthrough **B6**、demo-platform、progress 收口 |
+
+| 能力 | 状态 | 说明 |
+|------|------|------|
+| Back 代理 | ✅ | `WS /api/asr/ws`；`VOLC_ASR_*` 仅 Back |
+| Front 双轨字幕 | ✅ | local + remote PCM；「我说 / 对方说」分栏 |
+| 控制台 transcript | ✅ | 挂断 `console.group`；标签 `本地 · {name}` / `对方 · {name}` |
+| Chat / Agent | ⏭ | 明确非目标；不自动 `POST /api/chat` |
+
+**已知偏差（可接受）**：
+
+- PRD 初稿 `asr.audio` 类型已改为实现态：`asr.track` JSON + binary PCM。
+- 任务 115 无独立任务卡，协议与客户端在 116 交付。
+- 参考 demo `back/demo/sauc_python` 未改行为，仅作联调参考。
+
+进度总览：[docs/progress.md](../progress.md)。
 
 ---
 
 ## 文档与契约变更清单（实现后）
 
-- [ ] [README.md](../../README.md)：ASR 模块、WS 路径、环境变量、CallsView 字幕
-- [ ] [docs/maps/demo-platform.md](../maps/demo-platform.md)：ASR + Call 并列
-- [ ] [docs/demo-walkthrough.md](../demo-walkthrough.md)：**B6** 通话字幕演示
-- [ ] [docs/progress.md](../progress.md)：任务 115–118
-- [ ] `back/src/settings/config.py` + `back/.env.example`
+- [x] [README.md](../../README.md)：ASR 模块、WS 路径、`VOLC_ASR_*`、CallsView 字幕、Front 无密钥
+- [x] [docs/maps/demo-platform.md](../maps/demo-platform.md)：ASR 与 call WS 并列序列图
+- [x] [docs/demo-walkthrough.md](../demo-walkthrough.md)：**B6** 通话字幕演示（边界核对 **B7**）
+- [x] [docs/progress.md](../progress.md)：任务 115–118
+- [x] `back/src/settings/config.py` + `back/.env.example`
 
 ---
 
@@ -367,3 +394,4 @@ console.groupEnd();
 |------|------|
 | 2026-05-27 | 初稿：火山 SAUC、Back 代理、任务 115–118 |
 | 2026-05-27 | **修订**：明确 **CallsView 通话字幕** 为首期唯一 UI；挂断 **控制台分角色** transcript；双轨 ASR 策略；Chat 移出范围 |
+| 2026-05-27 | 落地：116–118 完成；PRD 落地状态表；demo-walkthrough **B6**；信令表对齐 `asr.track` + binary PCM |

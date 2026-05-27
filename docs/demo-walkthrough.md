@@ -15,6 +15,7 @@ uv run uvicorn src.main:app --host 127.0.0.1 --port 18080
 
 # 3. Back
 cd back && cp .env.example .env && uv sync
+# 配置 VOLC_ASR_ACCESS_KEY（通话字幕，见 back/.env.example）及其他变量后：
 uv run alembic upgrade head
 uv run python -m db.seed
 uv run uvicorn src.main:app --host 127.0.0.1 --port 8080
@@ -114,7 +115,24 @@ cd front && npm install && npm run dev
 8. **挂断**：任一方点 **挂断** → 双方 UI 回到 idle，麦克风释放。
 9. **Network 核对**：仅 `GET /api/calls/peers`、升级 `WS /api/calls/ws`（dev 下经 Vite proxy）；**无** 请求 Agent `:18080`。
 
-### B6 — 边界核对（可选，1 分钟）
+### B6 — 通话实时字幕（双浏览器，约 3–5 分钟）
+
+**目标**：在 **B5 通话** 基础上展示 CallsView 火山 SAUC 实时字幕；挂断后在浏览器控制台输出分角色 transcript。**不**写入 Chat / Agent。
+
+**前提**：`back/.env` 已配置 `VOLC_ASR_ACCESS_KEY`（可选 `VOLC_ASR_APP_KEY`）；可用 `cd back/demo/sauc_python && python3 sauc_websocket_demo.py --file <16k_mono.wav>` 先验证上游凭证。
+
+**准备**：同 B5（双浏览器、麦克风权限）。
+
+1. **浏览器 A**：**alice** 登录 → **通话** → 呼叫 **bob**。
+2. **浏览器 B**：**bob** 登录 → 接听（可不在通话页，来电 toast 即可）。
+3. **期望**：双方进入 `in_call` 后，CallsView 出现 **实时字幕** 面板（「我说 / 对方说」两栏）；说话时 partial 闪烁、final 句追加到对应栏。
+4. **对话**：A 说「你好，能听到吗？」→ A 的「我说」栏更新；B 回应 → A 的「对方说」栏更新（双轨 ASR，各端采集本地 + 远端流）。
+5. **Network**：除 `WS /api/calls/ws` 外，应有 **`WS /api/asr/ws`**；PCM 为 WebSocket binary 帧（前置 JSON `asr.track`）；**仍无** Agent `:18080`。
+6. **挂断**：任一方点 **挂断** → 字幕区清空。
+7. **控制台**：双方 DevTools Console 应出现 `console.group('[Call Transcript] …')`，行前缀如 `[本地 · Alice]`、`[对方 · Bob]`（按 track 与 display_name）。
+8. **凭证缺失**：若未配置 `VOLC_ASR_ACCESS_KEY`，字幕区显示可读 warning，**WebRTC 通话本身不受影响**。
+
+### B7 — 边界核对（可选，1 分钟）
 
 - 浏览器 Network：对话与学生 API 仅指向 Back（`:8080` 或 dev proxy），**无** 直连 Agent `:18080`。
 - 用另一用户 thread_id 拉历史应 **403**（`chat_threads` 归属校验）。
@@ -137,5 +155,8 @@ cd front && npm install && npm run dev
 | 呼叫一直响铃 | 被叫是否拒接/离线；A 是否收到 `call.failed`；检查 `test_call_signaling.py` 是否绿 |
 | 接通无声音 | 浏览器麦克风权限；是否 HTTPS/localhost；对称 NAT 下可试配置 `VITE_WEBRTC_STUN_URL` |
 | 多标签同账号 | 后连 WS 会踢前者（`session.replaced`）；仅保留一个活跃标签通话 |
+| 字幕无更新 | `back/.env` 是否配置 `VOLC_ASR_ACCESS_KEY`；Console 是否有 `asr.error`；Network 是否连上 `WS /api/asr/ws` |
+| 字幕有但控制台无 transcript | 是否产生 `asr.final` 句；挂断后查看 Console 的 `[Call Transcript]` group |
+| ASR 报错但通话正常 | 预期行为：ASR 失败不阻断 WebRTC；检查火山凭证与 `test_asr_ws.py` |
 
 更细的 Back/Front 路由与数据流见 [docs/maps/demo-platform.md](./maps/demo-platform.md)。

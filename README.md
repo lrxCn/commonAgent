@@ -8,11 +8,11 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-114 已完成（含对话内学生工具与账号 WebRTC 通话，见 [progress](docs/progress.md)） |
-| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令与媒体 |
-| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`，单进程内存 hub，多 worker 不支持） |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电、`AppLayout` 信令 WS，[PRD](docs/prd/webrtc-account-call.md)） |
-| 通话能力 | ✅ 已实现：双账号 1:1 音频；信令经 Back WebSocket；媒体浏览器 P2P（STUN）；演示脚本 [demo-walkthrough B5](docs/demo-walkthrough.md) |
+| 核心任务 | 01-118 已完成（含对话内学生工具、账号 WebRTC 通话与火山 SAUC 通话字幕，见 [progress](docs/progress.md)） |
+| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令、媒体与 ASR |
+| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS，挂断控制台分角色 transcript；**无**火山密钥，[PRD](docs/prd/volcengine-streaming-asr.md)） |
+| 通话能力 | ✅ 已实现：双账号 1:1 音频 + 实时字幕；信令与 ASR 均经 Back WebSocket（与 Agent 分离）；媒体 P2P（STUN）；演示 [B5 通话](docs/demo-walkthrough.md)、[B6 字幕](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -82,9 +82,9 @@ commonAgent/
 
 | 层级 | 职责 |
 |------|------|
-| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表） |
-| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent |
-| Agent | 记忆装配、RAG（`role_ids[]` 交集过滤 + 迁移期 payload fallback）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API |
+| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表）；CallsView 通话 + 双轨 ASR 字幕（**不**自动写入 Chat / Agent） |
+| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent；WebRTC 信令与火山 SAUC WebSocket 代理（Front → Back → 火山） |
+| Agent | 记忆装配、RAG（`role_ids[]` 交集过滤 + 迁移期 payload fallback）、LangGraph 主图、deepagents、护栏、SSE、历史和 ingest API；**不参与** ASR |
 
 硬约束：
 
@@ -456,7 +456,9 @@ Front（Vue SPA）：
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
 - `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
-- 通话：`/app/calls`（`CallsView` + 侧边栏「通话」）；任意 `/app/*` 左下角 `IncomingCallToast`（接听/拒接）；信令 WebSocket 在 `AppLayout` 经 `useCallSignaling` 建立（指数退避重连，断线不恢复通话）；可选环境变量见 [front/.env.example](front/.env.example)（`VITE_WEBRTC_STUN_URL`、`VITE_CALL_WS_PATH`）。
+- 通话：`/app/calls`（`CallsView` + 侧边栏「通话」）；任意 `/app/*` 左下角 `IncomingCallToast`（接听/拒接）；信令 WebSocket 在 `AppLayout` 经 `useCallSignaling` 建立（指数退避重连，断线不恢复通话）。
+- 通话字幕：`in_call` 时 `asr` store 连接 `WS /api/asr/ws`，local/remote 双轨 16 kHz PCM；CallsView「我说 / 对方说」分栏字幕；挂断 `console.group` 输出分角色 transcript（不落库、不触发 Chat）。
+- 可选环境变量见 [front/.env.example](front/.env.example)（`VITE_WEBRTC_STUN_URL`、`VITE_CALL_WS_PATH`）。**禁止** `VITE_VOLC_ASR_*`（火山凭证仅 Back）。
 
 ## 可观测与评测
 
@@ -661,9 +663,21 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEMORY_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 上下文预算 |
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
 
-Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：`AGENT_URL`、`SESSION_SECRET`、`CORS_ORIGINS`（含 `5173`）、`AGENT_DATABASE_URL` / `DATABASE_URL`（`common_agent_back`）、`ADMIN_SEED_PASSWORD`、`DEMO_*`（无 Session 时的转发回退）、`AGENT_TIMEOUT_SECONDS`。
+Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：
 
-Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。
+| 变量 | 说明 |
+|------|------|
+| `AGENT_URL`、`AGENT_TIMEOUT_SECONDS` | 转发 Agent Gateway |
+| `SESSION_SECRET`、`CORS_ORIGINS` | Cookie Session（`CORS_ORIGINS` 含 `5173`） |
+| `AGENT_DATABASE_URL` / `DATABASE_URL` | Postgres `common_agent_back` |
+| `ADMIN_SEED_PASSWORD`、`DEMO_*` | 种子与无 Session 转发回退 |
+| `VOLC_ASR_ACCESS_KEY` | 火山 SAUC `X-Api-Access-Key`（**必填**方可 ASR；仅 Back，勿提交 git） |
+| `VOLC_ASR_APP_KEY` | 火山 `X-Api-App-Key`；未设时回退为 `VOLC_ASR_ACCESS_KEY` |
+| `VOLC_ASR_WS_URL` | 上游 WS，默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel` |
+| `VOLC_ASR_RESOURCE_ID` | 默认 `volc.bigasr.sauc.duration` |
+| `VOLC_ASR_SEGMENT_MS` | PCM 分包毫秒，默认 `200` |
+
+Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。**无** ASR 相关 `VITE_*`。
 
 ## 验证入口
 

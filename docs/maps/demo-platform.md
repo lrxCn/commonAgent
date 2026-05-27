@@ -31,7 +31,7 @@
 
 全局 **ChatFab** + **ChatDrawer**（`AppLayout`）在所有 `/app/*` 页可用；**IncomingCallToast**（左下角来电）与信令 WS 亦在 `AppLayout` 挂载。
 
-状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）、`call`（通话状态机 + WebRTC）。
+状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）、`call`（通话状态机 + WebRTC）、`asr`（ASR WS、双轨 PCM、字幕与控制台 transcript）。
 
 ## Back 业务 API（摘要）
 
@@ -45,6 +45,7 @@
 | `/api/threads/{id}/messages` | 历史分页（thread 归属 403） |
 | `GET /api/calls/peers` | 可呼叫用户列表（排除当前 Session 用户） |
 | `WS /api/calls/ws` | WebRTC 信令中继（Cookie Session；单进程内存 hub） |
+| `WS /api/asr/ws` | 火山 SAUC 流式 ASR 代理（Cookie Session；与 call WS **分离**；单进程内存 session） |
 
 ## 通话信令（WebRTC 批次 111–114）
 
@@ -73,6 +74,43 @@ sequenceDiagram
 ```
 
 实现：[call_routes.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/api/call_routes.py)、[call_signaling.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/call_signaling.py)、[stores/call.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/call.ts)、[useCallSignaling.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/composables/useCallSignaling.ts)。
+
+## 通话字幕 ASR（火山 SAUC 批次 115–118）
+
+**Agent 不参与**。音频从 WebRTC `localStream` / `remoteStream` **旁路**采集；转写经 Back 代理火山 openspeech；与 call 信令 WS **并列**（`AppLayout` 可同时持有两条连接）。
+
+```mermaid
+sequenceDiagram
+  participant CV as CallsView
+  participant AS as asr store
+  participant B as Back asr_proxy
+  participant V as Volcengine SAUC
+
+  Note over CV: call store in_call（WebRTC 媒体 P2P，见上节）
+  CV->>AS: bindCallLifecycle → start(local + remote)
+  AS->>B: WS /api/asr/ws (Cookie)
+  B->>AS: connected
+  AS->>B: asr.start { track: local }
+  AS->>B: asr.start { track: remote }
+  loop 每轨 ~200ms PCM
+    AS->>B: asr.track { track } + binary PCM
+    B->>V: SAUC CLIENT_AUDIO_ONLY_REQUEST
+    V->>B: SERVER_FULL_RESPONSE
+    B->>AS: asr.partial / asr.final
+  end
+  AS->>CV: 我说 / 对方说 字幕 UI
+  CV->>AS: hangup → asr.stop + dumpTranscript
+  AS->>CV: console.group 分角色 transcript
+```
+
+实现：[asr_routes.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/api/asr_routes.py)、[asr_proxy.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/asr_proxy.py)、[volc_asr/](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/volc_asr/)、[stores/asr.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/asr.ts)、[useAsrCapture.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/composables/useAsrCapture.ts)、[CallsView.vue](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/views/CallsView.vue)。
+
+契约要点：
+
+- 每用户每 `track`（`local` / `remote`）一路上游；新 `asr.start` 同 track 关闭旧会话。
+- 二进制 PCM 前发送 JSON `asr.track` 指定路由 track；16 kHz、16 bit、单声道。
+- 凭证 `VOLC_ASR_*` 仅 Back；Front **无** `VITE_VOLC_ASR_*`。
+- transcript **仅**浏览器控制台；**不**落库、**不**自动 `POST /api/chat`。
 
 ## 对话数据流
 
@@ -126,12 +164,12 @@ flowchart LR
 
 ## 演示手册
 
-逐步操作：[demo-walkthrough.md](../demo-walkthrough.md)（脚本 A/B；WebRTC 双账号见 **B5**）。
+逐步操作：[demo-walkthrough.md](../demo-walkthrough.md)（脚本 A/B；WebRTC 双账号见 **B5**；通话字幕见 **B6**）。
 
 ## 测试入口
 
 ```bash
-cd back && uv run pytest tests/test_demo_auth.py tests/test_demo_students.py tests/test_demo_admin.py tests/test_demo_kb.py tests/test_demo_chat_context.py tests/test_demo_chat_history.py tests/test_call_signaling.py -v
+cd back && uv run pytest tests/test_demo_auth.py tests/test_demo_students.py tests/test_demo_admin.py tests/test_demo_kb.py tests/test_demo_chat_context.py tests/test_demo_chat_history.py tests/test_call_signaling.py tests/test_asr_ws.py tests/test_volc_asr_protocol.py -v
 cd front && npm run build
 cd agent && uv run pytest tests/test_role_ids_filter.py tests/test_schemas.py -v
 ```
