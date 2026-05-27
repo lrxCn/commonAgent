@@ -75,7 +75,7 @@ sequenceDiagram
 
 实现：[call_routes.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/api/call_routes.py)、[call_signaling.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/call_signaling.py)、[stores/call.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/stores/call.ts)、[useCallSignaling.ts](/Users/liurixing/Documents/codes/ai/commonAgent/front/src/composables/useCallSignaling.ts)。
 
-## 通话字幕 ASR（火山 SAUC 批次 115–118）
+## 通话字幕 ASR（火山 SAUC 批次 115–118 + 修复 119–123）
 
 **Agent 不参与**。音频从 WebRTC `localStream` / `remoteStream` **旁路**采集；转写经 Back 代理火山 openspeech；与 call 信令 WS **并列**（`AppLayout` 可同时持有两条连接）。
 
@@ -87,9 +87,10 @@ sequenceDiagram
   participant V as Volcengine SAUC
 
   Note over CV: call store in_call（WebRTC 媒体 P2P，见上节）
-  CV->>AS: bindCallLifecycle → start(local + remote)
+  CV->>AS: bindCallLifecycle → WS connect
   AS->>B: WS /api/asr/ws (Cookie)
   B->>AS: connected
+  Note over AS: local/remote MediaStream 就绪后分别 asr.start
   AS->>B: asr.start { track: local }
   AS->>B: asr.start { track: remote }
   loop 每轨 ~200ms PCM
@@ -109,7 +110,8 @@ sequenceDiagram
 
 - 每用户每 `track`（`local` / `remote`）一路上游；新 `asr.start` 同 track 关闭旧会话。
 - 二进制 PCM 前发送 JSON `asr.track` 指定路由 track；16 kHz、16 bit、单声道。
-- 凭证 `VOLC_ASR_*` 仅 Back；Front **无** `VITE_VOLC_ASR_*`。
+- 凭证 `VOLC_ASR_*` 仅 Back（`X-Api-Key` + 默认 ASR 2.0 `resource_id`）；Front **无** `VITE_VOLC_ASR_*`。
+- 上游 pcm 首包 + audio-only `ser=0`（任务 **120**）；无 PCM 轨静默 stop、45000081 不抛 UI（**121**）。
 - transcript **仅**浏览器控制台；**不**落库、**不**自动 `POST /api/chat`。
 
 ## 对话数据流

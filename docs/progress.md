@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：执行任务 **[123](./prompts/123-volc-asr-fix-docs-final.md)**（火山 SAUC 修复：README、PRD 与 progress 收口）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
+**当前建议下一步**：手工回归 [demo-walkthrough B6](./demo-walkthrough.md)（双浏览器通话字幕）；或处理 [buglist](./buglist.md)（BUG-001 / BUG-002）。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 123 |
-| 已完成 | 122 |
+| 已完成 | 123 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -27,9 +27,9 @@
 
 **WebRTC 账号通话批次（111–114）**：✅ 已完成；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md) 含落地状态；演示见 [demo-walkthrough.md](./demo-walkthrough.md) **B5**。
 
-**火山 SAUC 通话字幕批次（115–118）**：✅ 文档与骨架已落地；联调发现鉴权/协议/Front 时序回归，见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
+**火山 SAUC 通话字幕批次（115–118）**：✅ 骨架与首版文档；联调曾发现鉴权/协议/Front 时序问题（见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md) 历史记录）。
 
-**火山 SAUC 修复批次（119–123）**：🔄 进行中（**119–122** ✅ → **123** 文档收口）。
+**火山 SAUC 修复批次（119–123）**：✅ 已完成（新控制台鉴权、pcm/ser=0、proxy 生命周期、分轨延迟 `asr.start`、文档收口）。
 
 
 ---
@@ -163,7 +163,7 @@
 | 120 | [火山 SAUC 修复：PCM 首包与 audio-only ser=0](./prompts/120-volc-asr-fix-protocol-pcm.md) | ✅ | 2026-05-27 | `format: pcm`；audio-only `SERIALIZATION_NONE`；`test_volc_asr_protocol`；建议 **121** |
 | 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ✅ | 2026-05-27 | full_request `code` 检查；无 PCM 静默 stop；45000081 抑制；`test_asr_ws`；建议 **122** |
 | 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ✅ | 2026-05-27 | `localStream` ref + 分轨 watch；stream 就绪后 idempotent `asr.start`；`stopAll` 仅停已 start 轨；front build 绿；建议 **123** |
-| 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ⬜ | — | 依赖 **119–122**；修复批次文档与契约最终对齐 |
+| 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ✅ | 2026-05-27 | README env/ASR 边界、PRD 落地 119–123、handoff 归档；smoke 绿；修复批次收口 |
 
 ---
 
@@ -171,6 +171,7 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-05-27 | 完成任务 123：README `VOLC_ASR_*`（`X-Api-Key`、2.0 resource、pcm/ser=0）；PRD 落地 119–123；handoff 标记已实现；progress 修复批次收口；`test_volc_asr_protocol` + `test_asr_ws` + front build 绿 |
 | 2026-05-27 | 完成任务 121：`asr_proxy` 检查 full_request `code`、记录 upstream 异常类型；`has_received_pcm` 无 PCM 时 stop 跳过上游等待；45000081 不向 UI 抛错；`test_asr_ws` 增补；建议 **122** |
 | 2026-05-19 | 初始化进度文档与 23 项任务卡 |
 | 2026-05-19 | 文档：任务 01 固化 .env 契约（SiliconFlow LLM/Embedding/Rerank、LangSmith、Qdrant）；同步根 README 环境变量表、任务 02 字段列表 |

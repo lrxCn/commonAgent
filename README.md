@@ -8,11 +8,11 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-118 已完成；**119–123** 火山 SAUC 联调修复待执行（见 [handoff](docs/prd/volc-asr-fix-handoff.md)、[progress](docs/progress.md)） |
+| 核心任务 | 01–**123** 已完成（火山 SAUC 修复批次 **119–123** 见 [handoff](docs/prd/volc-asr-fix-handoff.md) 历史联调记录、[progress](docs/progress.md)） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令、媒体与 ASR |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
 | Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS，挂断控制台分角色 transcript；**无**火山密钥，[PRD](docs/prd/volcengine-streaming-asr.md)） |
-| 通话能力 | 信令 ✅；字幕骨架 ✅，**联调修复中**（401/45000151/45000081，任务 **119–123** + [handoff](docs/prd/volc-asr-fix-handoff.md)）；演示 [B5 通话](docs/demo-walkthrough.md)、[B6 字幕](docs/demo-walkthrough.md) |
+| 通话能力 | 信令 ✅；字幕（火山 SAUC 双轨）✅（新控制台 `X-Api-Key`、pcm 首包、audio-only `ser=0`、分轨延迟 `asr.start`）；演示 [B5 通话](docs/demo-walkthrough.md)、[B6 字幕](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -447,7 +447,7 @@ Back（演示平台，库 `common_agent_back`）：
 - 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
 - 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
 - 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；消息类型见 [call.ts](front/src/types/call.ts) 与 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)；媒体 P2P，**不经 Agent**；单进程内存 hub，多 worker 不支持）。
-- 通话字幕（ASR）：`WS /api/asr/ws`（Cookie Session；Back 代理火山 SAUC 上游；与通话信令 WS **分离**；消息类型见 [volcengine-streaming-asr.md](docs/prd/volcengine-streaming-asr.md)「Front ↔ Back 信令」；单进程内存 session，每用户每 `track`（`local`/`remote`）一路上游；新 `asr.start` 同 track 会关闭旧会话；binary PCM 帧路由到最近一次 `asr.start` 的 track；凭证 `VOLC_ASR_*` 仅 Back `.env`）。
+- 通话字幕（ASR）：`WS /api/asr/ws`（Cookie Session；Back 代理火山 SAUC 上游；与通话信令 WS **分离**；消息类型见 [volcengine-streaming-asr.md](docs/prd/volcengine-streaming-asr.md)「Front ↔ Back 信令」；单进程内存 session，每用户每 `track`（`local`/`remote`）一路上游；新 `asr.start` 同 track 会关闭旧会话；Front 在 `MediaStream` 就绪后再发 `asr.start`（避免 local 轨空等上游）；binary 前 JSON `asr.track` 指定 track；上游首包 `audio.format: pcm`，audio-only 帧 `serialization=none`（`ser=0`）；凭证 `VOLC_ASR_*` 仅 Back `.env`；历史联调问题见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)）。
 - `GET /health`：存活检查。
 - 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 
@@ -671,13 +671,13 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 | `SESSION_SECRET`、`CORS_ORIGINS` | Cookie Session（`CORS_ORIGINS` 含 `5173`） |
 | `AGENT_DATABASE_URL` / `DATABASE_URL` | Postgres `common_agent_back` |
 | `ADMIN_SEED_PASSWORD`、`DEMO_*` | 种子与无 Session 转发回退 |
-| `VOLC_ASR_ACCESS_KEY` | 火山 SAUC `X-Api-Access-Key`（**必填**方可 ASR；仅 Back，勿提交 git） |
-| `VOLC_ASR_APP_KEY` | 火山 `X-Api-App-Key`；未设时回退为 `VOLC_ASR_ACCESS_KEY` |
-| `VOLC_ASR_WS_URL` | 上游 WS，默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel` |
-| `VOLC_ASR_RESOURCE_ID` | 默认 `volc.bigasr.sauc.duration` |
+| `VOLC_ASR_ACCESS_KEY` | 新版本控制台 **API Key** → 上游 `X-Api-Key`（**必填**方可 ASR；仅 Back，勿提交 git） |
+| `VOLC_ASR_APP_KEY` | **已废弃**（旧版 `X-Api-App-Key`；新控制台不再发送） |
+| `VOLC_ASR_WS_URL` | 上游 WS，默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`（双向流式；勿用 demo 默认 `bigmodel_nostream`） |
+| `VOLC_ASR_RESOURCE_ID` | 默认 `volc.seedasr.sauc.duration`（ASR **2.0**）；1.0 账号改为 `volc.bigasr.sauc.duration` |
 | `VOLC_ASR_SEGMENT_MS` | PCM 分包毫秒，默认 `200` |
 
-> **ASR env 表待任务 123 对齐**：新控制台需 `X-Api-Key`（非 Access/App 双头）与 ASR 2.0 `resource_id`；协议为 pcm + audio-only `ser=0`。见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)。
+握手还发送 `X-Api-Sequence: -1`（新控制台要求）。协议要点：首包 JSON `format: pcm`；audio-only 帧 `ser=0`（非 JSON）。联调背景见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)。
 
 Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。**无** ASR 相关 `VITE_*`。
 

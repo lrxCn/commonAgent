@@ -119,7 +119,7 @@ cd front && npm install && npm run dev
 
 **目标**：在 **B5 通话** 基础上展示 CallsView 火山 SAUC 实时字幕；挂断后在浏览器控制台输出分角色 transcript。**不**写入 Chat / Agent。
 
-**前提**：`back/.env` 已配置 `VOLC_ASR_ACCESS_KEY`（可选 `VOLC_ASR_APP_KEY`）；可用 `cd back/demo/sauc_python && python3 sauc_websocket_demo.py --file <16k_mono.wav>` 先验证上游凭证。
+**前提**：`back/.env` 已配置 `VOLC_ASR_ACCESS_KEY`（新控制台 API Key → `X-Api-Key`）；ASR 2.0 账号默认 `VOLC_ASR_RESOURCE_ID=volc.seedasr.sauc.duration`（1.0 改为 `volc.bigasr.sauc.duration`）。详见 [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)。
 
 **准备**：同 B5（双浏览器、麦克风权限）。
 

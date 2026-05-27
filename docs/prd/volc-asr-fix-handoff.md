@@ -1,6 +1,7 @@
 # 火山 SAUC 通话字幕 — 关键修复交接文档
 
-> **状态**：2026-05-27 联调结论；仓库 `master` 上 ASR 实现（任务 116–117）仍含下列缺陷。  
+> **实现状态（2026-05-27）**：修复批次 **119–123** 已全部落地；下文保留联调现象与根因分析作**历史记录**，运行契约以 [README.md](../../README.md) 与 [volcengine-streaming-asr.md](./volcengine-streaming-asr.md) 为准。  
+> **状态（归档前）**：2026-05-27 联调结论；仓库 ASR 实现（任务 116–117）曾含下列缺陷，已由 119–122 修复。  
 > **执行任务卡**：[119](../prompts/119-volc-asr-fix-auth-env.md) → [120](../prompts/120-volc-asr-fix-protocol-pcm.md) → [121](../prompts/121-volc-asr-fix-proxy-lifecycle.md) → [122](../prompts/122-volc-asr-fix-front-track-start.md) → [123](../prompts/123-volc-asr-fix-docs-final.md)（进度见 [progress.md](../progress.md)）。  
 > **官方文档**：[大模型流式语音识别 API](https://www.volcengine.com/docs/6561/1354869?lang=zh)  
 > **勿作协议真相**：`back/demo/sauc_python/sauc_websocket_demo.py`（旧控制台鉴权、默认 nostream、wav 整文件分包等问题）

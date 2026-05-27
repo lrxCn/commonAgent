@@ -37,7 +37,7 @@ isProject: false
 | 能力 | 说明 |
 |------|------|
 | **上游** | `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`（双向流式，200ms 分包最优） |
-| **鉴权** | HTTP 握手头：`X-Api-Access-Key`、`X-Api-App-Key`（或新版控制台 `X-Api-Key`）、`X-Api-Resource-Id`、`X-Api-Request-Id` |
+| **鉴权** | 新控制台：`X-Api-Key`（`VOLC_ASR_ACCESS_KEY`）、`X-Api-Resource-Id`、`X-Api-Request-Id`、`X-Api-Sequence: -1` |
 | **密钥托管** | `VOLC_ASR_ACCESS_KEY` 等仅存 **Back** `.env` / `.env.example` |
 | **Back 代理** | 已登录用户经 **`WS /api/asr/ws`** 上传 PCM；Back 连火山并回传 `asr.partial` / `asr.final` |
 | **音频格式** | 16 kHz、16 bit、单声道 PCM（与 demo `audio` 字段一致） |
@@ -133,13 +133,13 @@ WebRTC 1:1 通话中，每个浏览器同时持有 **本地麦克风** 与 **远
 ### 握手头（Back → 火山）
 
 ```http
-X-Api-Resource-Id: volc.bigasr.sauc.duration
+X-Api-Key: <VOLC_ASR_ACCESS_KEY>
+X-Api-Resource-Id: <VOLC_ASR_RESOURCE_ID>
 X-Api-Request-Id: <uuid>
-X-Api-Access-Key: <VOLC_ASR_ACCESS_KEY>
-X-Api-App-Key: <VOLC_ASR_APP_KEY>
+X-Api-Sequence: -1
 ```
 
-> **凭证说明**：旧版控制台区分 App Key 与 Access Key；新版控制台可能仅发 **一个 API Key**（文档称 `X-Api-Key`）。用户提供的 UUID 已写入 `VOLC_ASR_ACCESS_KEY`；若握手失败，须在控制台确认是否还需 `VOLC_ASR_APP_KEY` 或与 Access Key 相同。联调先用 demo：`cd back/demo/sauc_python && python3 sauc_websocket_demo.py --file <16k_mono.wav>`。
+> **凭证说明**：仅支持**新版本控制台**单 API Key；`VOLC_ASR_APP_KEY` 已废弃、不再发送。`VOLC_ASR_RESOURCE_ID` 默认 ASR 2.0（`volc.seedasr.sauc.duration`）；1.0 账号用 `volc.bigasr.sauc.duration`。`back/demo/sauc_python` 为旧鉴权参考，**勿**作协议真相；联调问题背景见 [volc-asr-fix-handoff.md](./volc-asr-fix-handoff.md)。
 
 ### 首包 JSON（摘要）
 
@@ -147,7 +147,7 @@ X-Api-App-Key: <VOLC_ASR_APP_KEY>
 {
   "user": { "uid": "<session user_id>" },
   "audio": {
-    "format": "wav",
+    "format": "pcm",
     "codec": "raw",
     "rate": 16000,
     "bits": 16,
@@ -169,7 +169,7 @@ X-Api-App-Key: <VOLC_ASR_APP_KEY>
 | 类型 | 方向 | 说明 |
 |------|------|------|
 | `CLIENT_FULL_REQUEST` | C→S | 首包 gzip JSON |
-| `CLIENT_AUDIO_ONLY_REQUEST` | C→S | PCM 分片；最后一包负 `seq` + `NEG_WITH_SEQUENCE` |
+| `CLIENT_AUDIO_ONLY_REQUEST` | C→S | PCM 分片；**serialization=none（`ser=0`）**；最后一包负 `seq` + `NEG_WITH_SEQUENCE` |
 | `SERVER_FULL_RESPONSE` | S→C | gzip JSON，`result.text` / `result.utterances[]` |
 | `SERVER_ERROR_RESPONSE` | S→C | 非零 `code` |
 
@@ -260,10 +260,10 @@ console.groupEnd();
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `VOLC_ASR_ACCESS_KEY` | 是 | 对应 demo `access_key` / `X-Api-Access-Key`；本地 `.env` 已配置 |
-| `VOLC_ASR_APP_KEY` | 视控制台 | demo `app_key` / `X-Api-App-Key`；若仅一个 key 则与 Access Key 同值或按文档留空策略 |
+| `VOLC_ASR_ACCESS_KEY` | 是 | 新控制台 API Key → 上游 `X-Api-Key` |
+| `VOLC_ASR_APP_KEY` | — | **已废弃**（旧 `X-Api-App-Key`，不再发送） |
 | `VOLC_ASR_WS_URL` | 否 | 默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel` |
-| `VOLC_ASR_RESOURCE_ID` | 否 | 默认 `volc.bigasr.sauc.duration` |
+| `VOLC_ASR_RESOURCE_ID` | 否 | 默认 `volc.seedasr.sauc.duration`（ASR 2.0）；1.0 为 `volc.bigasr.sauc.duration` |
 | `VOLC_ASR_SEGMENT_MS` | 否 | 默认 `200` |
 
 同步：`back/.env.example`、`back/src/settings/config.py`（任务 **115**）。
@@ -344,7 +344,7 @@ console.groupEnd();
 
 | # | 问题 | 一期决议（已落地） |
 |---|------|-------------------|
-| 1 | 用户 UUID 是否即 Access Key？ | 写入 `VOLC_ASR_ACCESS_KEY`；`VOLC_ASR_APP_KEY` 未设时回退为 Access Key |
+| 1 | 用户 UUID 是否即 API Key？ | 写入 `VOLC_ASR_ACCESS_KEY`，映射 `X-Api-Key`；`VOLC_ASR_APP_KEY` 废弃 |
 | 2 | UI 在 Chat 还是 Calls？ | **仅 CallsView**；Chat 语音输入不在本批次 |
 | 3 | 分角色方案 | **双轨 ASR + 本地/对方 display_name**；火山 `enable_speaker_info` 未强开 |
 | 4 | transcript 存哪？ | **仅 console**；不落库、不自动 chat |
@@ -360,6 +360,11 @@ console.groupEnd();
 | 116 | [116-volc-asr-back-ws-proxy.md](../prompts/116-volc-asr-back-ws-proxy.md) | 2026-05-27 | `WS /api/asr/ws`、`volc_asr/`、`test_asr_ws` + `test_volc_asr_protocol` |
 | 117 | [117-volc-asr-front-mic-ui.md](../prompts/117-volc-asr-front-mic-ui.md) | 2026-05-27 | `asr` store、`useAsrCapture`、CallsView 字幕 + 挂断 console dump |
 | 118 | [118-volc-asr-docs-final-alignment.md](../prompts/118-volc-asr-docs-final-alignment.md) | 2026-05-27 | README、demo-walkthrough **B6**、demo-platform、progress 收口 |
+| 119 | [119-volc-asr-fix-auth-env.md](../prompts/119-volc-asr-fix-auth-env.md) | 2026-05-27 | 新控制台 `X-Api-Key` + `X-Api-Sequence: -1`；默认 ASR 2.0 `resource_id` |
+| 120 | [120-volc-asr-fix-protocol-pcm.md](../prompts/120-volc-asr-fix-protocol-pcm.md) | 2026-05-27 | 首包 `format: pcm`；audio-only `ser=0` |
+| 121 | [121-volc-asr-fix-proxy-lifecycle.md](../prompts/121-volc-asr-fix-proxy-lifecycle.md) | 2026-05-27 | `full_request` code 检查；无 PCM 静默 stop；45000081 抑制 |
+| 122 | [122-volc-asr-fix-front-track-start.md](../prompts/122-volc-asr-fix-front-track-start.md) | 2026-05-27 | 分轨延迟 `asr.start`；`localStream` ref + watch |
+| 123 | [123-volc-asr-fix-docs-final.md](../prompts/123-volc-asr-fix-docs-final.md) | 2026-05-27 | README/PRD/handoff/progress 与实现对齐 |
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
@@ -368,11 +373,13 @@ console.groupEnd();
 | 控制台 transcript | ✅ | 挂断 `console.group`；标签 `本地 · {name}` / `对方 · {name}` |
 | Chat / Agent | ⏭ | 明确非目标；不自动 `POST /api/chat` |
 
+**修复批次 119–123**（2026-05-27）：鉴权、pcm/ser=0 协议、proxy 生命周期、Front 分轨 `asr.start` 时序；详见 [volc-asr-fix-handoff.md](./volc-asr-fix-handoff.md)（历史现象）与 [progress.md](../progress.md)。
+
 **已知偏差（可接受）**：
 
 - PRD 初稿 `asr.audio` 类型已改为实现态：`asr.track` JSON + binary PCM。
 - 任务 115 无独立任务卡，协议与客户端在 116 交付。
-- 参考 demo `back/demo/sauc_python` 未改行为，仅作联调参考。
+- 参考 demo `back/demo/sauc_python` 为旧鉴权示例，**勿**作协议真相。
 
 进度总览：[docs/progress.md](../progress.md)。
 
@@ -395,3 +402,4 @@ console.groupEnd();
 | 2026-05-27 | 初稿：火山 SAUC、Back 代理、任务 115–118 |
 | 2026-05-27 | **修订**：明确 **CallsView 通话字幕** 为首期唯一 UI；挂断 **控制台分角色** transcript；双轨 ASR 策略；Chat 移出范围 |
 | 2026-05-27 | 落地：116–118 完成；PRD 落地状态表；demo-walkthrough **B6**；信令表对齐 `asr.track` + binary PCM |
+| 2026-05-27 | 修复批次 119–123 收口：新控制台鉴权、pcm/ser=0、proxy/Front 时序；README env 表与 handoff 归档 |
