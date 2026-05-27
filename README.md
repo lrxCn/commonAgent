@@ -11,7 +11,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 | 核心任务 | 01-110 已完成（含对话内学生表单/列表，见 [student-in-chat PRD](docs/prd/student-in-chat-client-actions.md)） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索） |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent` 对话内表单、`listStudents` 对话内列表） |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent` 对话内表单、`listStudents` 对话内列表）；**计划** 账号 WebRTC 通话页 + 全局来电（任务 [111–114](docs/progress.md)，[PRD](docs/prd/webrtc-account-call.md)） |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -445,6 +445,7 @@ Back（演示平台，库 `common_agent_back`）：
 - 认证：`POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/me`（Cookie Session）。
 - 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
 - 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
+- **计划（WebRTC，任务 111–114）**：`GET /api/calls/peers` · `WS /api/calls/ws`（Cookie Session 信令；媒体 P2P，不经 Agent；单进程内存 hub，多 worker 不支持）。详见 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)。
 - `GET /health`：存活检查。
 - 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 
@@ -453,6 +454,7 @@ Front（Vue SPA）：
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
 - `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
+- **计划**：`/app/calls` 通话页；任意 `/app/*` 左下角来电弹窗（接听/拒接）；信令 WebSocket 在 `AppLayout` 建立（实现见任务 111–114）。
 
 ## 可观测与评测
 
