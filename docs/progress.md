@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：执行 [111-webrtc-back-signaling.md](./prompts/111-webrtc-back-signaling.md)（WebRTC 批次 **111–114**）；对话内学生工具可按 [demo-walkthrough.md](./demo-walkthrough.md) **B4b** 验收。
+**当前建议下一步**：执行 [112-webrtc-front-calls-page.md](./prompts/112-webrtc-front-calls-page.md)（WebRTC 批次 **112–114**）；对话内学生工具可按 [demo-walkthrough.md](./demo-walkthrough.md) **B4b** 验收。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **1** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失) 刷新后创建成功链式列表消失）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 114 |
-| 已完成 | 110 |
+| 已完成 | 111 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -25,7 +25,7 @@
 
 **对话内学生工具批次（106–110）**：✅ 已完成；PRD [student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)；对话内 createStudent + listStudents + 创建后链式列表 + 文档收口。
 
-**WebRTC 账号通话批次（111–114）**：⬜ 待开始；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md)；Back WS 信令 → Front 通话页 → 全局来电 + 音频 → 文档收口。
+**WebRTC 账号通话批次（111–114）**：🔄 进行中（**111** ✅）；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md)；Back WS 信令 → Front 通话页 → 全局来电 + 音频 → 文档收口。
 
 
 ---
@@ -147,7 +147,7 @@
 | 108 | [对话内学生工具：CreateStudentFormCard 与 createStudent 执行](./prompts/108-student-chat-create-form-card.md) | ✅ | 2026-05-27 | 对话内嵌表单 + POST 提交；历史 historical；front build 绿；建议 **109** |
 | 109 | [对话内学生工具：StudentListCard 与 listStudents 执行](./prompts/109-student-chat-list-card.md) | ✅ | 2026-05-27 | `StudentListCard` + enqueue/refresh；历史 `historical`；无操作列；front build 绿；建议 **110** |
 | 110 | [对话内学生工具：创建后链式列表、历史回放与文档收口](./prompts/110-student-chat-docs-final-alignment.md) | ✅ | 2026-05-27 | `appendListStudents` 于 create 成功；README/maps/demo/PRD 收口；smoke 绿 |
-| 111 | [WebRTC 通话：Back peers API 与 WebSocket 信令](./prompts/111-webrtc-back-signaling.md) | ⬜ 待开始 | — | `GET /api/calls/peers` + `WS /api/calls/ws`；依赖 **110** |
+| 111 | [WebRTC 通话：Back peers API 与 WebSocket 信令](./prompts/111-webrtc-back-signaling.md) | ✅ | 2026-05-27 | `GET /api/calls/peers` + `WS /api/calls/ws` + `test_call_signaling.py` 10 用例；建议 **112** |
 | 112 | [WebRTC 通话：Front 信令连接、call store 与通话页](./prompts/112-webrtc-front-calls-page.md) | ⬜ 待开始 | — | `/app/calls`、主叫 invite/cancel；依赖 **111** |
 | 113 | [WebRTC 通话：全局来电弹窗与音频全流程](./prompts/113-webrtc-front-incoming-audio.md) | ⬜ 待开始 | — | 左下角来电、WebRTC 音频、挂断；依赖 **112** |
 | 114 | [WebRTC 通话：README、演示脚本与地图收口](./prompts/114-webrtc-docs-final-alignment.md) | ⬜ 待开始 | — | demo-walkthrough B5；依赖 **111–113** |
@@ -285,7 +285,7 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
-| 2026-05-27 | 规划：基于 [webrtc-account-call PRD](./prd/webrtc-account-call.md) 拆分任务 **111–114**（Back 信令 → Front 通话页 → 来电+音频 → 文档收口）；总任务数 114；建议下一步 **111** |
+| 2026-05-27 | 完成任务 111：Back `GET /api/calls/peers` + `WS /api/calls/ws`（Cookie Session、`CallSignalingHub` 内存路由、invite/accept/reject/hangup/rtc 转发、session.replaced）；`test_call_signaling.py` 10 用例；README Back API 同步；建议 **112** |
 | 2026-05-27 | 完成任务 110：`appendListStudents(DEFAULT_LIST_AFTER_CREATE)` 于 create POST 成功；README/client-actions map/demo-walkthrough/PRD 落地状态同步第二代语义；smoke 测试绿；对话内学生工具批次 106–110 全部完成 |
 | 2026-05-27 | 完成任务 109：`StudentListCard.vue` + `chat.ts` `enqueueListStudents`/`refreshListStudents`；`handleClientActions` listStudents 入队并 GET `/api/students`；历史 `historical` 只读 + `formatListStudentsQuerySummary`；无操作列；front build 绿；建议 **110** |
 | 2026-05-27 | 完成任务 108：`CreateStudentFormCard.vue` + `chat.ts` enqueue/submit/cancel；`handleClientActions` createStudent 入队表单；历史 `historical` 回放；`cancelled` 状态；无第一代确认卡片残留；front build 绿；建议 **109** |
