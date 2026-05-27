@@ -8,11 +8,11 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01-118 已完成（含对话内学生工具、账号 WebRTC 通话与火山 SAUC 通话字幕，见 [progress](docs/progress.md)） |
+| 核心任务 | 01-118 已完成；**119–123** 火山 SAUC 联调修复待执行（见 [handoff](docs/prd/volc-asr-fix-handoff.md)、[progress](docs/progress.md)） |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令、媒体与 ASR |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
 | Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS，挂断控制台分角色 transcript；**无**火山密钥，[PRD](docs/prd/volcengine-streaming-asr.md)） |
-| 通话能力 | ✅ 已实现：双账号 1:1 音频 + 实时字幕；信令与 ASR 均经 Back WebSocket（与 Agent 分离）；媒体 P2P（STUN）；演示 [B5 通话](docs/demo-walkthrough.md)、[B6 字幕](docs/demo-walkthrough.md) |
+| 通话能力 | 信令 ✅；字幕骨架 ✅，**联调修复中**（401/45000151/45000081，任务 **119–123** + [handoff](docs/prd/volc-asr-fix-handoff.md)）；演示 [B5 通话](docs/demo-walkthrough.md)、[B6 字幕](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -676,6 +676,8 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 | `VOLC_ASR_WS_URL` | 上游 WS，默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel` |
 | `VOLC_ASR_RESOURCE_ID` | 默认 `volc.bigasr.sauc.duration` |
 | `VOLC_ASR_SEGMENT_MS` | PCM 分包毫秒，默认 `200` |
+
+> **ASR env 表待任务 123 对齐**：新控制台需 `X-Api-Key`（非 Access/App 双头）与 ASR 2.0 `resource_id`；协议为 pcm + audio-only `ser=0`。见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)。
 
 Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。**无** ASR 相关 `VITE_*`。
 

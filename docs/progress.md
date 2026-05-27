@@ -6,13 +6,13 @@
 
 ## 总览
 
-**当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) **B6** 做通话字幕联调；或处理 [buglist.md](./buglist.md) open 项（[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
+**当前建议下一步**：执行任务 **[119](./prompts/119-volc-asr-fix-auth-env.md)**（火山 SAUC 修复批次首任务：新控制台鉴权）；联调依据 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
-| 总任务数 | 118 |
+| 总任务数 | 123 |
 | 已完成 | 118 |
 | 进行中 | — |
 | 阻塞 | 0 |
@@ -27,7 +27,9 @@
 
 **WebRTC 账号通话批次（111–114）**：✅ 已完成；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md) 含落地状态；演示见 [demo-walkthrough.md](./demo-walkthrough.md) **B5**。
 
-**火山 SAUC 通话字幕批次（115–118）**：✅ 已完成；PRD [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md) 含落地状态；演示见 [demo-walkthrough.md](./demo-walkthrough.md) **B6**。
+**火山 SAUC 通话字幕批次（115–118）**：✅ 文档与骨架已落地；联调发现鉴权/协议/Front 时序回归，见 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md)。
+
+**火山 SAUC 修复批次（119–123）**：⬜ 待开始（**119** 新鉴权 → **120** pcm/ser=0 → **121** proxy 生命周期 → **122** Front 分轨 start → **123** 文档收口）。
 
 
 ---
@@ -156,7 +158,12 @@
 | 115 | 火山 SAUC：协议编解码与上游客户端 | ✅ | 2026-05-27 | 废弃 |
 | 116 | [火山 SAUC：Back WebSocket 代理与会话](./prompts/116-volc-asr-back-ws-proxy.md) | ✅ | 2026-05-27 | `WS /api/asr/ws` + `volc_asr/` 协议客户端 + `test_asr_ws` 8 用例；建议 **117** |
 | 117 | [火山 SAUC：CallsView 实时字幕与控制台 transcript](./prompts/117-volc-asr-front-mic-ui.md) | ✅ | 2026-05-27 | 双轨 PCM + CallsView 字幕 + 挂断 console dump；`asr.track` 二进制路由；front build 绿；建议 **118** |
-| 118 | [火山 SAUC：README、演示手册与文档收口](./prompts/118-volc-asr-docs-final-alignment.md) | ✅ | 2026-05-27 | README/demo B6/maps/PRD 落地状态；smoke 绿；火山 SAUC 115–118 全部收口 |
+| 118 | [火山 SAUC：README、演示手册与文档收口](./prompts/118-volc-asr-docs-final-alignment.md) | ✅ | 2026-05-27 | README/demo B6/maps/PRD 落地状态；smoke 绿；**联调后见 handoff 回归说明** |
+| 119 | [火山 SAUC 修复：新控制台鉴权与 env 契约](./prompts/119-volc-asr-fix-auth-env.md) | ⬜ | — | `X-Api-Key` + `X-Api-Sequence: -1`；env 三文件同步 |
+| 120 | [火山 SAUC 修复：PCM 首包与 audio-only ser=0](./prompts/120-volc-asr-fix-protocol-pcm.md) | ⬜ | — | 依赖 **119**；消除 45000151 |
+| 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ⬜ | — | 依赖 **119–120**；full_request 检查、45000081 过滤 |
+| 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ⬜ | — | 依赖 **121**；local/remote stream 就绪后再 start |
+| 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ⬜ | — | 依赖 **119–122**；修复批次文档与契约最终对齐 |
 
 ---
 
@@ -291,7 +298,8 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
-| 2026-05-27 | 完成任务 118：README/maps/demo-walkthrough B6/PRD 落地状态同步；`VOLC_ASR_*` 环境变量表；火山 SAUC 115–118 全部收口；118/118 完成 |
+| 2026-05-27 | 规划：基于 [volc-asr-fix-handoff.md](./prd/volc-asr-fix-handoff.md) 拆分修复任务 **119–123**（鉴权 → 协议 → proxy → Front 时序 → 文档）；总任务数 123；115–118 标注联调回归；建议下一步 **119** |
+| 2026-05-27 | 完成任务 118：README/maps/demo-walkthrough B6/PRD 落地状态同步；`VOLC_ASR_*` 环境变量表；火山 SAUC 115–118 文档收口；118/123 完成 |
 | 2026-05-27 | 完成任务 117：Front `asr` store + `useAsrCapture` 双轨 16 kHz PCM；CallsView 实时字幕 UI；挂断 `console.group` 分角色 transcript；Back 增补 `asr.track` 二进制路由；front build 绿；建议 **118** |
 | 2026-05-27 | 完成任务 116：Back `WS /api/asr/ws` + `AsrSessionManager` + `services/volc_asr/` 协议/上游客户端；`VOLC_ASR_*` settings/env；`test_asr_ws` + `test_volc_asr_protocol` 8 用例；README Back API 同步；建议 **117** |
 | 2026-05-27 | 任务 **115** 标记为 `✅` 废弃（无任务卡，协议客户端工作并入后续任务）；建议下一步 **116** |
