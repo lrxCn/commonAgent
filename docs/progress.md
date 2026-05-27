@@ -2,11 +2,13 @@
 
 > **维护方式**：执行 `docs/prompts/` 任务卡时遵守根目录 [AGENTS.md](../AGENTS.md)；Cursor 可通过 [execute-prompt-task](../.cursor/skills/execute-prompt-task/SKILL.md) 适配器触发。人工改代码时也请同步更新对应行。
 
-**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)
+**AI 规则**：[AGENTS.md](../AGENTS.md) · **项目入口**：[README.md](../README.md) · **Bug 清单**：[buglist.md](./buglist.md) · **需求**：[common-agent-architecture.md](./prd/common-agent-architecture.md) · **运行时优化 PRD**：[agent-runtime-optimization.md](./prd/agent-runtime-optimization.md) · **结构化记忆写入 PRD**：[agent-structured-memory-write.md](./prd/agent-structured-memory-write.md) · **LangMem 迁移 PRD**：[agent-langmem-migration.md](./prd/agent-langmem-migration.md) · **memory_query 润色 PRD**：[agent-memory-query-polish.md](./prd/agent-memory-query-polish.md) · **演示平台 PRD**：[demo-admin-console.md](./prd/demo-admin-console.md) · **KB 多角色 RAG PRD**：[kb-multi-role-rag.md](./prd/kb-multi-role-rag.md) · **jumpPage PRD**：[jumpPage-client-action.md](./prd/jumpPage-client-action.md) · **对话内学生工具 PRD**：[student-in-chat-client-actions.md](./prd/student-in-chat-client-actions.md)
 
 ## 总览
 
 **当前建议下一步**：按 [demo-walkthrough.md](./demo-walkthrough.md) **B4b** 做对话内学生工具端到端手工验收；新需求见 backlog / 新 PRD。
+
+**已知缺陷**：[buglist.md](./buglist.md)（当前 **1** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失) 刷新后创建成功链式列表消失）。
 
 | 指标 | 值 |
 |------|-----|

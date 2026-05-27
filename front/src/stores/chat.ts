@@ -18,6 +18,7 @@ import {
   resolveJumpPageTarget,
 } from "@/client-actions/page-registry";
 import { useAuthStore } from "@/stores/auth";
+import { useStudentsStore } from "@/stores/students";
 import type {
   ApiErrorBody,
   ChatDisplayMessage,
@@ -340,6 +341,7 @@ export const useChatStore = defineStore("chat", () => {
       });
       form.status = "success";
       form.createdStudent = created;
+      useStudentsStore().markListChanged();
       appendListStudents(DEFAULT_LIST_AFTER_CREATE);
       if (import.meta.env.DEV) {
         console.info("[client_actions] createStudent succeeded", created);

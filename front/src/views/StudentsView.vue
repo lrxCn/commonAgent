@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from "axios";
 import { computed, h, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import {
   NButton,
   NDataTable,
@@ -20,24 +21,25 @@ import {
 import {
   createStudent,
   deleteStudent,
-  fetchClassNames,
-  fetchStudents,
   updateStudent,
 } from "@/api/students";
+import { useStudentsStore } from "@/stores/students";
 import type { ApiErrorBody, Student } from "@/types";
 
 const message = useMessage();
-
-const loading = ref(false);
-const students = ref<Student[]>([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = ref(10);
-
-const search = ref("");
-const statusFilter = ref<string | null>(null);
-const classFilter = ref<string | null>(null);
-const classOptions = ref<{ label: string; value: string }[]>([]);
+const studentsStore = useStudentsStore();
+const {
+  students,
+  total,
+  loading,
+  page,
+  pageSize,
+  search,
+  statusFilter,
+  classFilter,
+  classOptions,
+  listRevision,
+} = storeToRefs(studentsStore);
 
 const drawerVisible = ref(false);
 const editing = ref<Student | null>(null);
@@ -101,30 +103,14 @@ const columns = computed<DataTableColumns<Student>>(() => [
 ]);
 
 async function loadClassNames(): Promise<void> {
-  try {
-    const names = await fetchClassNames();
-    classOptions.value = names.map((name) => ({ label: name, value: name }));
-  } catch {
-    classOptions.value = [];
-  }
+  await studentsStore.loadClassNames();
 }
 
 async function loadStudents(): Promise<void> {
-  loading.value = true;
   try {
-    const data = await fetchStudents({
-      offset: (page.value - 1) * pageSize.value,
-      limit: pageSize.value,
-      search: search.value.trim() || undefined,
-      status: statusFilter.value || undefined,
-      class_name: classFilter.value || undefined,
-    });
-    students.value = data.items;
-    total.value = data.total;
+    await studentsStore.loadStudents();
   } catch {
     message.error("加载学生列表失败");
-  } finally {
-    loading.value = false;
   }
 }
 
@@ -232,6 +218,14 @@ function onPageSizeChange(size: number): void {
 watch([statusFilter, classFilter], () => {
   page.value = 1;
   void loadStudents();
+});
+
+watch(listRevision, (revision) => {
+  if (revision > 0) {
+    void studentsStore.refreshAfterExternalChange().catch(() => {
+      message.error("加载学生列表失败");
+    });
+  }
 });
 
 onMounted(async () => {
