@@ -447,6 +447,7 @@ Back（演示平台，库 `common_agent_back`）：
 - 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
 - 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
 - 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；消息类型见 [call.ts](front/src/types/call.ts) 与 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)；媒体 P2P，**不经 Agent**；单进程内存 hub，多 worker 不支持）。
+- 通话字幕（ASR）：`WS /api/asr/ws`（Cookie Session；Back 代理火山 SAUC 上游；与通话信令 WS **分离**；消息类型见 [volcengine-streaming-asr.md](docs/prd/volcengine-streaming-asr.md)「Front ↔ Back 信令」；单进程内存 session，每用户每 `track`（`local`/`remote`）一路上游；新 `asr.start` 同 track 会关闭旧会话；binary PCM 帧路由到最近一次 `asr.start` 的 track；凭证 `VOLC_ASR_*` 仅 Back `.env`）。
 - `GET /health`：存活检查。
 - 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 

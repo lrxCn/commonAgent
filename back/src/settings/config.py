@@ -76,6 +76,26 @@ class Settings(BaseSettings):
         default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:3000,http://localhost:3000",
         description="Comma-separated browser origins allowed with credentials.",
     )
+    VOLC_ASR_ACCESS_KEY: str | None = Field(
+        default=None,
+        description="Volcengine SAUC access key (X-Api-Access-Key); Back-only secret.",
+    )
+    VOLC_ASR_APP_KEY: str | None = Field(
+        default=None,
+        description="Volcengine SAUC app key (X-Api-App-Key); defaults to access key when unset.",
+    )
+    VOLC_ASR_WS_URL: str = Field(
+        default="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel",
+        description="Volcengine SAUC upstream WebSocket URL.",
+    )
+    VOLC_ASR_RESOURCE_ID: str = Field(
+        default="volc.bigasr.sauc.duration",
+        description="Volcengine SAUC resource id header (X-Api-Resource-Id).",
+    )
+    VOLC_ASR_SEGMENT_MS: int = Field(
+        default=200,
+        description="PCM segment duration in milliseconds when forwarding to upstream.",
+    )
 
     @model_validator(mode="after")
     def resolve_database_url(self) -> Self:

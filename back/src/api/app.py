@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from api.asr_routes import router as asr_router
 from api.auth_routes import me_router, router as auth_router
 from api.call_routes import router as call_router
 from admin.kb_routes import router as admin_kb_router
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     application.include_router(admin_router)
     application.include_router(admin_kb_router)
     application.include_router(call_router)
+    application.include_router(asr_router)
 
     @application.get("/health")
     def health(
