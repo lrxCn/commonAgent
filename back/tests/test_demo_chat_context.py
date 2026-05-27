@@ -45,7 +45,7 @@ def _sample_tools() -> list[dict]:
         },
         {
             "name": "createStudent",
-            "description": "Open the create-student form on the Students page.",
+            "description": "Show an inline create-student form in the chat. Optional prefill: student_no, name, class_name, status (active=在读, inactive=休学). The user submits the form in chat; do not assume the student is already created.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -56,7 +56,24 @@ def _sample_tools() -> list[dict]:
                 },
                 "required": [],
             },
-            "requires_approval": True,
+            "requires_approval": False,
+            "roles": ["role-admin", "role-sales"],
+        },
+        {
+            "name": "listStudents",
+            "description": "Show a paginated student list inline in the chat. Optional filters: search (matches name/student_no/class_name), status (active/inactive), class_name. Pagination: offset (default 0), limit (default 10, max 100).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "offset": {"type": "integer", "minimum": 0},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "search": {"type": "string"},
+                    "status": {"type": "string", "enum": ["active", "inactive"]},
+                    "class_name": {"type": "string"},
+                },
+                "required": [],
+            },
+            "requires_approval": False,
             "roles": ["role-admin", "role-sales"],
         },
     ]
@@ -66,14 +83,14 @@ def test_filter_tools_for_role_ids_union_dedup() -> None:
     tools = _sample_tools()
     allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-admin"])
     names = [tool["name"] for tool in allowed]
-    assert names == ["jumpPage", "createStudent"]
+    assert names == ["jumpPage", "createStudent", "listStudents"]
     assert "roles" not in allowed[0]
 
 
 def test_filter_tools_for_role_ids_single_role() -> None:
     tools = _sample_tools()
     allowed = filter_tools_for_role_ids(tools, ["role-admin"])
-    assert [tool["name"] for tool in allowed] == ["jumpPage", "createStudent"]
+    assert [tool["name"] for tool in allowed] == ["jumpPage", "createStudent", "listStudents"]
 
 
 def test_filter_tools_for_role_ids_dedupes_by_name() -> None:
@@ -87,7 +104,7 @@ def test_filter_tools_for_role_ids_dedupes_by_name() -> None:
         },
     ]
     allowed = filter_tools_for_role_ids(tools, ["role-sales", "role-admin"])
-    assert [tool["name"] for tool in allowed] == ["jumpPage", "createStudent"]
+    assert [tool["name"] for tool in allowed] == ["jumpPage", "createStudent", "listStudents"]
 
 
 def test_build_request_context_includes_role_ids(tmp_path: Path) -> None:
@@ -106,7 +123,7 @@ def test_build_request_context_includes_role_ids(tmp_path: Path) -> None:
     assert ctx["user_id"] == "u-alice"
     assert ctx["role_ids"] == ["role-sales"]
     assert ctx["role_id"] == "role-sales"
-    assert [tool["name"] for tool in ctx["tools"]] == ["jumpPage", "createStudent"]
+    assert [tool["name"] for tool in ctx["tools"]] == ["jumpPage", "createStudent", "listStudents"]
 
 
 @pytest.fixture
@@ -187,7 +204,11 @@ def test_api_chat_registers_thread_and_forwards_role_ids(chat_client: TestClient
     assert body["context"]["user_id"] == "u-alice"
     assert body["context"]["role_ids"] == ["role-sales"]
     assert body["context"]["role_id"] == "role-sales"
-    assert [tool["name"] for tool in body["context"]["tools"]] == ["jumpPage", "createStudent"]
+    assert [tool["name"] for tool in body["context"]["tools"]] == [
+        "jumpPage",
+        "createStudent",
+        "listStudents",
+    ]
 
     engine = create_engine_from_url(get_settings().DATABASE_URL)
     session_factory = get_session_factory(engine)
@@ -250,13 +271,13 @@ def test_api_chat_multi_role_tool_union(chat_client: TestClient) -> None:
     body = json.loads(route.calls[0].request.content.decode())
     assert body["context"]["role_ids"] == ["role-sales", "role-support"]
     tool_names = [tool["name"] for tool in body["context"]["tools"]]
-    assert tool_names == ["jumpPage", "createStudent"]
+    assert tool_names == ["jumpPage", "createStudent", "listStudents"]
 
 
 def test_demo_tools_file_has_roles_arrays() -> None:
     back_root = Path(__file__).resolve().parents[1]
     tools = load_role_tools(back_root / "config" / "tools.demo.json")
-    assert [tool["name"] for tool in tools] == ["jumpPage", "createStudent"]
+    assert [tool["name"] for tool in tools] == ["jumpPage", "createStudent", "listStudents"]
     for tool in tools:
         assert isinstance(tool.get("roles"), list)
         assert tool["roles"]
@@ -265,3 +286,10 @@ def test_demo_tools_file_has_roles_arrays() -> None:
     create_params = tools[1]["parameters"]["properties"]
     assert create_params["status"]["enum"] == ["active", "inactive"]
     assert tools[1]["parameters"]["required"] == []
+    assert tools[1]["requires_approval"] is False
+    list_params = tools[2]["parameters"]["properties"]
+    assert list_params["offset"]["minimum"] == 0
+    assert list_params["limit"]["minimum"] == 1
+    assert list_params["limit"]["maximum"] == 100
+    assert list_params["status"]["enum"] == ["active", "inactive"]
+    assert tools[2]["parameters"]["required"] == []

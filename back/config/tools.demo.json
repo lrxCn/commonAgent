@@ -18,7 +18,7 @@
     },
     {
       "name": "createStudent",
-      "description": "Open the create-student form on the Students page. Optional prefill fields: student_no (学号), name (姓名), class_name (班级), status (active=在读, inactive=休学). Does NOT submit the form; the user must click Save in the UI.",
+      "description": "Show an inline create-student form in the chat. Optional prefill: student_no, name, class_name, status (active=在读, inactive=休学). The user submits the form in chat; do not assume the student is already created.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -32,7 +32,27 @@
         },
         "required": []
       },
-      "requires_approval": true,
+      "requires_approval": false,
+      "roles": ["role-admin", "role-sales"]
+    },
+    {
+      "name": "listStudents",
+      "description": "Show a paginated student list inline in the chat. Optional filters: search (matches name/student_no/class_name), status (active/inactive), class_name. Pagination: offset (default 0), limit (default 10, max 100).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "offset": { "type": "integer", "minimum": 0 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "search": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive"]
+          },
+          "class_name": { "type": "string" }
+        },
+        "required": []
+      },
+      "requires_approval": false,
       "roles": ["role-admin", "role-sales"]
     }
   ]

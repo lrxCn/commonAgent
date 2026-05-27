@@ -42,7 +42,7 @@ _OTHER_TOOL = ToolSpec(
 
 _CREATE_STUDENT_TOOL = ToolSpec(
     name="createStudent",
-    description="Open the create-student form.",
+    description="Show an inline create-student form in the chat.",
     parameters={
         "type": "object",
         "properties": {
@@ -53,7 +53,24 @@ _CREATE_STUDENT_TOOL = ToolSpec(
         },
         "required": [],
     },
-    requires_approval=True,
+    requires_approval=False,
+)
+
+_LIST_STUDENTS_TOOL = ToolSpec(
+    name="listStudents",
+    description="Show a paginated student list inline in the chat.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "offset": {"type": "integer", "minimum": 0},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+            "search": {"type": "string"},
+            "status": {"type": "string", "enum": ["active", "inactive"]},
+            "class_name": {"type": "string"},
+        },
+        "required": [],
+    },
+    requires_approval=False,
 )
 
 _REQUIRED_ENV = {
@@ -102,7 +119,7 @@ def test_parse_create_student_with_optional_args() -> None:
     action = outcome.actions[0]
     assert action.tool == "createStudent"
     assert action.args == {"name": "张三", "student_no": "2024004"}
-    assert action.requires_approval is True
+    assert action.requires_approval is False
 
 
 def test_parse_create_student_empty_args() -> None:
@@ -110,6 +127,36 @@ def test_parse_create_student_empty_args() -> None:
     outcome = parse_client_actions_from_llm(payload, [_CREATE_STUDENT_TOOL])
     assert outcome.kind == "client_actions"
     assert outcome.actions[0].args == {}
+
+
+def test_parse_list_students_empty_args() -> None:
+    payload = json.dumps({"client_actions": [{"tool": "listStudents", "args": {}}]})
+    outcome = parse_client_actions_from_llm(payload, [_LIST_STUDENTS_TOOL])
+    assert outcome.kind == "client_actions"
+    action = outcome.actions[0]
+    assert action.tool == "listStudents"
+    assert action.args == {}
+    assert action.requires_approval is False
+
+
+def test_parse_list_students_with_search_and_offset() -> None:
+    payload = json.dumps(
+        {
+            "client_actions": [
+                {
+                    "tool": "listStudents",
+                    "args": {"search": "张", "offset": 10, "limit": 20},
+                    "requires_approval": True,
+                }
+            ]
+        }
+    )
+    outcome = parse_client_actions_from_llm(payload, [_LIST_STUDENTS_TOOL])
+    assert outcome.kind == "client_actions"
+    action = outcome.actions[0]
+    assert action.tool == "listStudents"
+    assert action.args == {"search": "张", "offset": 10, "limit": 20}
+    assert action.requires_approval is False
 
 
 def test_tool_not_in_whitelist_rejected() -> None:
