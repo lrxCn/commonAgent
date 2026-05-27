@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onUnmounted, ref, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
   NAlert,
@@ -12,11 +12,13 @@ import {
   type DataTableColumns,
 } from "naive-ui";
 
+import { useAsrStore } from "@/stores/asr";
 import { useCallStore } from "@/stores/call";
 import type { CallPeer } from "@/types/call";
 
 const message = useMessage();
 const callStore = useCallStore();
+const asrStore = useAsrStore();
 const {
   peers,
   peersLoading,
@@ -29,6 +31,13 @@ const {
   remoteStream,
   callStartedAt,
 } = storeToRefs(callStore);
+const {
+  partials: asrPartials,
+  localFinalLines,
+  remoteFinalLines,
+  error: asrError,
+  active: asrActive,
+} = storeToRefs(asrStore);
 
 const remoteAudioRef = ref<HTMLAudioElement | null>(null);
 const elapsedLabel = ref("00:00");
@@ -204,8 +213,13 @@ watch(notice, (text) => {
 
 void loadPeers();
 
+onMounted(() => {
+  asrStore.bindCallLifecycle();
+});
+
 onUnmounted(() => {
   stopElapsedTimer();
+  asrStore.unbindCallLifecycle();
 });
 </script>
 
@@ -234,6 +248,43 @@ onUnmounted(() => {
         <n-text>通话时长 {{ elapsedLabel }}</n-text>
         <n-button type="error" size="small" @click="onHangup">挂断</n-button>
         <audio ref="remoteAudioRef" autoplay playsinline class="remote-audio" />
+
+        <div class="subtitle-panel">
+          <n-text depth="3" class="subtitle-heading">实时字幕</n-text>
+          <n-alert
+            v-if="asrError"
+            type="warning"
+            :title="asrError"
+            class="subtitle-error"
+          />
+          <n-text v-else-if="asrActive && !asrPartials.local && !asrPartials.remote && localFinalLines.length === 0 && remoteFinalLines.length === 0" depth="3">
+            字幕识别中…
+          </n-text>
+          <div class="subtitle-columns">
+            <div class="subtitle-column">
+              <n-text strong>我说</n-text>
+              <ul class="subtitle-list">
+                <li v-for="line in localFinalLines" :key="`local-${line.seq}`">
+                  {{ line.text }}
+                </li>
+              </ul>
+              <n-text v-if="asrPartials.local" depth="2" class="subtitle-partial">
+                {{ asrPartials.local }}
+              </n-text>
+            </div>
+            <div class="subtitle-column">
+              <n-text strong>对方说</n-text>
+              <ul class="subtitle-list">
+                <li v-for="line in remoteFinalLines" :key="`remote-${line.seq}`">
+                  {{ line.text }}
+                </li>
+              </ul>
+              <n-text v-if="asrPartials.remote" depth="2" class="subtitle-partial">
+                {{ asrPartials.remote }}
+              </n-text>
+            </div>
+          </div>
+        </div>
       </n-space>
 
       <n-data-table
@@ -270,5 +321,48 @@ onUnmounted(() => {
   height: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+.subtitle-panel {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--n-border-color);
+}
+
+.subtitle-heading {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.subtitle-error {
+  margin-bottom: 8px;
+}
+
+.subtitle-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.subtitle-column {
+  min-height: 64px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.subtitle-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.subtitle-partial {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-style: italic;
 }
 </style>

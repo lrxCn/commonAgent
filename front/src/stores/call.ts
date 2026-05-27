@@ -504,6 +504,10 @@ export const useCallStore = defineStore("call", () => {
     }
   }
 
+  function getLocalStream(): MediaStream | null {
+    return localStream;
+  }
+
   function hangup(): void {
     const callId = activeCall.value?.callId;
     if (callId) {
@@ -543,5 +547,6 @@ export const useCallStore = defineStore("call", () => {
     acceptIncoming,
     hangup,
     resetCallState,
+    getLocalStream,
   };
 });

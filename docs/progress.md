@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：执行 [117-volc-asr-front-mic-ui.md](./prompts/117-volc-asr-front-mic-ui.md)（火山 SAUC CallsView 实时字幕）；或按 [demo-walkthrough.md](./demo-walkthrough.md) **B5** 做 WebRTC 通话回归。
+**当前建议下一步**：执行 [118-volc-asr-docs-final-alignment.md](./prompts/118-volc-asr-docs-final-alignment.md)（火山 SAUC 文档收口）；或按 [demo-walkthrough.md](./demo-walkthrough.md) **B6** 做通话字幕联调。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 118 |
-| 已完成 | 116 |
+| 已完成 | 117 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -27,7 +27,7 @@
 
 **WebRTC 账号通话批次（111–114）**：✅ 已完成；PRD [webrtc-account-call.md](./prd/webrtc-account-call.md) 含落地状态；演示见 [demo-walkthrough.md](./demo-walkthrough.md) **B5**。
 
-**火山 SAUC 通话字幕批次（115–118）**：🔄 进行中；PRD [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)；**CallsView 实时字幕 + 挂断控制台分角色 transcript**（非 Chat）；**115** 已废弃；建议下一步 **117**。
+**火山 SAUC 通话字幕批次（115–118）**：🔄 进行中；PRD [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)；**CallsView 实时字幕 + 挂断控制台分角色 transcript**（非 Chat）；**115** 已废弃；建议下一步 **118**。
 
 
 ---
@@ -155,7 +155,7 @@
 | 114 | [WebRTC 通话：README、演示脚本与地图收口](./prompts/114-webrtc-docs-final-alignment.md) | ✅ | 2026-05-27 | README/maps/demo-walkthrough B5/PRD 落地状态；`test_call_signaling` + front build 绿 |
 | 115 | 火山 SAUC：协议编解码与上游客户端 | ✅ | 2026-05-27 | 废弃 |
 | 116 | [火山 SAUC：Back WebSocket 代理与会话](./prompts/116-volc-asr-back-ws-proxy.md) | ✅ | 2026-05-27 | `WS /api/asr/ws` + `volc_asr/` 协议客户端 + `test_asr_ws` 8 用例；建议 **117** |
-| 117 | [火山 SAUC：CallsView 实时字幕与控制台 transcript](./prompts/117-volc-asr-front-mic-ui.md) | ⬜ | — | 双轨 PCM + CallsView UI；依赖 **116** |
+| 117 | [火山 SAUC：CallsView 实时字幕与控制台 transcript](./prompts/117-volc-asr-front-mic-ui.md) | ✅ | 2026-05-27 | 双轨 PCM + CallsView 字幕 + 挂断 console dump；`asr.track` 二进制路由；front build 绿；建议 **118** |
 | 118 | [火山 SAUC：README、演示手册与文档收口](./prompts/118-volc-asr-docs-final-alignment.md) | ⬜ | — | demo-walkthrough B6；依赖 **115–117** |
 
 ---
@@ -291,6 +291,7 @@
 | 2026-05-26 | 完成任务 105：README `client_actions` 示例改为 `students` slug；demo-walkthrough B4 jumpPage 脚本；maps client-actions/demo-platform；jumpPage/demo-admin PRD 落地状态；progress 105/105 全部完成 |
 | 2026-05-26 | 迭代：`createStudent` client_action（Back tools.demo.json + Front 确认卡片 + studentUiStore + StudentsView 预填）；README/maps/demo-walkthrough 契约同步 |
 | 2026-05-26 | 规划：基于 [student-in-chat-client-actions PRD](./prd/student-in-chat-client-actions.md) 拆分任务 **106–110**（Back schema → Front 拆旧 → 表单卡片 → 列表卡片 → 文档收口）；总任务数 110；建议下一步 **106** |
+| 2026-05-27 | 完成任务 117：Front `asr` store + `useAsrCapture` 双轨 16 kHz PCM；CallsView 实时字幕 UI；挂断 `console.group` 分角色 transcript；Back 增补 `asr.track` 二进制路由；front build 绿；建议 **118** |
 | 2026-05-27 | 完成任务 116：Back `WS /api/asr/ws` + `AsrSessionManager` + `services/volc_asr/` 协议/上游客户端；`VOLC_ASR_*` settings/env；`test_asr_ws` + `test_volc_asr_protocol` 8 用例；README Back API 同步；建议 **117** |
 | 2026-05-27 | 任务 **115** 标记为 `✅` 废弃（无任务卡，协议客户端工作并入后续任务）；建议下一步 **116** |
 | 2026-05-27 | 文档：新增 [火山 SAUC 通话字幕 PRD](./prd/volcengine-streaming-asr.md)，拆分任务 **115–118**（Back 协议 → WS 代理 → CallsView 字幕/控制台 transcript → 文档收口）；`back/.env` 配置 `VOLC_ASR_ACCESS_KEY`；明确 **非 Chat 维度** |

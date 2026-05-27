@@ -279,6 +279,10 @@ class AsrSessionManager:
         if session is not None:
             await session.append_audio(pcm)
 
+    def set_binary_track(self, user_id: str, track: AsrTrack) -> None:
+        if track in ("local", "remote"):
+            self._binary_track[user_id] = track
+
     async def handle_stop(self, user_id: str, message: dict[str, Any]) -> None:
         track = message.get("track")
         if track in ("local", "remote"):

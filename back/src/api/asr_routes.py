@@ -77,6 +77,10 @@ async def asr_ws(
                     )
                 elif msg_type == "asr.stop":
                     await asr_session_manager.handle_stop(user_id, payload)
+                elif msg_type == "asr.track":
+                    track = payload.get("track")
+                    if track in ("local", "remote"):
+                        asr_session_manager.set_binary_track(user_id, track)
                 else:
                     await websocket.send_json(
                         {
