@@ -20,6 +20,7 @@ FLAG_POS_SEQUENCE = 0b0001
 FLAG_NEG_SEQUENCE = 0b0010
 FLAG_NEG_WITH_SEQUENCE = 0b0011
 
+SERIALIZATION_NONE = 0b0000
 SERIALIZATION_JSON = 0b0001
 COMPRESSION_GZIP = 0b0001
 
@@ -61,11 +62,23 @@ def _header_bytes(
     return bytes(header)
 
 
+def describe_frame_header(frame: bytes) -> dict[str, int]:
+    """Decode the 4-byte SAUC frame header (for tests)."""
+    if len(frame) < 3:
+        raise ValueError("frame too short for header")
+    return {
+        "message_type": frame[1] >> 4,
+        "message_flags": frame[1] & 0x0F,
+        "serialization": frame[2] >> 4,
+        "compression": frame[2] & 0x0F,
+    }
+
+
 def build_full_client_payload(user_id: str) -> dict[str, Any]:
     return {
         "user": {"uid": user_id},
         "audio": {
-            "format": "wav",
+            "format": "pcm",
             "codec": "raw",
             "rate": DEFAULT_SAMPLE_RATE,
             "bits": DEFAULT_BITS,
@@ -107,6 +120,7 @@ def build_audio_only_request(seq: int, segment: bytes, *, is_last: bool = False)
         _header_bytes(
             message_type=CLIENT_AUDIO_ONLY_REQUEST,
             message_flags=flags,
+            serialization=SERIALIZATION_NONE,
         )
     )
     request.extend(struct.pack(">i", send_seq))
