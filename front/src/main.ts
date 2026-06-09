@@ -5,6 +5,7 @@ import { setUnauthorizedHandler } from "@/api/http";
 import App from "./App.vue";
 import router from "./router";
 import { useAuthStore } from "./stores/auth";
+import "./styles/app.css";
 
 const app = createApp(App);
 const pinia = createPinia();

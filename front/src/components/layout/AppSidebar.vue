@@ -40,8 +40,32 @@ function onMenuUpdate(key: string): void {
 
 <template>
   <n-menu
+    class="app-menu"
     :value="activeKey"
     :options="menuOptions"
     @update:value="onMenuUpdate"
   />
 </template>
+
+<style scoped>
+.app-menu {
+  padding: 12px 10px;
+}
+
+.app-menu :deep(.n-menu-item-content) {
+  height: 38px;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: #475569;
+}
+
+.app-menu :deep(.n-menu-item-content:hover) {
+  background: #f1f5f9;
+}
+
+.app-menu :deep(.n-menu-item-content--selected) {
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-weight: 600;
+}
+</style>

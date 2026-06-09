@@ -5,8 +5,10 @@ import {
   startAsrCapture,
   type AsrCaptureHandle,
 } from "@/composables/useAsrCapture";
+import { postCallTranscript } from "@/api/calls";
 import { useAuthStore } from "@/stores/auth";
 import { useCallStore } from "@/stores/call";
+import type { CallTranscriptPayload } from "@/types/call";
 import type {
   AsrClientMessage,
   AsrServerMessage,
@@ -43,6 +45,12 @@ function formatDuration(ms: number): string {
   return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export const useAsrStore = defineStore("asr", () => {
   const wsConnected = ref(false);
   const active = ref(false);
@@ -61,6 +69,8 @@ export const useAsrStore = defineStore("asr", () => {
   let sessionCallId = "";
   let sessionLocalLabel = "";
   let sessionRemoteLabel = "";
+  let sessionPeerUserId = "";
+  let sessionPeerDisplayName = "";
   let sessionStartedAt = 0;
   const emittedFinalKeys = new Set<string>();
 
@@ -267,7 +277,8 @@ export const useAsrStore = defineStore("asr", () => {
   }
 
   function dumpTranscriptToConsole(): void {
-    if (finalLines.value.length === 0) {
+    const sorted = sortedFinalLines();
+    if (sorted.length === 0) {
       return;
     }
 
@@ -275,13 +286,6 @@ export const useAsrStore = defineStore("asr", () => {
       sessionStartedAt > 0 ? Date.now() - sessionStartedAt : 0;
     const durationLabel = formatDuration(durationMs);
     const callId = sessionCallId || "unknown";
-
-    const sorted = [...finalLines.value].sort((a, b) => {
-      if (a.startTime !== undefined && b.startTime !== undefined) {
-        return a.startTime - b.startTime;
-      }
-      return a.seq - b.seq;
-    });
 
     console.group(`[Call Transcript] ${callId} (${durationLabel})`);
     for (const line of sorted) {
@@ -293,6 +297,64 @@ export const useAsrStore = defineStore("asr", () => {
       console.log(`[${role}] ${line.text}`);
     }
     console.groupEnd();
+  }
+
+  function sortedFinalLines(): AsrTranscriptLine[] {
+    return [...finalLines.value].sort((a, b) => {
+      if (a.startTime !== undefined && b.startTime !== undefined) {
+        return a.startTime - b.startTime;
+      }
+      return a.seq - b.seq;
+    });
+  }
+
+  function buildTranscriptPayload(
+    endedAtMs: number,
+  ): { callId: string; payload: CallTranscriptPayload } | null {
+    const callStore = useCallStore();
+    const callId = sessionCallId || callStore.activeCall?.callId || "";
+    const peerUserId = sessionPeerUserId || callStore.activeCall?.peerUserId || "";
+    const peerDisplayName =
+      sessionPeerDisplayName ||
+      callStore.activeCall?.peerDisplayName ||
+      sessionRemoteLabel ||
+      "";
+    const startedAtMs = sessionStartedAt || callStore.callStartedAt || endedAtMs;
+    const sorted = sortedFinalLines();
+    if (!callId || !peerUserId || !peerDisplayName || sorted.length === 0) {
+      return null;
+    }
+    return {
+      callId,
+      payload: {
+        call_id: callId,
+        peer_user_id: peerUserId,
+        peer_display_name: peerDisplayName,
+        started_at: new Date(startedAtMs).toISOString(),
+        ended_at: new Date(endedAtMs).toISOString(),
+        duration_ms: Math.max(0, endedAtMs - startedAtMs),
+        lines: sorted.map((line) => ({
+          track: line.track,
+          role_label: trackRoleLabel(
+            line.track,
+            sessionLocalLabel,
+            sessionRemoteLabel || peerDisplayName,
+          ),
+          text: line.text,
+          seq: line.seq,
+          ...(line.startTime !== undefined ? { start_time: line.startTime } : {}),
+          ...(line.endTime !== undefined ? { end_time: line.endTime } : {}),
+        })),
+      },
+    };
+  }
+
+  async function persistCallTranscript(endedAtMs: number): Promise<void> {
+    const built = buildTranscriptPayload(endedAtMs);
+    if (!built) {
+      return;
+    }
+    await postCallTranscript(built.callId, built.payload);
   }
 
   async function stopAll(options: { dump?: boolean } = {}): Promise<void> {
@@ -314,12 +376,18 @@ export const useAsrStore = defineStore("asr", () => {
     startedTracks.clear();
 
     if (shouldDump) {
+      await sleep(1500);
       dumpTranscriptToConsole();
+      await persistCallTranscript(Date.now()).catch((err: unknown) => {
+        console.warn("[Call Transcript] 持久化失败", err);
+      });
     }
 
     sessionCallId = "";
     sessionLocalLabel = "";
     sessionRemoteLabel = "";
+    sessionPeerUserId = "";
+    sessionPeerDisplayName = "";
     sessionStartedAt = 0;
   }
 
@@ -335,6 +403,8 @@ export const useAsrStore = defineStore("asr", () => {
     sessionCallId = callId;
     sessionLocalLabel = labels.localLabel;
     sessionRemoteLabel = labels.remoteLabel;
+    sessionPeerUserId = callStore.activeCall?.peerUserId || "";
+    sessionPeerDisplayName = callStore.activeCall?.peerDisplayName || labels.remoteLabel;
     sessionStartedAt = callStore.callStartedAt ?? Date.now();
 
     openSocket();
@@ -399,7 +469,6 @@ export const useAsrStore = defineStore("asr", () => {
 
         if (!inCall && wasInCall) {
           void stopAll({ dump: true });
-          resetTranscriptState();
         }
       },
     );

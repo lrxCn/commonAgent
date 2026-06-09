@@ -1,6 +1,6 @@
 ---
 name: 通话转写持久化与 Agent 按需查询
-overview: 在火山 SAUC 双轨字幕已落地的基础上，将挂断时的分角色 ASR 原文存入 Back Postgres（结构化 JSON，不向量化）；对话时由 Agent 内置只读 tool 经 Back internal API 按元数据查询，供大模型回答参考。不自动写入 Chat checkpoint，不把整通稿写入 langmem。
+overview: 在火山 SAUC 双轨字幕已落地的基础上，将挂断时的分角色 ASR 原文存入 Back Postgres（结构化 JSON，不向量化），同步生成确定性摘要与敏感词命中；对话时由 Agent 内置只读 tool 经 Back internal API 按元数据查询，供大模型回答参考。不自动写入 Chat checkpoint，不把整通稿写入 langmem。
 isProject: false
 ---
 
@@ -119,6 +119,8 @@ sequenceDiagram
 | `started_at` | timestamptz | 通话开始（Front 或 call store） |
 | `ended_at` | timestamptz | 挂断时间 |
 | `duration_ms` | int | 可选，与 console 一致 |
+| `summary` | text | Back 入库时基于 final 文本生成的确定性摘要 |
+| `sensitive_hits` | JSONB | Back 入库时基于 `CALL_TRANSCRIPT_SENSITIVE_WORDS` 的关键词命中 |
 | `lines` | JSONB | 见下文 |
 | `created_at` | timestamptz | 入库时间 |
 
@@ -222,7 +224,7 @@ Header：Back 与 Agent 间共享密钥或 mTLS（与现有 Agent 转发约定�
 | `list_call_transcripts` | 元数据列表（时间、对方、时长、行数） | `peer_user_id?`, `since?`, `until?`, `limit`（默认 5，上限 20） |
 | `get_call_transcript` | 单通全文 | `call_id`（必填） |
 
-**返回**：JSON 字符串；`get` 含完整 `lines`；过长时 Back 可截断并返回 `truncated: true` + `total_lines`（实现细节写入 README）。
+**返回**：JSON 字符串；`list` 含 `summary`、`sensitive_hit_count`、`sensitive_words`；`get` 含完整 `summary`、`sensitive_hits`、`lines`；过长时 Back 截断并返回 `truncated: true` + `total_lines`。
 
 **挂载**：挂在会走 **DeepAgents / Supervisor** 的执行路径；`build_supervisor_agent` 当前 `tools=[]`，实现时显式注册上述 tool。
 
@@ -301,10 +303,10 @@ Header：Back 与 Agent 间共享密钥或 mTLS（与现有 Agent 转发约定�
 
 | 项 | 状态 |
 |----|------|
-| Postgres `call_transcripts` + POST | ⬜ 任务 **124** |
-| Front 挂断 POST | ⬜ 任务 **125** |
-| Back internal + Agent tool | ⬜ 任务 **126** |
-| README / 演示收口 | ⬜ 任务 **127** |
+| Postgres `call_transcripts` + POST | ✅ 任务 **124**；含 `summary` 与 `sensitive_hits` |
+| Front 挂断 POST | ✅ 任务 **125** |
+| Back internal + Agent tool | ✅ 任务 **126**；支持按 `peer_user_id` / `since` / `until` 查询 |
+| README / 演示收口 | ✅ 任务 **127** |
 
 ---
 
@@ -312,5 +314,6 @@ Header：Back 与 Agent 间共享密钥或 mTLS（与现有 Agent 转发约定�
 
 | 日期 | 说明 |
 |------|------|
+| 2026-06-01 | 落地 124–127：Back 持久化、摘要与敏感词命中；Front 挂断上报；Agent `list_call_transcripts` / `get_call_transcript` 只读查询；README / maps / progress 收口 |
 | 2026-05-27 | 拆分任务卡 **124–127**；链接 progress |
 | 2026-05-27 | 初稿：对齐讨论结论（Back 结构化原文、不向量、Agent tool 按需查） |

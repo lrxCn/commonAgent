@@ -117,7 +117,7 @@ cd front && npm install && npm run dev
 
 ### B6 — 通话实时字幕（双浏览器，约 3–5 分钟）
 
-**目标**：在 **B5 通话** 基础上展示 CallsView 火山 SAUC 实时字幕；挂断后在浏览器控制台输出分角色 transcript。**不**写入 Chat / Agent。
+**目标**：在 **B5 通话** 基础上展示 CallsView 实时字幕；挂断后在浏览器控制台输出分角色 transcript，并将 final 转写 POST 到 Back `call_transcripts`，供 Agent 后续按需查询。
 
 **前提**：`back/.env` 已配置 `VOLC_ASR_ACCESS_KEY`（新控制台 API Key → `X-Api-Key`）；ASR 2.0 账号默认 `VOLC_ASR_RESOURCE_ID=volc.seedasr.sauc.duration`（1.0 改为 `volc.bigasr.sauc.duration`）。详见 [volcengine-streaming-asr.md](./prd/volcengine-streaming-asr.md)。
 
@@ -130,7 +130,20 @@ cd front && npm install && npm run dev
 5. **Network**：除 `WS /api/calls/ws` 外，应有 **`WS /api/asr/ws`**；PCM 为 WebSocket binary 帧（前置 JSON `asr.track`）；**仍无** Agent `:18080`。
 6. **挂断**：任一方点 **挂断** → 字幕区清空。
 7. **控制台**：双方 DevTools Console 应出现 `console.group('[Call Transcript] …')`，行前缀如 `[本地 · Alice]`、`[对方 · Bob]`（按 track 与 display_name）。
-8. **凭证缺失**：若未配置 `VOLC_ASR_ACCESS_KEY`，字幕区显示可读 warning，**WebRTC 通话本身不受影响**。
+8. **落库**：Network 可见 `POST /api/calls/{call_id}/transcript`；Back 将保存原文、确定性摘要和敏感词命中。落库失败不影响通话结束。
+9. **凭证缺失**：若未配置 ASR 凭证，字幕区显示可读 warning，**WebRTC 通话本身不受影响**。
+
+### B7 — Agent 查询通话记录、摘要与敏感词（约 2–3 分钟）
+
+**目标**：展示挂断后的通话记录可由 Agent 按日期、对方或 `call_id` 查询；Agent 返回摘要、敏感词命中和必要原文。
+
+1. 先完成 **B6**，确保至少一端产生 final 字幕并成功 POST 落库。
+2. 打开智能对话，发送：「查一下我今天和 Bob 的通话记录」。
+3. 期望：Agent 调 `list_call_transcripts`，返回当天与 Bob 的通话元数据、摘要、敏感词命中数量。
+4. 继续发送：「这通电话有没有敏感词？」。
+5. 期望：Agent 根据列表或详情返回命中的关键词和对应句子。
+6. 继续发送：「把刚才那通电话总结一下」。
+7. 期望：Agent 调 `get_call_transcript` 读取单通详情，基于 `summary` 和逐句原文回答。
 
 ### B7 — 边界核对（可选，1 分钟）
 
@@ -157,6 +170,8 @@ cd front && npm install && npm run dev
 | 多标签同账号 | 后连 WS 会踢前者（`session.replaced`）；仅保留一个活跃标签通话 |
 | 字幕无更新 | `back/.env` 是否配置 `VOLC_ASR_ACCESS_KEY`；Console 是否有 `asr.error`；Network 是否连上 `WS /api/asr/ws` |
 | 字幕有但控制台无 transcript | 是否产生 `asr.final` 句；挂断后查看 Console 的 `[Call Transcript]` group |
+| 挂断后没有通话记录 | Network 是否有 `POST /api/calls/{call_id}/transcript`；finalLines 是否为空；Back 是否已迁移到 `003_call_transcripts` |
+| Agent 查不到通话记录 | `agent/.env` `BACK_URL` / `INTERNAL_API_KEY` 是否与 Back 一致；Back internal 是否返回 401/404 |
 | ASR 报错但通话正常 | 预期行为：ASR 失败不阻断 WebRTC；检查火山凭证与 `test_asr_ws.py` |
 
 更细的 Back/Front 路由与数据流见 [docs/maps/demo-platform.md](./maps/demo-platform.md)。

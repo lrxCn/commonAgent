@@ -18,6 +18,7 @@ from db.seed import run_seed
 from db.session import clear_engine_cache, create_engine_from_url, get_session_factory
 from services.asr_proxy import asr_session_manager
 from services.volc_asr.protocol import VolcAsrResponse
+from services.xunfei_asr import extract_xunfei_text
 from settings.config import Settings, set_settings_override
 
 
@@ -86,6 +87,12 @@ def _make_settings(database_url: str, *, access_key: str | None = "test-access-k
         SESSION_SECRET="test-session-secret",
         CORS_ORIGINS="http://127.0.0.1:5173,http://localhost:5173",
         VOLC_ASR_ACCESS_KEY=access_key,
+        XUNFEI_ASR_APP_ID=None,
+        XUNFEI_ASR_API_KEY=None,
+        XUNFEI_ASR_API_SECRET=None,
+        STT_API_KEY=None,
+        SILICONFLOW_STT_API_KEY=None,
+        SILICONFLOW_API_KEY=None,
     )
 
 
@@ -277,3 +284,22 @@ def test_asr_ws_credentials_missing(tmp_path: Path) -> None:
         asr_session_manager.reset()
         set_settings_override(None)
         clear_engine_cache()
+
+
+def test_xunfei_result_extracts_text_and_final() -> None:
+    text, is_final = extract_xunfei_text(
+        {
+            "code": 0,
+            "data": {
+                "status": 2,
+                "result": {
+                    "ws": [
+                        {"cw": [{"w": "你好"}]},
+                        {"cw": [{"w": "世界"}]},
+                    ]
+                },
+            },
+        }
+    )
+    assert text == "你好世界"
+    assert is_final is True

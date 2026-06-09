@@ -66,10 +66,11 @@ const showActions = computed(() => props.status === "pending");
 <style scoped>
 .jump-page-card {
   margin-top: 8px;
-  padding: 10px 12px;
+  padding: 12px 13px;
   border-radius: 8px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid #d7e3f4;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
 .jump-page-card--confirmed {
@@ -92,7 +93,7 @@ const showActions = computed(() => props.status === "pending");
   margin: 0 0 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #1d4ed8;
+  color: #1f4fbf;
 }
 
 .jump-page-card--confirmed .jump-page-card__title {
@@ -124,5 +125,17 @@ const showActions = computed(() => props.status === "pending");
   display: block;
   margin-top: 6px;
   font-size: 12px;
+}
+
+.jump-page-card :deep(.n-button--primary-type) {
+  --n-color: #2563eb !important;
+  --n-color-hover: #1d4ed8 !important;
+  --n-color-pressed: #1e40af !important;
+  --n-color-focus: #2563eb !important;
+  --n-border: 1px solid #2563eb !important;
+  --n-border-hover: 1px solid #1d4ed8 !important;
+  --n-border-pressed: 1px solid #1e40af !important;
+  --n-border-focus: 1px solid #2563eb !important;
+  --n-border-radius: 7px !important;
 }
 </style>

@@ -4,6 +4,7 @@ import { computed, h, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
   NButton,
+  NCard,
   NDataTable,
   NDrawer,
   NDrawerContent,
@@ -13,6 +14,7 @@ import {
   NPopconfirm,
   NSelect,
   NSpace,
+  NStatistic,
   NTag,
   useMessage,
   type DataTableColumns,
@@ -236,14 +238,37 @@ onMounted(async () => {
 
 <template>
   <div class="students-page">
-    <n-space vertical :size="16">
-      <n-space justify="space-between" align="center" wrap>
-        <n-space wrap>
+    <section class="students-hero">
+      <div>
+        <p class="students-hero__eyebrow">Student Management</p>
+        <h1>学生管理</h1>
+        <p>维护学生基础信息，支持智能对话内创建和查询。</p>
+      </div>
+      <n-button type="primary" size="medium" class="students-hero__button" @click="openCreate">
+        新建学生
+      </n-button>
+    </section>
+
+    <section class="students-stats">
+      <n-card embedded :bordered="false" class="students-stat-card">
+        <n-statistic label="学生总数" :value="total" />
+      </n-card>
+      <n-card embedded :bordered="false" class="students-stat-card">
+        <n-statistic label="当前页" :value="page" />
+      </n-card>
+      <n-card embedded :bordered="false" class="students-stat-card">
+        <n-statistic label="每页数量" :value="pageSize" />
+      </n-card>
+    </section>
+
+    <section class="students-panel app-surface">
+      <div class="students-toolbar">
+        <div class="students-toolbar__filters">
           <n-input
             v-model:value="search"
             placeholder="搜索姓名 / 学号 / 班级"
             clearable
-            style="width: 240px"
+            class="students-filter students-filter--search"
             @keyup.enter="onSearch"
             @clear="onSearch"
           />
@@ -252,7 +277,7 @@ onMounted(async () => {
             :options="statusOptions"
             placeholder="状态筛选"
             clearable
-            style="width: 120px"
+            class="students-filter students-filter--status"
           />
           <n-select
             v-model:value="classFilter"
@@ -260,14 +285,16 @@ onMounted(async () => {
             placeholder="班级筛选"
             clearable
             filterable
-            style="width: 160px"
+            class="students-filter students-filter--class"
           />
-          <n-button type="primary" @click="onSearch">搜索</n-button>
-        </n-space>
-        <n-button type="primary" @click="openCreate">新建学生</n-button>
-      </n-space>
+        </div>
+        <n-button type="primary" secondary class="students-search-button" @click="onSearch">
+          搜索
+        </n-button>
+      </div>
 
       <n-data-table
+        class="students-table"
         :columns="columns"
         :data="students"
         :loading="loading"
@@ -282,10 +309,14 @@ onMounted(async () => {
         }"
         :row-key="(row: Student) => row.student_id"
       />
-    </n-space>
+    </section>
 
-    <n-drawer v-model:show="drawerVisible" :width="400" placement="right">
-      <n-drawer-content :title="editing ? '编辑学生' : '新建学生'" closable>
+    <n-drawer v-model:show="drawerVisible" :width="420" placement="right">
+      <n-drawer-content
+        :title="editing ? '编辑学生' : '新建学生'"
+        closable
+        :body-content-style="{ padding: '20px 22px' }"
+      >
         <n-form label-placement="top">
           <n-form-item label="学号" required>
             <n-input v-model:value="formStudentNo" placeholder="例如 2024004" />
@@ -316,5 +347,130 @@ onMounted(async () => {
 <style scoped>
 .students-page {
   width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.students-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.students-hero__eyebrow {
+  margin: 0 0 6px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.students-hero h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 26px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.students-hero p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.students-hero__button {
+  flex-shrink: 0;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+.students-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.students-stat-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.students-panel {
+  overflow: hidden;
+}
+
+.students-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.students-toolbar__filters {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.students-filter--search {
+  width: min(280px, 100%);
+}
+
+.students-filter--status {
+  width: 128px;
+}
+
+.students-filter--class {
+  width: 168px;
+}
+
+.students-search-button {
+  flex-shrink: 0;
+}
+
+.students-table {
+  padding: 0 2px 2px;
+}
+
+.students-table :deep(.n-data-table-th) {
+  font-weight: 600;
+}
+
+.students-table :deep(.n-data-table-td) {
+  height: 50px;
+}
+
+.students-table :deep(.n-pagination) {
+  padding: 12px 14px 14px;
+}
+
+@media (max-width: 760px) {
+  .students-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .students-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .students-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .students-filter--search,
+  .students-filter--status,
+  .students-filter--class,
+  .students-search-button {
+    width: 100%;
+  }
 }
 </style>

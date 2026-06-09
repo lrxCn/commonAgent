@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from api.errors import forbidden, unauthorized
@@ -54,3 +54,13 @@ def require_admin(
     if not user.is_admin:
         raise forbidden()
     return user
+
+
+def require_internal_key(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_internal_key: Annotated[str | None, Header(alias="X-Internal-Key")] = None,
+) -> None:
+    expected = (settings.INTERNAL_API_KEY or "").strip()
+    provided = (x_internal_key or "").strip()
+    if not expected or provided != expected:
+        raise unauthorized("内部接口未授权")

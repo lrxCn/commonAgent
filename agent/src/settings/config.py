@@ -267,6 +267,18 @@ class Settings(BaseSettings):
         default=18080,
         description="HTTP bind port for the agent gateway.",
     )
+    BACK_URL: str = Field(
+        default="http://127.0.0.1:8080",
+        description="Back service base URL for internal read-only tools.",
+    )
+    INTERNAL_API_KEY: str | None = Field(
+        default=None,
+        description="Shared key sent to Back internal APIs as X-Internal-Key.",
+    )
+    BACK_INTERNAL_TIMEOUT_SECONDS: float = Field(
+        default=20.0,
+        description="HTTP timeout in seconds for Agent -> Back internal tool calls.",
+    )
 
     # --- Guardrails ---
     GUARDRAILS_ENABLED: bool = Field(
@@ -340,6 +352,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "LANGCHAIN_API_KEY",
+        "INTERNAL_API_KEY",
         "REWRITE_MODEL_NAME",
         "CHITCHAT_MODEL_NAME",
         "RAG_ROUTER_MODEL_NAME",

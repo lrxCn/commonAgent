@@ -3,16 +3,18 @@
 Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长期记忆、RAG、LangGraph/deepagents 主 Agent、客户端工具指令与最小前后端占位的可演进架构。
 
 > 本文件是当前运行架构与入口。执行任务前先读 [AGENTS.md](AGENTS.md)、本文件、[docs/progress.md](docs/progress.md) 和对应的 [docs/prompts/](docs/prompts/) 任务卡。
+>
+> 面向使用者和演示交接的功能总览见 [docs/feature-guide.md](docs/feature-guide.md)。
 
 ## 当前状态
 
 | 项 | 状态 |
 |----|------|
-| 核心任务 | 01–**123** 已完成；**124–127** 通话转写持久化 ⬜ 见 [progress](docs/progress.md) |
-| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；**不参与** 通话信令、媒体与 ASR |
+| 核心任务 | 01–**127** 已完成；通话转写持久化、摘要、敏感词与 Agent 查询 ✅ 见 [progress](docs/progress.md) |
+| Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；内置 `list_call_transcripts` / `get_call_transcript` 只读工具；**不参与** 通话信令、媒体与 ASR |
 | Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
-| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS；挂断 console 分角色 transcript；**124+** 计划 POST 落库，[PRD](docs/prd/call-transcript-persistence.md)） |
-| 通话能力 | 信令 ✅；字幕 ✅；转写持久化 ⬜ **124–127**（Postgres 原文、Agent tool 按需查，[PRD](docs/prd/call-transcript-persistence.md)）；演示 [B5](docs/demo-walkthrough.md)、[B6](docs/demo-walkthrough.md)、**B7**（127 后） |
+| Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS；挂断 console 分角色 transcript 并 POST 落库，[PRD](docs/prd/call-transcript-persistence.md)） |
+| 通话能力 | 信令 ✅；字幕 ✅；转写持久化 ✅（Postgres 原文 + 确定性摘要 + 敏感词命中 + Agent tool 按日期/对方查询，[PRD](docs/prd/call-transcript-persistence.md)）；演示 [B5](docs/demo-walkthrough.md)、[B6](docs/demo-walkthrough.md)、[B7](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
 | 进度文档 | [docs/progress.md](docs/progress.md) |
 
@@ -82,9 +84,9 @@ commonAgent/
 
 | 层级 | 职责 |
 |------|------|
-| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表）；CallsView 通话 + 双轨 ASR 字幕；挂断 transcript **124+** POST Back（**不**自动 Chat / Agent） |
-| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent；WebRTC 信令与火山 SAUC 代理；**124+** `call_transcripts`（Postgres JSONB 原文，不向量）与 `/internal/calls/transcripts*` |
-| Agent | 记忆装配、RAG、LangGraph 主图、deepagents、护栏、SSE、KB ingest API；**126+** 只读通话转写 tool（HTTP → Back internal）；**不参与** ASR |
+| Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表）；CallsView 通话 + 双轨 ASR 字幕；挂断 transcript POST Back（**不**自动 Chat） |
+| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent；WebRTC 信令与 ASR 代理；`call_transcripts`（Postgres JSON 原文、摘要、敏感词命中，不向量）与 `/internal/calls/transcripts*` |
+| Agent | 记忆装配、RAG、LangGraph 主图、deepagents、护栏、SSE、KB ingest API；只读通话转写 tool（HTTP → Back internal，按 context `user_id` 查询）；**不参与** ASR |
 
 硬约束：
 
@@ -377,7 +379,7 @@ GET /internal/kb/documents/{doc_id}
 DELETE /internal/kb/documents/{doc_id}
 ```
 
-通话转写只读 tool（**计划 126**，[PRD](docs/prd/call-transcript-persistence.md)）：`list_call_transcripts`、`get_call_transcript` — Agent 经 `BACK_URL` + `X-Internal-Key` 调 **Back** `GET /internal/calls/transcripts*`（非 Agent 自有 `/internal`）；`user_id` 来自 `GraphContextSchema`；仅 **DEEPAGENTS** 执行路径注册；**不**写入 langmem。
+通话转写只读 tool（[PRD](docs/prd/call-transcript-persistence.md)）：`list_call_transcripts`、`get_call_transcript` — Agent 经 `BACK_URL` + `X-Internal-Key` 调 **Back** `GET /internal/calls/transcripts*`（非 Agent 自有 `/internal`）；`user_id` 来自 `GraphContextSchema`；仅 **DEEPAGENTS** 执行路径注册；返回通话摘要、敏感词命中和逐句原文；**不**写入 langmem。
 
 Agent KB 契约（`role_ids[]` 为主）：
 
@@ -450,7 +452,7 @@ Back（演示平台，库 `common_agent_back`）：
 - 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
 - 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；消息类型见 [call.ts](front/src/types/call.ts) 与 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)；媒体 P2P，**不经 Agent**；单进程内存 hub，多 worker 不支持）。
 - 通话字幕（ASR）：`WS /api/asr/ws`（Cookie Session；Back 代理火山 SAUC 上游；与通话信令 WS **分离**；消息类型见 [volcengine-streaming-asr.md](docs/prd/volcengine-streaming-asr.md)「Front ↔ Back 信令」；单进程内存 session，每用户每 `track`（`local`/`remote`）一路上游；新 `asr.start` 同 track 会关闭旧会话；Front 在 `MediaStream` 就绪后再发 `asr.start`（避免 local 轨空等上游）；binary 前 JSON `asr.track` 指定 track；上游首包 `audio.format: pcm`，audio-only 帧 `serialization=none`（`ser=0`）；凭证 `VOLC_ASR_*` 仅 Back `.env`；历史联调问题见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)）。
-- 通话转写持久化（**计划 124–127**，[PRD](docs/prd/call-transcript-persistence.md)）：`POST /api/calls/{call_id}/transcript`（Session；`(user_id, call_id)` upsert；`lines` JSONB 分角色原文，**不向量化**）；`GET /internal/calls/transcripts` · `GET /internal/calls/transcripts/{call_id}`（`X-Internal-Key`，供 Agent tool；`user_id` 由 Agent 从请求 context 注入）。**不**写入 langmem / Qdrant；**不**每轮 Chat 自动注入全文。
+- 通话转写持久化（[PRD](docs/prd/call-transcript-persistence.md)）：`POST /api/calls/{call_id}/transcript`（Session；`(user_id, call_id)` upsert；`lines` JSON 分角色原文，Back 同步生成 `summary` 与 `sensitive_hits`，**不向量化**）；`GET /internal/calls/transcripts` · `GET /internal/calls/transcripts/{call_id}`（`X-Internal-Key`，供 Agent tool；支持 `peer_user_id`、`since`、`until`、`limit`；`user_id` 由 Agent 从请求 context 注入）。**不**写入 langmem / Qdrant；**不**每轮 Chat 自动注入全文。
 - `GET /health`：存活检查。
 - 迁移与种子：`cd back && uv run alembic upgrade head && uv run python -m db.seed`（见 [back/.env.example](back/.env.example)）。
 
@@ -460,7 +462,7 @@ Front（Vue SPA）：
 - `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 - 通话：`/app/calls`（`CallsView` + 侧边栏「通话」）；任意 `/app/*` 左下角 `IncomingCallToast`（接听/拒接）；信令 WebSocket 在 `AppLayout` 经 `useCallSignaling` 建立（指数退避重连，断线不恢复通话）。
-- 通话字幕：`in_call` 时 `asr` store 连接 `WS /api/asr/ws`，local/remote 双轨 16 kHz PCM；CallsView「我说 / 对方说」分栏字幕；挂断 `console.group` 输出分角色 transcript；**125** 起有 final 句时 `POST` 落库（**不**自动 Chat）。
+- 通话字幕：`in_call` 时 `asr` store 连接 `WS /api/asr/ws`，local/remote 双轨 16 kHz PCM；CallsView「我说 / 对方说」分栏字幕；挂断 `console.group` 输出分角色 transcript；有 final 句时 `POST /api/calls/{call_id}/transcript` 落库（**不**自动 Chat）。
 - 可选环境变量见 [front/.env.example](front/.env.example)（`VITE_WEBRTC_STUN_URL`、`VITE_CALL_WS_PATH`）。**禁止** `VITE_VOLC_ASR_*`（火山凭证仅 Back）。
 
 ## 可观测与评测
@@ -665,6 +667,7 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | User Memory Store | `MEMORY_STORE_*`、`MEMORY_READ_LIMIT`、`MEMORY_EXTRACT_*` | LangGraph Store + langmem |
 | Context Budget | `MEMORY_PROFILE_MAX_FACTS`、`MEMORY_FREE_TEXT_MAX_FACTS`、`SUMMARY_MAX_CHARS`、`RAG_CHUNK_MAX_CHARS`、`RAG_CONTEXT_MAX_CHARS`、`TOOLS_SCHEMA_MAX_CHARS`、`MODEL_MESSAGE_MAX_TURNS`、`MODEL_MESSAGE_MAX_CHARS` | 上下文预算 |
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
+| Back internal tools | `BACK_URL`、`INTERNAL_API_KEY`、`BACK_INTERNAL_TIMEOUT_SECONDS` | Agent 查询 Back internal 通话记录 |
 
 Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：
 
@@ -679,6 +682,7 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 | `VOLC_ASR_WS_URL` | 上游 WS，默认 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`（双向流式；勿用 demo 默认 `bigmodel_nostream`） |
 | `VOLC_ASR_RESOURCE_ID` | 默认 `volc.seedasr.sauc.duration`（ASR **2.0**）；1.0 账号改为 `volc.bigasr.sauc.duration` |
 | `VOLC_ASR_SEGMENT_MS` | PCM 分包毫秒，默认 `200` |
+| `CALL_TRANSCRIPT_SENSITIVE_WORDS` | 逗号分隔敏感词；Back 在通话记录入库时生成 `sensitive_hits` |
 
 握手还发送 `X-Api-Sequence: -1`（新控制台要求）。协议要点：首包 JSON `format: pcm`；audio-only 帧 `ser=0`（非 JSON）。联调背景见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)。
 

@@ -109,6 +109,18 @@ def test_choose_executor_deepagents_for_complex_task() -> None:
     assert decision.reason == "complex_knowledge_task"
 
 
+def test_choose_executor_deepagents_for_call_transcript_query() -> None:
+    decision = choose_executor(
+        turn_type="knowledge_query",
+        user_message="查一下今天的通话记录",
+        rag_skipped=False,
+        rag_chunks=[RagChunk(doc_id="doc-1", chunk_id="c-1", text="policy", score=0.9)],
+    )
+
+    assert decision.executor is ExecutorType.DEEPAGENTS
+    assert decision.reason == "call_transcript_query"
+
+
 def test_build_simple_client_action_extracts_page() -> None:
     action = build_simple_client_action("打开学生管理", [_JUMP_TOOL])
 
@@ -174,6 +186,31 @@ def test_complex_task_uses_deepagents_executor() -> None:
     assert result.get("executor_reason") == "complex_knowledge_task"
     assert deepagents.call_count == 1
     assert answer.call_count == 0
+
+
+def test_call_transcript_query_replies_even_without_rag_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
+    deepagents = MagicMock(return_value=[AIMessage(content="call transcript answer")])
+    answer = MagicMock(return_value="answer executor reply")
+    set_supervisor_invoke(deepagents)
+    set_answer_invoke(answer)
+    retriever_mod.retrieve = lambda *_args, **_kwargs: []
+    monkeypatch.setattr(
+        "graph.nodes.executor_nodes._list_call_transcripts_raw",
+        lambda _args: '{"items":[{"peer_display_name":"Alice","ended_at":"2026-06-01T08:51:53+00:00","duration_ms":9415,"summary":"可以。 可以没有？","sensitive_hit_count":0,"sensitive_words":[]}]}',
+    )
+
+    result = _invoke("查一下我今天的通话记录", thread_id="executor-call-transcripts")
+
+    assert result.get("executor") == "deepagents_executor"
+    assert result.get("executor_reason") == "call_transcript_query"
+    assert deepagents.call_count == 0
+    assert answer.call_count == 0
+    assert any("查询到最近的通话记录" in str(message.content) for message in result.get("messages") or [])
+    assert "可以。 可以没有？" in [
+        str(message.content)
+        for message in result.get("messages") or []
+        if isinstance(message, AIMessage)
+    ][-1]
 
 
 def test_simple_client_action_executor_skips_deepagents() -> None:

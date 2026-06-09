@@ -31,7 +31,7 @@
 
 全局 **ChatFab** + **ChatDrawer**（`AppLayout`）在所有 `/app/*` 页可用；**IncomingCallToast**（左下角来电）与信令 WS 亦在 `AppLayout` 挂载。
 
-状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）、`call`（通话状态机 + WebRTC）、`asr`（ASR WS、双轨 PCM、字幕与控制台 transcript）。
+状态：Pinia `auth`（会话）、`chat`（抽屉、thread、SSE）、`call`（通话状态机 + WebRTC）、`asr`（ASR WS、双轨 PCM、字幕、控制台 transcript 与挂断上报）。
 
 ## Back 业务 API（摘要）
 
@@ -112,7 +112,25 @@ sequenceDiagram
 - 二进制 PCM 前发送 JSON `asr.track` 指定路由 track；16 kHz、16 bit、单声道。
 - 凭证 `VOLC_ASR_*` 仅 Back（`X-Api-Key` + 默认 ASR 2.0 `resource_id`）；Front **无** `VITE_VOLC_ASR_*`。
 - 上游 pcm 首包 + audio-only `ser=0`（任务 **120**）；无 PCM 轨静默 stop、45000081 不抛 UI（**121**）。
-- transcript **仅**浏览器控制台；**不**落库、**不**自动 `POST /api/chat`。
+- transcript 会在挂断后由 Front `POST /api/calls/{call_id}/transcript` 落入 Back `call_transcripts`；Back 生成摘要与敏感词命中；**不**自动 `POST /api/chat`，也不写入 langmem / Qdrant。
+
+## 通话转写持久化与 Agent 查询
+
+```mermaid
+sequenceDiagram
+  participant F as Front asr store
+  participant B as Back
+  participant A as Agent tool
+
+  F->>B: POST /api/calls/{call_id}/transcript
+  B->>B: upsert call_transcripts + summary + sensitive_hits
+  A->>B: GET /internal/calls/transcripts?user_id&peer_user_id&since
+  B-->>A: summaries + sensitive words
+  A->>B: GET /internal/calls/transcripts/{call_id}?user_id
+  B-->>A: lines + summary + sensitive_hits
+```
+
+Agent 内置只读工具：`list_call_transcripts`、`get_call_transcript`。`user_id` 由 `GraphContextSchema` 注入，模型不能自报或越权查询。
 
 ## 对话数据流
 

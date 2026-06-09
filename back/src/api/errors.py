@@ -48,6 +48,19 @@ def not_found(message: str = "资源不存在") -> ApiError:
     return ApiError(status_code=404, code="NOT_FOUND", message=message)
 
 
+def bad_request(
+    message: str,
+    *,
+    field_errors: dict[str, str] | None = None,
+) -> ApiError:
+    return ApiError(
+        status_code=400,
+        code="BAD_REQUEST",
+        message=message,
+        field_errors=field_errors,
+    )
+
+
 def conflict(
     message: str,
     *,

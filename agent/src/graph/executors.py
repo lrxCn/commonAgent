@@ -17,6 +17,11 @@ _COMPLEX_TASK_RE = re.compile(
     r"workflow|plan|analy[sz]e|compare|summari[sz]e|draft|write|design|multi-step)",
     re.IGNORECASE,
 )
+_CALL_TRANSCRIPT_RE = re.compile(
+    r"(?:通话记录|电话记录|通话转写|通话摘要|电话摘要|刚才(?:的)?电话|刚才(?:的)?通话|"
+    r"今天.*通话|今天.*电话|昨天.*通话|昨天.*电话|敏感词|call transcript|call record)",
+    re.IGNORECASE,
+)
 
 
 def _text(value: object | None) -> str:
@@ -31,6 +36,11 @@ def _best_chunk_score(chunks: Sequence[RagChunk]) -> float:
 
 def _tool_names(tools: Sequence[ToolSpec]) -> list[str]:
     return [tool.name for tool in tools]
+
+
+def is_call_transcript_query(message: str, rewritten_query: str | None = None) -> bool:
+    text = f"{_text(message)} {_text(rewritten_query)}"
+    return _CALL_TRANSCRIPT_RE.search(text) is not None
 
 
 def choose_executor(
@@ -61,6 +71,12 @@ def choose_executor(
         and is_pure_client_tool_intent(message, request_tools, rewritten_query=rewritten)
     ):
         return ExecutorDecision(ExecutorType.ACTION, "simple_client_action")
+
+    if is_call_transcript_query(message, rewritten):
+        return ExecutorDecision(
+            ExecutorType.DEEPAGENTS,
+            "call_transcript_query",
+        )
 
     if normalized_turn_type == "knowledge_query" and not rag_skipped and chunks:
         if _COMPLEX_TASK_RE.search(message) or _COMPLEX_TASK_RE.search(rewritten):

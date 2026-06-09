@@ -8,6 +8,7 @@ import {
   NLayoutHeader,
   NLayoutSider,
   NSpace,
+  NTag,
   NText,
 } from "naive-ui";
 
@@ -42,23 +43,34 @@ async function onLogout(): Promise<void> {
 <template>
   <n-layout has-sider style="min-height: 100vh">
     <n-layout-sider
-      bordered
+      class="app-sider"
       collapse-mode="width"
       :collapsed-width="64"
-      :width="220"
+      :width="232"
       show-trigger
     >
-      <div class="brand">commonAgent</div>
+      <div class="brand">
+        <span class="brand__mark">CA</span>
+        <span class="brand__text">commonAgent</span>
+      </div>
       <app-sidebar />
     </n-layout-sider>
 
     <n-layout>
-      <n-layout-header bordered class="app-header">
+      <n-layout-header class="app-header">
         <n-space align="center" justify="space-between" style="width: 100%">
-          <n-text strong>演示平台</n-text>
-          <n-space align="center">
-            <n-text>{{ auth.user?.display_name || auth.user?.username }}</n-text>
-            <n-button size="small" quaternary @click="onLogout">退出</n-button>
+          <div class="app-header__title">
+            <n-text strong>演示平台</n-text>
+            <span>Front -> Back -> Agent</span>
+          </div>
+          <n-space align="center" :size="10">
+            <n-tag v-if="auth.user?.is_admin" size="small" type="info" round>
+              管理员
+            </n-tag>
+            <span class="app-header__user">
+              {{ auth.user?.display_name || auth.user?.username }}
+            </span>
+            <n-button size="small" secondary @click="onLogout">退出</n-button>
           </n-space>
         </n-space>
       </n-layout-header>
@@ -75,23 +87,63 @@ async function onLogout(): Promise<void> {
 </template>
 
 <style scoped>
+.app-sider {
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
 .brand {
-  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 64px;
+  padding: 0 18px;
   font-weight: 600;
   font-size: 15px;
-  border-bottom: 1px solid var(--n-border-color);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.brand__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #111827;
+  font-size: 12px;
+}
+
+.brand__text {
+  color: #111827;
 }
 
 .app-header {
-  height: 56px;
-  padding: 0 20px;
   display: flex;
   align-items: center;
+  height: 64px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.app-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-header__title span,
+.app-header__user {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .app-content {
-  padding: 20px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 64px);
+  padding: 24px;
+  background: #f3f6fa;
 }
 </style>

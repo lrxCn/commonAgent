@@ -238,10 +238,11 @@ function onPageSizeChange(size: number): void {
 <style scoped>
 .student-list-card {
   margin-top: 8px;
-  padding: 10px 12px;
+  padding: 12px 13px;
   border-radius: 8px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid #d7e3f4;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
 .student-list-card--error {
@@ -258,7 +259,7 @@ function onPageSizeChange(size: number): void {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #1d4ed8;
+  color: #1f4fbf;
 }
 
 .student-list-card--error .student-list-card__title {
@@ -292,5 +293,17 @@ function onPageSizeChange(size: number): void {
   display: block;
   margin-top: 6px;
   font-size: 12px;
+}
+
+.student-list-card :deep(.n-button--primary-type) {
+  --n-color: #2563eb !important;
+  --n-color-hover: #1d4ed8 !important;
+  --n-color-pressed: #1e40af !important;
+  --n-color-focus: #2563eb !important;
+  --n-border: 1px solid #2563eb !important;
+  --n-border-hover: 1px solid #1d4ed8 !important;
+  --n-border-pressed: 1px solid #1e40af !important;
+  --n-border-focus: 1px solid #2563eb !important;
+  --n-border-radius: 7px !important;
 }
 </style>

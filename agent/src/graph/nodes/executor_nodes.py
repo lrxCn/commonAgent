@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
@@ -23,6 +25,7 @@ from graph.executors import (
     build_simple_client_action,
     choose_executor,
     executor_trace_metadata,
+    is_call_transcript_query,
 )
 from graph.rag_subagent import max_chunk_score
 from graph.state import AgentState
@@ -44,6 +47,11 @@ from observability.path_contract import (
 )
 from observability.tracing import emit_event
 from settings.config import get_settings
+from tools.call_transcripts import (
+    list_call_transcripts,
+    reset_call_transcript_tool_user_id,
+    set_call_transcript_tool_user_id,
+)
 
 from .common import extract_user_message, merge_carry, text
 
@@ -293,6 +301,18 @@ def supervisor_node(
             },
         )
 
+    if decision.executor is ExecutorType.DEEPAGENTS and decision.reason == "call_transcript_query":
+        reply = _deterministic_call_transcript_reply(ctx.user_id)
+        return merge_carry(
+            state,
+            {
+                **base_updates,
+                "supervisor_draft": reply,
+                "client_actions": None,
+                "client_actions_error": None,
+            },
+        )
+
     if decision.executor is ExecutorType.RAG_ANSWER:
         reply = invoke_answer_executor(
             full_system,
@@ -302,13 +322,17 @@ def supervisor_node(
             context_budget=context_budget,
         )
     else:
-        result_messages = invoke_supervisor(
-            full_system,
-            model_messages,
-            executor=decision.executor.value,
-            executor_reason=decision.reason,
-            context_budget=context_budget,
-        )
+        token = set_call_transcript_tool_user_id(ctx.user_id)
+        try:
+            result_messages = invoke_supervisor(
+                full_system,
+                model_messages,
+                executor=decision.executor.value,
+                executor_reason=decision.reason,
+                context_budget=context_budget,
+            )
+        finally:
+            reset_call_transcript_tool_user_id(token)
         reply = extract_latest_ai_text(result_messages)
 
     if ctx.tools:
@@ -375,12 +399,58 @@ def supervisor_node(
 def _should_use_no_source_reply(state: AgentState) -> bool:
     if text(state.get("turn_type")) != "knowledge_query":
         return False
+    if is_call_transcript_query(
+        extract_user_message(state),
+        text(state.get("rewritten_query")),
+    ):
+        return False
     if bool(state.get("rag_skipped", False)):
         return False
     chunks = list(state.get("rag_chunks") or [])
     if not chunks:
         return True
     return max_chunk_score(chunks) < get_settings().RAG_SUBAGENT_SCORE_THRESHOLD
+
+
+def _deterministic_call_transcript_reply(user_id: str) -> str:
+    token = set_call_transcript_tool_user_id(user_id)
+    try:
+        raw = _list_call_transcripts_raw({"limit": 5})
+    finally:
+        reset_call_transcript_tool_user_id(token)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return "查询通话记录失败：返回内容无法解析。"
+    if isinstance(data, dict) and data.get("error"):
+        return f"查询通话记录失败：{data.get('message') or data.get('error')}"
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not items:
+        return "没有查询到当前用户的通话记录。"
+
+    lines = ["查询到最近的通话记录："]
+    for index, item in enumerate(items[:5], start=1):
+        if not isinstance(item, dict):
+            continue
+        peer = item.get("peer_display_name") or item.get("peer_user_id") or "未知联系人"
+        ended_at = item.get("ended_at") or "未知时间"
+        duration_ms = item.get("duration_ms")
+        duration = ""
+        if isinstance(duration_ms, int | float):
+            duration = f"，时长约 {round(duration_ms / 1000)} 秒"
+        summary = item.get("summary") or "暂无摘要"
+        sensitive_count = int(item.get("sensitive_hit_count") or 0)
+        sensitive_words = item.get("sensitive_words") or []
+        sensitive_text = "无敏感词"
+        if sensitive_count:
+            words = "、".join(str(word) for word in sensitive_words) or f"{sensitive_count} 处"
+            sensitive_text = f"敏感词：{words}"
+        lines.append(f"{index}. {ended_at}，与 {peer} 的通话{duration}。摘要：{summary}。{sensitive_text}。")
+    return "\n".join(lines)
+
+
+def _list_call_transcripts_raw(args: dict[str, object]) -> str:
+    return str(list_call_transcripts.invoke(args))
 
 
 def client_actions_emit_node(state: AgentState) -> dict[str, object]:

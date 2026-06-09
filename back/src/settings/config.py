@@ -101,6 +101,50 @@ class Settings(BaseSettings):
         default=200,
         description="PCM segment duration in milliseconds when forwarding to upstream.",
     )
+    STT_OPENAI_COMPAT_BASE_URL: str = Field(
+        default="https://api.siliconflow.cn/v1",
+        description="OpenAI-compatible STT base URL used when VOLC_ASR_ACCESS_KEY is unset.",
+    )
+    STT_API_KEY: str | None = Field(
+        default=None,
+        description="Bearer token for OpenAI-compatible audio transcription fallback.",
+    )
+    SILICONFLOW_STT_API_KEY: str | None = Field(
+        default=None,
+        description="Alias for STT_API_KEY, matching lcjs env naming.",
+    )
+    SILICONFLOW_API_KEY: str | None = Field(
+        default=None,
+        description="Fallback STT key copied from lcjs when STT_API_KEY is unset.",
+    )
+    SILICONFLOW_STT_MODEL: str = Field(
+        default="FunAudioLLM/SenseVoiceSmall",
+        description="SiliconFlow audio transcription model for fallback STT.",
+    )
+    STT_TIMEOUT_SECONDS: float = Field(
+        default=60.0,
+        description="HTTP timeout for fallback audio transcription requests.",
+    )
+    XUNFEI_ASR_APP_ID: str | None = Field(
+        default=None,
+        description="Xunfei streaming ASR AppID; Back-only secret.",
+    )
+    XUNFEI_ASR_API_KEY: str | None = Field(
+        default=None,
+        description="Xunfei streaming ASR APIKey; Back-only secret.",
+    )
+    XUNFEI_ASR_API_SECRET: str | None = Field(
+        default=None,
+        description="Xunfei streaming ASR APISecret; Back-only secret.",
+    )
+    XUNFEI_ASR_WS_URL: str = Field(
+        default="wss://iat-api.xfyun.cn/v2/iat",
+        description="Xunfei voicedictation streaming WebSocket URL.",
+    )
+    CALL_TRANSCRIPT_SENSITIVE_WORDS: str = Field(
+        default="退款,投诉,违约,敏感,辱骂,威胁,诈骗,转账,银行卡,身份证",
+        description="Comma-separated keywords to flag in persisted call transcripts.",
+    )
 
     @model_validator(mode="after")
     def resolve_database_url(self) -> Self:
@@ -120,6 +164,35 @@ class Settings(BaseSettings):
         if path.is_absolute():
             return path
         return _BACK_ROOT / path
+
+    def stt_api_key(self) -> str | None:
+        for candidate in (
+            self.STT_API_KEY,
+            self.SILICONFLOW_STT_API_KEY,
+            self.SILICONFLOW_API_KEY,
+        ):
+            if candidate and candidate.strip():
+                return candidate.strip()
+        return None
+
+    def stt_transcriptions_url(self) -> str:
+        return f"{self.STT_OPENAI_COMPAT_BASE_URL.rstrip('/')}/audio/transcriptions"
+
+    def xunfei_asr_configured(self) -> bool:
+        return all(
+            (
+                self.XUNFEI_ASR_APP_ID and self.XUNFEI_ASR_APP_ID.strip(),
+                self.XUNFEI_ASR_API_KEY and self.XUNFEI_ASR_API_KEY.strip(),
+                self.XUNFEI_ASR_API_SECRET and self.XUNFEI_ASR_API_SECRET.strip(),
+            )
+        )
+
+    def call_transcript_sensitive_words(self) -> list[str]:
+        return [
+            word.strip()
+            for word in self.CALL_TRANSCRIPT_SENSITIVE_WORDS.split(",")
+            if word.strip()
+        ]
 
 
 def get_settings() -> Settings:

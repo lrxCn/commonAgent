@@ -11,6 +11,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from api.asr_routes import router as asr_router
 from api.auth_routes import me_router, router as auth_router
 from api.call_routes import router as call_router
+from api.call_transcript_routes import internal_router as call_transcript_internal_router
+from api.call_transcript_routes import router as call_transcript_router
 from admin.kb_routes import router as admin_kb_router
 from admin.routes import router as admin_router
 from api.deps import get_db_session, require_current_user
@@ -60,6 +62,8 @@ def create_app() -> FastAPI:
     application.include_router(admin_router)
     application.include_router(admin_kb_router)
     application.include_router(call_router)
+    application.include_router(call_transcript_router)
+    application.include_router(call_transcript_internal_router)
     application.include_router(asr_router)
 
     @application.get("/health")

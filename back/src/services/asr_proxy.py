@@ -13,6 +13,7 @@ from fastapi import WebSocket
 
 from services.volc_asr.client import VolcAsrClient, default_volc_asr_client_factory
 from services.volc_asr.protocol import VolcAsrResponse, pcm_segment_size_bytes
+from services.xunfei_asr import XunfeiAsrClient
 from settings.config import Settings, get_settings
 
 AsrTrack = Literal["local", "remote"]
@@ -31,8 +32,20 @@ def parse_asr_ws_json(raw: str) -> dict[str, Any]:
     return data
 
 
-def credentials_configured(settings: Settings) -> bool:
+def volc_credentials_configured(settings: Settings) -> bool:
     return bool((settings.VOLC_ASR_ACCESS_KEY or "").strip())
+
+
+def stt_fallback_configured(settings: Settings) -> bool:
+    return bool(settings.stt_api_key())
+
+
+def credentials_configured(settings: Settings) -> bool:
+    return (
+        volc_credentials_configured(settings)
+        or settings.xunfei_asr_configured()
+        or stt_fallback_configured(settings)
+    )
 
 
 def extract_transcript_events(
@@ -98,10 +111,13 @@ class AsrTrackSession:
     call_id: str | None = None
     client_factory: Any = field(default=default_volc_asr_client_factory)
     upstream: VolcAsrClient | None = None
+    xunfei_upstream: XunfeiAsrClient | None = None
+    provider: Literal["volc", "xunfei", "stt_fallback"] = "volc"
     audio_buffer: bytearray = field(default_factory=bytearray)
     closed: bool = False
     has_received_pcm: bool = False
     emitted_final_keys: set[str] = field(default_factory=set)
+    xunfei_text_parts: list[str] = field(default_factory=list)
 
     @property
     def segment_size(self) -> int:
@@ -135,6 +151,29 @@ class AsrTrackSession:
             await self.send_error(code="credentials_missing", message="ASR 凭证未配置")
             return
 
+        if self.settings.xunfei_asr_configured() and not volc_credentials_configured(self.settings):
+            self.provider = "xunfei"
+            self.xunfei_upstream = XunfeiAsrClient(self.settings)
+            try:
+                await self.xunfei_upstream.connect()
+            except Exception as exc:
+                logger.warning(
+                    "xunfei connect failed track=%s error_type=%s message=%s",
+                    self.track,
+                    type(exc).__name__,
+                    exc,
+                )
+                await self.send_error(code="upstream_connect_failed", message="连接讯飞语音识别失败")
+                await self.cleanup()
+            return
+
+        if not volc_credentials_configured(self.settings):
+            await self.send_error(
+                code="unsupported_stt_fallback",
+                message="当前仅支持讯飞或火山实时通话字幕",
+            )
+            return
+
         self.emitted_final_keys.clear()
         self.upstream = self.client_factory(self.settings)
         try:
@@ -165,7 +204,12 @@ class AsrTrackSession:
             return
 
     async def append_audio(self, pcm: bytes) -> None:
-        if self.closed or self.upstream is None:
+        if self.closed:
+            return
+        if self.provider == "xunfei":
+            await self._append_xunfei_audio(pcm)
+            return
+        if self.upstream is None:
             return
         if pcm:
             self.has_received_pcm = True
@@ -177,7 +221,12 @@ class AsrTrackSession:
             await self._poll_upstream(timeout=0.05)
 
     async def stop(self) -> None:
-        if self.closed or self.upstream is None:
+        if self.closed:
+            return
+        if self.provider == "xunfei":
+            await self._stop_xunfei()
+            return
+        if self.upstream is None:
             return
         if not self.has_received_pcm:
             await self.cleanup()
@@ -193,6 +242,92 @@ class AsrTrackSession:
         if ended:
             await self.send_json({"type": "asr.ended", "track": self.track})
         await self.cleanup()
+
+    async def _append_xunfei_audio(self, pcm: bytes) -> None:
+        if self.xunfei_upstream is None:
+            return
+        if pcm:
+            self.has_received_pcm = True
+        self.audio_buffer.extend(pcm)
+        while len(self.audio_buffer) >= self.segment_size:
+            segment = bytes(self.audio_buffer[: self.segment_size])
+            del self.audio_buffer[: self.segment_size]
+            await self.xunfei_upstream.send_audio(segment, is_last=False)
+            await self._poll_xunfei(timeout=0.05)
+
+    async def _stop_xunfei(self) -> None:
+        if self.xunfei_upstream is None:
+            return
+        if not self.has_received_pcm:
+            await self.cleanup()
+            return
+
+        remainder = bytes(self.audio_buffer)
+        self.audio_buffer.clear()
+        await self.xunfei_upstream.send_audio(remainder or b"\x00\x00", is_last=True)
+        ended = await self._poll_xunfei(timeout=10.0, wait_last=True)
+        if ended:
+            await self.send_json({"type": "asr.ended", "track": self.track})
+        await self.cleanup()
+
+    async def _poll_xunfei(self, *, timeout: float, wait_last: bool = False) -> bool:
+        upstream = self.xunfei_upstream
+        if upstream is None:
+            return False
+
+        deadline = time.monotonic() + timeout
+        ended = False
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                response = await asyncio.wait_for(
+                    upstream.recv_response(),
+                    timeout=remaining if wait_last else min(remaining, 0.05),
+                )
+            except asyncio.TimeoutError:
+                if wait_last:
+                    continue
+                break
+            except Exception as exc:
+                logger.warning(
+                    "xunfei recv failed track=%s error_type=%s message=%s",
+                    self.track,
+                    type(exc).__name__,
+                    exc,
+                )
+                await self.send_error(code="upstream_recv_failed", message="接收讯飞识别结果失败")
+                return True
+
+            if response is None:
+                if wait_last:
+                    continue
+                break
+            text, is_last = response
+            if text:
+                self.xunfei_text_parts.append(text)
+            full_text = "".join(self.xunfei_text_parts).strip()
+            if text:
+                await self.send_json(
+                    {
+                        "type": "asr.partial",
+                        "track": self.track,
+                        "text": full_text or text,
+                    }
+                )
+            if is_last:
+                if full_text:
+                    await self.send_json(
+                        {
+                            "type": "asr.final",
+                            "track": self.track,
+                            "text": full_text,
+                        }
+                    )
+                ended = True
+                break
+        return ended
 
     def _should_suppress_upstream_error(self, code: int) -> bool:
         # Inactive tracks (asr.start but no browser PCM) hit packet-timeout on hangup;
@@ -272,6 +407,9 @@ class AsrTrackSession:
         if self.upstream is not None:
             await self.upstream.close()
             self.upstream = None
+        if self.xunfei_upstream is not None:
+            await self.xunfei_upstream.close()
+            self.xunfei_upstream = None
 
 
 @dataclass
@@ -334,7 +472,7 @@ class AsrSessionManager:
         self._sessions[self._session_key(user_id, track)] = session
         self._binary_track[user_id] = track
         await session.start(message)
-        if session.upstream is None:
+        if session.upstream is None and session.xunfei_upstream is None:
             self._sessions.pop(self._session_key(user_id, track), None)
 
     async def handle_audio(self, user_id: str, pcm: bytes, *, track: AsrTrack | None = None) -> None:

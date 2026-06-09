@@ -147,7 +147,9 @@ def test_streaming_chat_model_installs_callback(monkeypatch: pytest.MonkeyPatch)
     assert callbacks[0].sink is sink
 
 
-def test_embedding_gateway_uses_embedding_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_embedding_gateway_uses_embedding_policy_without_provider_dimensions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     settings = _settings(EMBEDDING_MODEL="embed-model", EMBEDDING_MODEL_DIMS=256)
     captured: dict[str, object] = {}
 
@@ -164,7 +166,8 @@ def test_embedding_gateway_uses_embedding_policy(monkeypatch: pytest.MonkeyPatch
 
     assert vector == [3.0]
     assert captured["model"] == "embed-model"
-    assert captured["dimensions"] == 256
+    assert "dimensions" not in captured
+    assert captured["check_embedding_ctx_length"] is False
 
 
 def test_parse_rerank_scores_and_fallback() -> None:

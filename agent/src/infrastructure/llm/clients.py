@@ -45,9 +45,14 @@ def create_embedding_client(
     settings: Settings,
 ) -> OpenAIEmbeddings:
     """Create an OpenAI-compatible embedding client from resolved policy."""
+    # EMBEDDING_MODEL_DIMS is the Qdrant/Store vector contract. Some
+    # OpenAI-compatible providers (SiliconFlow bge models) reject the optional
+    # `dimensions` request parameter, so do not send it to the provider.
+    # Disable LangChain's token-length-safe path as well; it can send token id
+    # arrays that these providers reject even though plain string input works.
     return OpenAIEmbeddings(
         model=policy.model_name,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
-        dimensions=policy.dimensions,
+        check_embedding_ctx_length=False,
     )

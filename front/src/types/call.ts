@@ -26,6 +26,30 @@ export interface CallPeersResponse {
   items: CallPeer[];
 }
 
+export interface CallTranscriptLinePayload {
+  track: "local" | "remote";
+  role_label: string;
+  text: string;
+  seq: number;
+  start_time?: number;
+  end_time?: number;
+}
+
+export interface CallTranscriptPayload {
+  call_id?: string;
+  peer_user_id: string;
+  peer_display_name: string;
+  started_at: string;
+  ended_at: string;
+  duration_ms: number;
+  lines: CallTranscriptLinePayload[];
+}
+
+export interface CallTranscriptPersistResponse {
+  id: string;
+  call_id: string;
+}
+
 /** Client → server WebSocket payloads. */
 export type ClientCallMessage =
   | { type: "call.invite"; to_user_id: string }

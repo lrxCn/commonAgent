@@ -19,6 +19,7 @@ from graph.client_actions import supervisor_client_actions_instruction_block
 from infrastructure.llm.gateway import get_llm_gateway
 from observability.tracing import attach_run_metadata, supervisor_traceable
 from settings.config import get_settings
+from tools.call_transcripts import CALL_TRANSCRIPT_TOOLS
 
 _supervisor_agent_override: CompiledStateGraph | None = None
 _supervisor_invoke_override: Callable[[str, list[BaseMessage]], list[BaseMessage]] | None = None
@@ -35,6 +36,10 @@ When knowledge excerpts include [doc:.../chunk:...] citations, reference them wh
 Be concise unless the user asks for detail.
 The pipeline may run a RagSubAgent second retrieval when primary excerpts are empty or low-confidence; you receive the merged excerpts only — do not request a third search.
 External client tools are described below; follow the client_actions JSON contract when the user wants one.
+You also have read-only built-in tools for call transcripts:
+- list_call_transcripts: list the current user's call records by peer/date and see summaries or sensitive keyword counts.
+- get_call_transcript: fetch one call transcript by call_id, including summary, sensitive hits, and role-labeled lines.
+Use these tools when the user asks about call records, phone-call summaries, sensitive words in calls, calls on a date, or calls with a person. Never ask the user for user_id; it is injected by the runtime.
 """.strip()
 
 
@@ -186,7 +191,7 @@ def build_supervisor_agent(
     resolved_model = model if model is not None else _create_chat_model(settings, ModelUseCase.MAIN_ANSWER)
     return create_deep_agent(
         model=resolved_model,
-        tools=[],
+        tools=CALL_TRANSCRIPT_TOOLS,
         system_prompt=system_prompt,
         interrupt_on={},
         name="supervisor",

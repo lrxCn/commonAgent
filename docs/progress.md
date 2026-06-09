@@ -6,14 +6,14 @@
 
 ## 总览
 
-**当前建议下一步**：[124 - Back 表结构与 POST 持久化](./prompts/124-call-transcript-back-persist.md)（通话转写批次 **124–127**）；或手工回归 [demo-walkthrough B6](./demo-walkthrough.md)；或处理 [buglist](./buglist.md)（BUG-001 / BUG-002）。
+**当前建议下一步**：手工回归 [demo-walkthrough B6/B7](./demo-walkthrough.md)；或处理 [buglist](./buglist.md)（BUG-001 / BUG-002）。
 
 **已知缺陷**：[buglist.md](./buglist.md)（当前 **2** 条 open：[BUG-001](./buglist.md#bug-001-刷新后创建成功链式列表消失)、[BUG-002](./buglist.md#bug-002-无单点登录)）。
 
 | 指标 | 值 |
 |------|-----|
 | 总任务数 | 127 |
-| 已完成 | 123 |
+| 已完成 | 127 |
 | 进行中 | — |
 | 阻塞 | 0 |
 
@@ -31,7 +31,7 @@
 
 **火山 SAUC 修复批次（119–123）**：✅ 已完成（新控制台鉴权、pcm/ser=0、proxy 生命周期、分轨延迟 `asr.start`、文档收口）。
 
-**通话转写持久化批次（124–127）**：⬜ 待开始；PRD [call-transcript-persistence.md](./prd/call-transcript-persistence.md)；Back Postgres 原文（不向量）→ Front 挂断 POST → Agent 只读 tool 经 Back internal 查询；建议下一步 **124**。
+**通话转写持久化批次（124–127）**：✅ 已完成；PRD [call-transcript-persistence.md](./prd/call-transcript-persistence.md)；Back Postgres 原文 + 摘要 + 敏感词命中（不向量）→ Front 挂断 POST → Agent 只读 tool 经 Back internal 按日期/对方查询。
 
 
 ---
@@ -166,10 +166,10 @@
 | 121 | [火山 SAUC 修复：asr_proxy 响应与挂断清理](./prompts/121-volc-asr-fix-proxy-lifecycle.md) | ✅ | 2026-05-27 | full_request `code` 检查；无 PCM 静默 stop；45000081 抑制；`test_asr_ws`；建议 **122** |
 | 122 | [火山 SAUC 修复：Front 分轨延迟 asr.start](./prompts/122-volc-asr-fix-front-track-start.md) | ✅ | 2026-05-27 | `localStream` ref + 分轨 watch；stream 就绪后 idempotent `asr.start`；`stopAll` 仅停已 start 轨；front build 绿；建议 **123** |
 | 123 | [火山 SAUC 修复：README、PRD 与 progress 收口](./prompts/123-volc-asr-fix-docs-final.md) | ✅ | 2026-05-27 | README env/ASR 边界、PRD 落地 119–123、handoff 归档；smoke 绿；修复批次收口 |
-| 124 | [通话转写：Back 表结构与 POST 持久化](./prompts/124-call-transcript-back-persist.md) | ⬜ 待开始 | — | Alembic `call_transcripts` + `POST /api/calls/{call_id}/transcript`；依赖 **117**；建议下一步 |
-| 125 | [通话转写：Front 挂断上报](./prompts/125-call-transcript-front-upload.md) | ⬜ 待开始 | — | `buildTranscriptPayload` + POST；依赖 **124** |
-| 126 | [通话转写：Back internal 与 Agent 只读 tool](./prompts/126-call-transcript-agent-tools.md) | ⬜ 待开始 | — | `/internal/calls/transcripts` + `list/get` tool（DEEPAGENTS）；依赖 **124**；可与 **125** 并行 |
-| 127 | [通话转写：README、PRD 与演示收口](./prompts/127-call-transcript-docs-final.md) | ⬜ 待开始 | — | 依赖 **124–126**；可选 demo B7 |
+| 124 | [通话转写：Back 表结构与 POST 持久化](./prompts/124-call-transcript-back-persist.md) | ✅ | 2026-06-01 | Alembic `call_transcripts` + `POST /api/calls/{call_id}/transcript`；同步生成摘要和敏感词命中 |
+| 125 | [通话转写：Front 挂断上报](./prompts/125-call-transcript-front-upload.md) | ✅ | 2026-06-01 | `buildTranscriptPayload` + 挂断后 POST；保留 console transcript |
+| 126 | [通话转写：Back internal 与 Agent 只读 tool](./prompts/126-call-transcript-agent-tools.md) | ✅ | 2026-06-01 | `/internal/calls/transcripts` + `list_call_transcripts` / `get_call_transcript` tool（DEEPAGENTS） |
+| 127 | [通话转写：README、PRD 与演示收口](./prompts/127-call-transcript-docs-final.md) | ✅ | 2026-06-01 | README / PRD / demo B7 / maps 收口 |
 
 ---
 
@@ -177,6 +177,7 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-06-01 | 完成任务 124–127：通话记录 `call_transcripts` 落库；Back 生成确定性摘要与敏感词命中；Front 挂断 POST；Agent 内置 `list_call_transcripts` / `get_call_transcript` 只读工具按日期/对方查询；README/PRD/demo/maps 收口；back transcript 测试、agent tool 测试、front build 绿 |
 | 2026-05-27 | 完成任务 123：README `VOLC_ASR_*`（`X-Api-Key`、2.0 resource、pcm/ser=0）；PRD 落地 119–123；handoff 标记已实现；progress 修复批次收口；`test_volc_asr_protocol` + `test_asr_ws` + front build 绿 |
 | 2026-05-27 | 完成任务 121：`asr_proxy` 检查 full_request `code`、记录 upstream 异常类型；`has_received_pcm` 无 PCM 时 stop 跳过上游等待；45000081 不向 UI 抛错；`test_asr_ws` 增补；建议 **122** |
 | 2026-05-19 | 初始化进度文档与 23 项任务卡 |
