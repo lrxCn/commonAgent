@@ -2,8 +2,8 @@
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "003_call_transcripts"
 down_revision: Union[str, None] = "002_kb_multi_role"
@@ -43,7 +43,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_call_transcripts_call_id", "call_transcripts", ["call_id"])
     op.create_index("ix_call_transcripts_user_id", "call_transcripts", ["user_id"])
-    op.create_index("ix_call_transcripts_peer_user_id", "call_transcripts", ["peer_user_id"])
+    op.create_index(
+        "ix_call_transcripts_peer_user_id", "call_transcripts", ["peer_user_id"]
+    )
     op.create_index("ix_call_transcripts_ended_at", "call_transcripts", ["ended_at"])
 
 

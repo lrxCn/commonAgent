@@ -4,28 +4,31 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
-
-from api.asr_routes import router as asr_router
-from api.auth_routes import me_router, router as auth_router
-from api.call_routes import router as call_router
-from api.call_transcript_routes import internal_router as call_transcript_internal_router
-from api.call_transcript_routes import router as call_transcript_router
 from admin.kb_routes import router as admin_kb_router
 from admin.routes import router as admin_router
-from api.deps import get_db_session, require_current_user
-from api.students_routes import router as students_router
-from api.errors import forbidden, register_error_handlers
-from api.schemas import BackChatRequest
 from db.models import User
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from services.auth import load_user_roles
 from services.chat_threads import ensure_thread_access, verify_thread_access
 from services.context import build_agent_chat_payload
 from services.forward import forward_chat_to_agent, forward_thread_history_to_agent
 from settings.config import Settings, get_settings
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
+
+from api.asr_routes import router as asr_router
+from api.auth_routes import me_router
+from api.auth_routes import router as auth_router
+from api.call_routes import router as call_router
+from api.call_transcript_routes import (
+    internal_router as call_transcript_internal_router,
+)
+from api.call_transcript_routes import router as call_transcript_router
+from api.deps import get_db_session, require_current_user
+from api.errors import forbidden, register_error_handlers
+from api.schemas import BackChatRequest
+from api.students_routes import router as students_router
 
 
 def create_app() -> FastAPI:
@@ -70,7 +73,11 @@ def create_app() -> FastAPI:
     def health(
         settings: Annotated[Settings, Depends(get_settings)],
     ) -> dict[str, str | int]:
-        return {"status": "ok", "service": "common-agent-back", "port": settings.BACK_PORT}
+        return {
+            "status": "ok",
+            "service": "common-agent-back",
+            "port": settings.BACK_PORT,
+        }
 
     @application.post("/api/chat", response_model=None)
     async def api_chat(

@@ -5,13 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Literal
 
+from db.models import User
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy.orm import Session
-
-from api.deps import get_db_session, require_current_user, require_internal_key
-from api.errors import bad_request, not_found
-from db.models import User
 from services.call_transcripts import (
     get_call_transcript,
     list_call_transcripts,
@@ -20,6 +16,10 @@ from services.call_transcripts import (
     upsert_call_transcript,
 )
 from settings.config import Settings, get_settings
+from sqlalchemy.orm import Session
+
+from api.deps import get_db_session, require_current_user, require_internal_key
+from api.errors import bad_request, not_found
 
 router = APIRouter(prefix="/api/calls", tags=["call-transcripts"])
 internal_router = APIRouter(

@@ -7,11 +7,10 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from fastapi.testclient import TestClient
-
 from api.app import create_app
 from db.seed import run_seed
 from db.session import clear_engine_cache, create_engine_from_url, get_session_factory
+from fastapi.testclient import TestClient
 from settings.config import Settings, set_settings_override
 
 
@@ -97,7 +96,9 @@ def test_post_transcript_upserts_summary_and_sensitive_hits(
 
     second_payload = _payload()
     second_payload["duration_ms"] = 181000
-    second = transcripts_client.post("/api/calls/call-1/transcript", json=second_payload)
+    second = transcripts_client.post(
+        "/api/calls/call-1/transcript", json=second_payload
+    )
     assert second.status_code == 200
     assert second.json()["id"] == first_body["id"]
 
@@ -137,7 +138,12 @@ def test_post_transcript_rejects_self_peer(transcripts_client: TestClient) -> No
 
 def test_internal_requires_key_and_filters_user(transcripts_client: TestClient) -> None:
     _login(transcripts_client, "alice", "demo123")
-    assert transcripts_client.post("/api/calls/call-1/transcript", json=_payload()).status_code == 200
+    assert (
+        transcripts_client.post(
+            "/api/calls/call-1/transcript", json=_payload()
+        ).status_code
+        == 200
+    )
 
     unauthorized = transcripts_client.get(
         "/internal/calls/transcripts",
@@ -156,7 +162,12 @@ def test_internal_requires_key_and_filters_user(transcripts_client: TestClient) 
 
 def test_internal_filters_by_date_and_peer(transcripts_client: TestClient) -> None:
     _login(transcripts_client, "alice", "demo123")
-    assert transcripts_client.post("/api/calls/call-1/transcript", json=_payload()).status_code == 200
+    assert (
+        transcripts_client.post(
+            "/api/calls/call-1/transcript", json=_payload()
+        ).status_code
+        == 200
+    )
 
     matched = transcripts_client.get(
         "/internal/calls/transcripts",

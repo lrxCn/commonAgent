@@ -6,10 +6,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import uuid4
 
+from db.models import CallTranscript
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from db.models import CallTranscript
 
 MAX_SUMMARY_CHARS = 360
 MAX_DETAIL_LINES = 200
@@ -42,7 +41,10 @@ def normalize_lines(lines: list[dict[str, object]]) -> list[dict[str, object]]:
             "text": text,
             "seq": seq_int,
         }
-        for source_key, target_key in (("start_time", "start_time"), ("end_time", "end_time")):
+        for source_key, target_key in (
+            ("start_time", "start_time"),
+            ("end_time", "end_time"),
+        ):
             value = item.get(source_key)
             if isinstance(value, (int, float)):
                 line[target_key] = value
@@ -50,7 +52,9 @@ def normalize_lines(lines: list[dict[str, object]]) -> list[dict[str, object]]:
     return sorted(
         normalized,
         key=lambda line: (
-            line.get("start_time") if isinstance(line.get("start_time"), (int, float)) else 10**15,
+            line.get("start_time")
+            if isinstance(line.get("start_time"), (int, float))
+            else 10**15,
             int(line.get("seq") or 0),
         ),
     )
@@ -117,7 +121,9 @@ def upsert_call_transcript(
         )
     )
     created = existing is None
-    transcript = existing or CallTranscript(id=str(uuid4()), call_id=call_id, user_id=user_id)
+    transcript = existing or CallTranscript(
+        id=str(uuid4()), call_id=call_id, user_id=user_id
+    )
     transcript.peer_user_id = peer_user_id
     transcript.peer_display_name = peer_display_name
     transcript.started_at = started_at
