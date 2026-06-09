@@ -8,6 +8,7 @@ import {
   NSpace,
   NTag,
   NText,
+  useDialog,
   useMessage,
   type DataTableColumns,
 } from "naive-ui";
@@ -17,6 +18,7 @@ import { useCallStore } from "@/stores/call";
 import type { CallPeer } from "@/types/call";
 
 const message = useMessage();
+const dialog = useDialog();
 const callStore = useCallStore();
 const asrStore = useAsrStore();
 const {
@@ -37,6 +39,7 @@ const {
   remoteFinalLines,
   error: asrError,
   active: asrActive,
+  pendingSensitiveAlert,
 } = storeToRefs(asrStore);
 
 const remoteAudioRef = ref<HTMLAudioElement | null>(null);
@@ -209,6 +212,32 @@ watch(notice, (text) => {
     message.warning(text);
     callStore.clearNotice();
   }
+});
+
+watch(pendingSensitiveAlert, (alert) => {
+  if (!alert) {
+    return;
+  }
+
+  const speaker = alert.track === "local" ? "我说" : "对方说";
+  dialog.warning({
+    title: `检测到${alert.word}`,
+    content: `${speaker}：“${alert.text}”\n是否告警？`,
+    positiveText: "告警",
+    negativeText: "暂不告警",
+    maskClosable: false,
+    closeOnEsc: false,
+    onPositiveClick: () => {
+      message.warning(`已确认告警：${alert.word}`);
+      asrStore.clearSensitiveAlert(alert.id);
+    },
+    onNegativeClick: () => {
+      asrStore.clearSensitiveAlert(alert.id);
+    },
+    onClose: () => {
+      asrStore.clearSensitiveAlert(alert.id);
+    },
+  });
 });
 
 void loadPeers();

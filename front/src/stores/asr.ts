@@ -12,12 +12,26 @@ import type { CallTranscriptPayload } from "@/types/call";
 import type {
   AsrClientMessage,
   AsrServerMessage,
+  AsrSensitiveAlert,
   AsrTrack,
   AsrTranscriptLine,
 } from "@/types/asr";
 import { isAsrServerMessage } from "@/types/asr";
 
 const DEFAULT_WS_PATH = "/api/asr/ws";
+const REALTIME_SENSITIVE_WORDS = [
+  "火灾",
+  "起火",
+  "着火",
+  "火情",
+  "冒烟",
+  "浓烟",
+  "爆炸",
+  "燃气泄漏",
+  "煤气泄漏",
+  "报警",
+  "救命",
+];
 
 function buildAsrWsUrl(): string {
   const path = DEFAULT_WS_PATH;
@@ -57,6 +71,7 @@ export const useAsrStore = defineStore("asr", () => {
   const error = ref<string | null>(null);
   const partials = ref<Record<AsrTrack, string>>({ local: "", remote: "" });
   const finalLines = ref<AsrTranscriptLine[]>([]);
+  const pendingSensitiveAlert = ref<AsrSensitiveAlert | null>(null);
 
   let socket: WebSocket | null = null;
   let callBindingStop: WatchStopHandle | null = null;
@@ -73,6 +88,7 @@ export const useAsrStore = defineStore("asr", () => {
   let sessionPeerDisplayName = "";
   let sessionStartedAt = 0;
   const emittedFinalKeys = new Set<string>();
+  const emittedSensitiveAlertKeys = new Set<string>();
 
   const hasSubtitles = computed(
     () =>
@@ -93,9 +109,48 @@ export const useAsrStore = defineStore("asr", () => {
   function resetTranscriptState(): void {
     partials.value = { local: "", remote: "" };
     finalLines.value = [];
+    pendingSensitiveAlert.value = null;
     error.value = null;
     seq = 0;
     emittedFinalKeys.clear();
+    emittedSensitiveAlertKeys.clear();
+  }
+
+  function findRealtimeSensitiveWord(text: string): string | null {
+    const normalized = text.trim();
+    if (!normalized) {
+      return null;
+    }
+    return REALTIME_SENSITIVE_WORDS.find((word) => normalized.includes(word)) ?? null;
+  }
+
+  function maybeQueueSensitiveAlert(line: AsrTranscriptLine): void {
+    const word = findRealtimeSensitiveWord(line.text);
+    if (!word) {
+      return;
+    }
+    const key = `${sessionCallId || "call"}:${word}:${line.track}:${line.text}`;
+    if (emittedSensitiveAlertKeys.has(key)) {
+      return;
+    }
+    emittedSensitiveAlertKeys.add(key);
+    pendingSensitiveAlert.value = {
+      id: `${Date.now()}-${line.seq}-${word}`,
+      word,
+      text: line.text,
+      track: line.track,
+      seq: line.seq,
+    };
+  }
+
+  function clearSensitiveAlert(id?: string): void {
+    if (!pendingSensitiveAlert.value) {
+      return;
+    }
+    if (id && pendingSensitiveAlert.value.id !== id) {
+      return;
+    }
+    pendingSensitiveAlert.value = null;
   }
 
   function sendJson(message: AsrClientMessage): void {
@@ -144,7 +199,9 @@ export const useAsrStore = defineStore("asr", () => {
         }
         emittedFinalKeys.add(key);
         seq += 1;
-        finalLines.value.push({ ...line, seq });
+        const finalLine = { ...line, seq };
+        finalLines.value.push(finalLine);
+        maybeQueueSensitiveAlert(finalLine);
         return;
       }
 
@@ -489,9 +546,11 @@ export const useAsrStore = defineStore("asr", () => {
     error,
     partials,
     finalLines,
+    pendingSensitiveAlert,
     localFinalLines,
     remoteFinalLines,
     hasSubtitles,
+    clearSensitiveAlert,
     bindCallLifecycle,
     unbindCallLifecycle,
     startCallTracks,

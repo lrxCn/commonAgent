@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   NAlert,
   NButton,
@@ -9,98 +9,101 @@ import {
   NScrollbar,
   NSpin,
   NTag,
-  NText,
-} from "naive-ui";
+  NText
+} from 'naive-ui'
 
-import CreateStudentFormCard from "@/components/chat/CreateStudentFormCard.vue";
-import JumpPageConfirmCard from "@/components/chat/JumpPageConfirmCard.vue";
-import StudentListCard from "@/components/chat/StudentListCard.vue";
-import { useAuthStore } from "@/stores/auth";
-import { useChatStore } from "@/stores/chat";
+import CreateStudentFormCard from '@/components/chat/CreateStudentFormCard.vue'
+import JumpPageConfirmCard from '@/components/chat/JumpPageConfirmCard.vue'
+import StudentListCard from '@/components/chat/StudentListCard.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useChatStore } from '@/stores/chat'
 
-const chat = useChatStore();
-const auth = useAuthStore();
+const chat = useChatStore()
+const auth = useAuthStore()
 
-const draft = ref("");
-const messageListRef = ref<InstanceType<typeof NScrollbar> | null>(null);
+const draft = ref('')
+const messageListRef = ref<InstanceType<typeof NScrollbar> | null>(null)
 
-const roleTags = computed(() => auth.user?.roles ?? []);
-const canSend = computed(() => draft.value.trim().length > 0 && !chat.sending);
+const roleTags = computed(() => auth.user?.roles ?? [])
+const canSend = computed(() => draft.value.trim().length > 0 && !chat.sending)
 const quickPrompts = [
-  "帮我添加一个学生",
-  "查学生列表",
-  "打开学生管理",
-  "新建学生张三，学号 2025001",
-];
+  '帮我添加一个学生',
+  '查学生列表',
+  '打开学生管理',
+  '新建学生张三，学号 2025001'
+]
 
 function roleLabel(role: string): string {
-  if (role === "human") {
-    return "你";
+  if (role === 'human') {
+    return '你'
   }
-  if (role === "ai") {
-    return "助手";
+  if (role === 'ai') {
+    return '助手'
   }
-  return "系统";
+  return '系统'
 }
 
 function roleAvatar(role: string): string {
-  if (role === "human") {
-    return "你";
+  if (role === 'human') {
+    return '你'
   }
-  if (role === "ai") {
-    return "AI";
+  if (role === 'ai') {
+    return 'AI'
   }
-  return "!";
+  return '!'
 }
 
-function hasMessageBody(msg: { content: string; streaming?: boolean }): boolean {
-  return Boolean(msg.content || msg.streaming);
+function hasMessageBody(msg: {
+  content: string
+  streaming?: boolean
+}): boolean {
+  return Boolean(msg.content || msg.streaming)
 }
 
 async function scrollToBottom(): Promise<void> {
-  await nextTick();
+  await nextTick()
   messageListRef.value?.scrollTo({
     top: Number.MAX_SAFE_INTEGER,
-    behavior: "auto",
-  });
+    behavior: 'auto'
+  })
 }
 
 watch(
   () => chat.messages.length,
   () => {
-    void scrollToBottom();
-  },
-);
+    void scrollToBottom()
+  }
+)
 
 watch(
   () => chat.messages.at(-1)?.content,
   () => {
-    void scrollToBottom();
-  },
-);
+    void scrollToBottom()
+  }
+)
 
 function handleSend(): void {
-  const text = draft.value.trim();
+  const text = draft.value.trim()
   if (!text) {
-    return;
+    return
   }
-  draft.value = "";
-  void chat.sendMessage(text);
+  draft.value = ''
+  void chat.sendMessage(text)
 }
 
 function sendQuickPrompt(text: string): void {
   if (chat.sending) {
-    return;
+    return
   }
-  draft.value = "";
-  void chat.sendMessage(text);
+  draft.value = ''
+  void chat.sendMessage(text)
 }
 
 function handleDrawerUpdate(show: boolean): void {
   if (show) {
-    chat.openDrawer();
+    chat.openDrawer()
   } else {
-    chat.closeDrawer();
+    chat.closeDrawer()
   }
 }
 </script>
@@ -120,7 +123,7 @@ function handleDrawerUpdate(show: boolean): void {
         flexDirection: 'column',
         height: '100%',
         padding: '0',
-        boxSizing: 'border-box',
+        boxSizing: 'border-box'
       }"
       :header-style="{ padding: '0' }"
     >
@@ -134,7 +137,11 @@ function handleDrawerUpdate(show: boolean): void {
             </div>
           </div>
           <div class="chat-header__actions">
-            <n-button size="tiny" quaternary @click="() => void chat.copyThreadId()">
+            <n-button
+              size="tiny"
+              quaternary
+              @click="() => void chat.copyThreadId()"
+            >
               复制
             </n-button>
             <n-button size="tiny" secondary @click="chat.startNewThread()">
@@ -148,7 +155,9 @@ function handleDrawerUpdate(show: boolean): void {
         <section class="chat-context">
           <div class="chat-context__row">
             <span class="chat-context__label">Thread</span>
-            <n-text code class="chat-context__thread">{{ chat.threadId }}</n-text>
+            <n-text code class="chat-context__thread">
+              {{ chat.threadId }}
+            </n-text>
           </div>
           <div v-if="roleTags.length" class="chat-context__roles">
             <span class="chat-context__label">角色</span>
@@ -175,7 +184,10 @@ function handleDrawerUpdate(show: boolean): void {
 
         <n-spin :show="chat.loadingHistory" class="chat-drawer__messages">
           <n-scrollbar ref="messageListRef" class="chat-messages">
-            <div v-if="!chat.messages.length && !chat.loadingHistory" class="chat-empty">
+            <div
+              v-if="!chat.messages.length && !chat.loadingHistory"
+              class="chat-empty"
+            >
               <div class="chat-empty__icon">AI</div>
               <strong>可以直接输入业务指令</strong>
               <p>例如创建学生、查看学生列表，或跳转到后台页面。</p>
@@ -193,16 +205,18 @@ function handleDrawerUpdate(show: boolean): void {
                 <span v-if="msg.role !== 'human'" class="chat-entry__name">
                   {{ roleLabel(msg.role) }}
                 </span>
-                <div
-                  v-if="hasMessageBody(msg)"
-                  class="chat-bubble"
-                >
+                <div v-if="hasMessageBody(msg)" class="chat-bubble">
                   <p class="chat-entry__content">
-                    {{ msg.content }}<span v-if="msg.streaming" class="chat-cursor">▍</span>
+                    {{ msg.content }}
+                    <span v-if="msg.streaming" class="chat-cursor">▍</span>
                   </p>
                 </div>
                 <div
-                  v-if="msg.jumpPagePrompt || msg.createStudentForm || msg.listStudents"
+                  v-if="
+                    msg.jumpPagePrompt ||
+                    msg.createStudentForm ||
+                    msg.listStudents
+                  "
                   class="chat-action-card"
                 >
                   <JumpPageConfirmCard
@@ -220,7 +234,10 @@ function handleDrawerUpdate(show: boolean): void {
                     :error-detail="msg.createStudentForm.errorDetail"
                     :field-errors="msg.createStudentForm.fieldErrors"
                     :created-student="msg.createStudentForm.createdStudent"
-                    @submit="(payload) => void chat.submitCreateStudentForm(msg.id, payload)"
+                    @submit="
+                      payload =>
+                        void chat.submitCreateStudentForm(msg.id, payload)
+                    "
                     @cancel="chat.cancelCreateStudentForm(msg.id)"
                   />
                   <StudentListCard
@@ -229,7 +246,9 @@ function handleDrawerUpdate(show: boolean): void {
                     :status="msg.listStudents.status"
                     :data="msg.listStudents.data"
                     :error-detail="msg.listStudents.errorDetail"
-                    @refresh="(query) => void chat.refreshListStudents(msg.id, query)"
+                    @refresh="
+                      query => void chat.refreshListStudents(msg.id, query)
+                    "
                   />
                 </div>
               </div>
@@ -409,12 +428,14 @@ function handleDrawerUpdate(show: boolean): void {
 
 .chat-messages {
   height: 100%;
+
   padding: 18px 22px 122px;
   --chat-human-bg: #2563eb;
   --chat-human-text: #ffffff;
   --chat-ai-bg: #ffffff;
   --chat-ai-border: #e5e7eb;
   --chat-ai-text: #1f2937;
+  padding: 0 20px;
 }
 
 .chat-empty {

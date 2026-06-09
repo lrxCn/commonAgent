@@ -53,3 +53,11 @@ export type AsrTranscriptLine = {
   endTime?: number;
   seq: number;
 };
+
+export type AsrSensitiveAlert = {
+  id: string;
+  word: string;
+  text: string;
+  track: AsrTrack;
+  seq: number;
+};
