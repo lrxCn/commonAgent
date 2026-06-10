@@ -86,7 +86,7 @@ export function validateListStudentsAction(action: ClientAction): ListStudentsVa
   const status = record.status;
   if (status !== undefined && status !== null) {
     if (typeof status !== "string" || !LIST_STUDENT_STATUSES.has(status.trim())) {
-      return { ok: false, detail: "状态只能是 active（在读）或 inactive（休学）" };
+      return { ok: false, detail: "状态只能是 active（在职）或 inactive（离职）" };
     }
   }
 
@@ -116,8 +116,8 @@ export function validateListStudentsAction(action: ClientAction): ListStudentsVa
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  active: "在读",
-  inactive: "休学",
+  active: "在职",
+  inactive: "离职",
 };
 
 /** Human-readable query summary for historical list cards without row data. */
@@ -130,11 +130,11 @@ export function formatListStudentsQuerySummary(query: StudentListParams): string
     parts.push(`状态：${STATUS_LABELS[query.status] ?? query.status}`);
   }
   if (query.class_name) {
-    parts.push(`班级：${query.class_name}`);
+    parts.push(`部门：${query.class_name}`);
   }
   const limit = query.limit ?? DEFAULT_LIMIT;
   const offset = query.offset ?? 0;
   const page = Math.floor(offset / limit) + 1;
   parts.push(`第 ${page} 页（每页 ${limit} 条）`);
-  return parts.length > 0 ? parts.join("，") : "全部学生";
+  return parts.length > 0 ? parts.join("，") : "全部员工";
 }

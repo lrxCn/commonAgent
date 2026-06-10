@@ -90,7 +90,7 @@ def test_alice_creates_student_admin_can_see_and_edit(students_client: TestClien
         json={
             "student_no": "2024999",
             "name": "赵六",
-            "class_name": "高一(3)班",
+            "class_name": "市场部",
             "status": "active",
         },
     )
@@ -127,14 +127,14 @@ def test_duplicate_student_no_returns_409(students_client: TestClient) -> None:
         "/api/students",
         json={
             "student_no": "2024001",
-            "name": "冲突学生",
-            "class_name": "高一(1)班",
+            "name": "冲突员工",
+            "class_name": "销售部",
         },
     )
     assert response.status_code == 409
     body = response.json()
     assert body["code"] == "CONFLICT"
-    assert body["message"] == "学号已存在"
+    assert body["message"] == "工号已存在"
     assert body["field_errors"] == {"student_no": "已占用"}
 
 

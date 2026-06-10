@@ -103,7 +103,7 @@ def is_pure_client_tool_intent(
     """
     Navigation-only intent with whitelisted client tools and no knowledge ask.
 
-    Example: 「打开学生管理」 + jumpPage → skip RAG.
+    Example: 「打开员工管理」 + jumpPage → skip RAG.
     """
     if not _has_navigation_tool(tools_context):
         return False

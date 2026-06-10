@@ -216,7 +216,7 @@ def test_knowledge_query_empty_rag_uses_no_source_fallback(
 
 
 def test_client_action_path_contract_uses_action_executor_without_model() -> None:
-    result = _invoke("打开学生管理", thread_id="path-client-action", tools=[_JUMP_TOOL])
+    result = _invoke("打开员工管理", thread_id="path-client-action", tools=[_JUMP_TOOL])
 
     metrics = result["path_metrics"]
     actions = result.get("client_actions") or []

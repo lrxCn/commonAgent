@@ -162,14 +162,14 @@ function extractApiFieldErrors(error: unknown): {
   if (axios.isAxiosError(error) && error.response?.data) {
     const body = error.response.data as ApiErrorBody;
     return {
-      message: body.message || "创建学生失败",
+      message: body.message || "创建员工失败",
       fieldErrors: body.field_errors ?? {},
     };
   }
   if (error instanceof Error) {
     return { message: error.message, fieldErrors: {} };
   }
-  return { message: "创建学生失败", fieldErrors: {} };
+  return { message: "创建员工失败", fieldErrors: {} };
 }
 
 function historyToDisplayItems(item: HistoryMessageItem): ChatDisplayMessage[] {
@@ -325,7 +325,7 @@ export const useChatStore = defineStore("chat", () => {
     }
 
     if (!payload.student_no.trim() || !payload.name.trim()) {
-      message.warning("请填写学号和姓名");
+      message.warning("请填写工号和姓名");
       return;
     }
 

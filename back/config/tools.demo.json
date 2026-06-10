@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "jumpPage",
-      "description": "Navigate the user to an in-app page. Allowed pages: home (首页), students (学生管理), admin-roles (角色管理, admin only), admin-users (用户管理, admin only), admin-kb (RAG/知识库管理, admin only). Use the slug exactly as listed.",
+      "description": "Navigate the user to an in-app page. Allowed pages: home (首页), students (员工管理), admin-roles (角色管理, admin only), admin-users (用户管理, admin only), admin-kb (RAG/知识库管理, admin only). Use the slug exactly as listed.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -18,7 +18,7 @@
     },
     {
       "name": "createStudent",
-      "description": "Show an inline create-student form in the chat. Optional prefill: student_no, name, class_name, status (active=在读, inactive=休学). The user submits the form in chat; do not assume the student is already created.",
+      "description": "Show an inline create-employee form in the chat. Optional prefill: student_no (工号), name (姓名), class_name (部门), status (active=在职, inactive=离职). The user submits the form in chat; do not assume the employee is already created.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -37,7 +37,7 @@
     },
     {
       "name": "listStudents",
-      "description": "Show a paginated student list inline in the chat. Optional filters: search (matches name/student_no/class_name), status (active/inactive), class_name. Pagination: offset (default 0), limit (default 10, max 100).",
+      "description": "Show a paginated employee list inline in the chat. Optional filters: search (matches name/工号/部门), status (active/inactive), class_name (部门). Pagination: offset (default 0), limit (default 10, max 100).",
       "parameters": {
         "type": "object",
         "properties": {

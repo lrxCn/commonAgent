@@ -27,10 +27,10 @@ const messageListRef = ref<InstanceType<typeof NScrollbar> | null>(null)
 const roleTags = computed(() => auth.user?.roles ?? [])
 const canSend = computed(() => draft.value.trim().length > 0 && !chat.sending)
 const quickPrompts = [
-  '帮我添加一个学生',
-  '查学生列表',
-  '打开学生管理',
-  '新建学生张三，学号 2025001'
+  '帮我添加一个员工',
+  '查员工列表',
+  '打开员工管理',
+  '新建员工张三，工号 2025001'
 ]
 
 function roleLabel(role: string): string {
@@ -133,7 +133,7 @@ function handleDrawerUpdate(show: boolean): void {
             <span class="chat-header__avatar">AI</span>
             <div class="chat-header__copy">
               <strong>智能对话</strong>
-              <span>在线处理页面跳转、学生创建和列表查询</span>
+              <span>在线处理页面跳转、员工创建和列表查询</span>
             </div>
           </div>
           <div class="chat-header__actions">
@@ -190,7 +190,7 @@ function handleDrawerUpdate(show: boolean): void {
             >
               <div class="chat-empty__icon">AI</div>
               <strong>可以直接输入业务指令</strong>
-              <p>例如创建学生、查看学生列表，或跳转到后台页面。</p>
+              <p>例如创建员工、查看员工列表，或跳转到后台页面。</p>
             </div>
             <article
               v-for="msg in chat.messages"

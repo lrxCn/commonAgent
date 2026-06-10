@@ -1,4 +1,4 @@
-"""Idempotent demo seed for roles, users, and sample students."""
+"""Idempotent demo seed for roles, users, and sample employees."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ SEED_STUDENTS: tuple[dict[str, str | None], ...] = (
         "student_id": "s-demo-001",
         "student_no": "2024001",
         "name": "张三",
-        "class_name": "高一(1)班",
+        "class_name": "销售部",
         "status": "active",
         "created_by": "u-admin",
     },
@@ -55,7 +55,7 @@ SEED_STUDENTS: tuple[dict[str, str | None], ...] = (
         "student_id": "s-demo-002",
         "student_no": "2024002",
         "name": "李四",
-        "class_name": "高一(2)班",
+        "class_name": "客服部",
         "status": "active",
         "created_by": "u-alice",
     },
@@ -63,7 +63,7 @@ SEED_STUDENTS: tuple[dict[str, str | None], ...] = (
         "student_id": "s-demo-003",
         "student_no": "2024003",
         "name": "王五",
-        "class_name": "高一(1)班",
+        "class_name": "销售部",
         "status": "inactive",
         "created_by": "u-bob",
     },
@@ -130,7 +130,7 @@ def _upsert_student(session: Session, payload: dict[str, str | None]) -> None:
 
 
 def run_seed(session_factory: sessionmaker[Session], admin_password: str) -> None:
-    """Seed demo roles, users, and students; safe to run on an empty or partial database."""
+    """Seed demo roles, users, and employees; safe to run on an empty or partial database."""
     with session_factory() as session:
         for role_id, name, description in SEED_ROLES:
             _upsert_role(session, role_id, name, description)

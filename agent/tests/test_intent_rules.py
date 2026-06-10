@@ -79,9 +79,9 @@ def test_fact_like_question_does_not_write_memory() -> None:
 
 
 def test_client_action_requires_allowed_tool_and_pure_tool_intent() -> None:
-    allowed = classify_intent("打开学生管理", tools_context=[_jump_tool()])
-    no_tool = classify_intent("打开学生管理", tools_context=[])
-    mixed = classify_intent("打开学生管理并说明报销制度", tools_context=[_jump_tool()])
+    allowed = classify_intent("打开员工管理", tools_context=[_jump_tool()])
+    no_tool = classify_intent("打开员工管理", tools_context=[])
+    mixed = classify_intent("打开员工管理并说明报销制度", tools_context=[_jump_tool()])
 
     assert allowed.route == IntentRoute.CLIENT_ACTION
     assert no_tool.route == IntentRoute.GENERAL_CHAT

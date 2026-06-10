@@ -57,10 +57,10 @@ def _settings(**extra: object) -> Settings:
     [
         ("你好", None, None, False),
         ("报销制度是什么", None, None, True),
-        ("打开学生管理", None, _JUMP_TOOLS, False),
-        ("打开学生管理", "跳转到学生管理页面", _JUMP_TOOLS, False),
+        ("打开员工管理", None, _JUMP_TOOLS, False),
+        ("打开员工管理", "跳转到员工管理页面", _JUMP_TOOLS, False),
         ("报销制度是什么", "公司的报销制度有哪些规定", None, True),
-        ("打开学生管理并说明报销制度", None, _JUMP_TOOLS, True),
+        ("打开员工管理并说明报销制度", None, _JUMP_TOOLS, True),
         ("我公司在天翔街188号", "我公司在天翔街188号", None, False),
         ("我生活在哈尔滨", "我生活在哈尔滨", None, False),
     ],
@@ -77,7 +77,7 @@ def test_should_retrieve_rules_mode_table(
 def test_classify_with_rules_decisions() -> None:
     assert classify_with_rules("你好") is RuleDecision.SKIP
     assert classify_with_rules("报销制度是什么") is RuleDecision.RETRIEVE
-    assert classify_with_rules("打开学生管理", tools_context=_JUMP_TOOLS) is RuleDecision.SKIP
+    assert classify_with_rules("打开员工管理", tools_context=_JUMP_TOOLS) is RuleDecision.SKIP
     assert classify_with_rules("我公司在天翔街188号") is RuleDecision.SKIP
     assert classify_with_rules("我生活在哈尔滨") is RuleDecision.SKIP
     assert classify_with_rules("帮我看看") is RuleDecision.UNCERTAIN
@@ -244,17 +244,17 @@ def test_rag_router_node_uses_turn_type_before_legacy_rules() -> None:
 
 def test_build_router_classifier_prompt_lists_tools() -> None:
     prompt = build_router_classifier_prompt(
-        "打开学生管理",
-        "跳转到学生管理",
+        "打开员工管理",
+        "跳转到员工管理",
         _JUMP_TOOLS,
     )
     assert "jumpPage" in prompt
-    assert "打开学生管理" in prompt
+    assert "打开员工管理" in prompt
 
 
 def test_is_pure_client_tool_requires_nav_tool() -> None:
-    assert is_pure_client_tool_intent("打开学生管理", _JUMP_TOOLS) is True
-    assert is_pure_client_tool_intent("打开学生管理", None) is False
+    assert is_pure_client_tool_intent("打开员工管理", _JUMP_TOOLS) is True
+    assert is_pure_client_tool_intent("打开员工管理", None) is False
 
 
 def test_settings_rag_router_mode_validation() -> None:

@@ -28,13 +28,13 @@ const emit = defineEmits<{
 }>();
 
 const statusOptions = [
-  { label: "在读", value: "active" },
-  { label: "休学", value: "inactive" },
+  { label: "在职", value: "active" },
+  { label: "离职", value: "inactive" },
 ];
 
 const statusLabelMap: Record<string, string> = {
-  active: "在读",
-  inactive: "休学",
+  active: "在职",
+  inactive: "离职",
 };
 
 const searchDraft = ref("");
@@ -61,10 +61,10 @@ const showTable = computed(
 );
 
 const columns = computed<DataTableColumns<Student>>(() => [
-  { title: "学号", key: "student_no", width: 88, ellipsis: { tooltip: true } },
+  { title: "工号", key: "student_no", width: 88, ellipsis: { tooltip: true } },
   { title: "姓名", key: "name", width: 72, ellipsis: { tooltip: true } },
   {
-    title: "班级",
+    title: "部门",
     key: "class_name",
     width: 88,
     ellipsis: { tooltip: true },
@@ -91,7 +91,7 @@ const historicalSummary = computed(() => formatListStudentsQuerySummary(props.qu
 
 const statusHint = computed(() => {
   if (props.status === "error") {
-    return props.errorDetail ?? "加载学生列表失败";
+    return props.errorDetail ?? "加载员工列表失败";
   }
   if (props.status === "historical" && !showTable.value) {
     return `历史查询条件：${historicalSummary.value}`;
@@ -171,7 +171,7 @@ function onPageSizeChange(size: number): void {
 
 <template>
   <div class="student-list-card" :class="`student-list-card--${status}`">
-    <p class="student-list-card__title">学生列表</p>
+    <p class="student-list-card__title">员工列表</p>
 
     <p v-if="statusHint" class="student-list-card__hint">
       {{ statusHint }}
@@ -181,7 +181,7 @@ function onPageSizeChange(size: number): void {
       <n-space wrap :size="8">
         <n-input
           v-model:value="searchDraft"
-          placeholder="搜索姓名 / 学号 / 班级"
+          placeholder="搜索姓名 / 工号 / 部门"
           clearable
           size="small"
           style="width: 100%; min-width: 160px; max-width: 220px"

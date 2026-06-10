@@ -52,19 +52,19 @@ const formClassName = ref("");
 const formStatus = ref("active");
 
 const statusOptions = [
-  { label: "在读", value: "active" },
-  { label: "休学", value: "inactive" },
+  { label: "在职", value: "active" },
+  { label: "离职", value: "inactive" },
 ];
 
 const statusLabelMap: Record<string, string> = {
-  active: "在读",
-  inactive: "休学",
+  active: "在职",
+  inactive: "离职",
 };
 
 const columns = computed<DataTableColumns<Student>>(() => [
-  { title: "学号", key: "student_no", width: 120 },
+  { title: "工号", key: "student_no", width: 120 },
   { title: "姓名", key: "name", width: 120 },
-  { title: "班级", key: "class_name", width: 140, render: (row) => row.class_name || "—" },
+  { title: "部门", key: "class_name", width: 140, render: (row) => row.class_name || "—" },
   {
     title: "状态",
     key: "status",
@@ -97,7 +97,7 @@ const columns = computed<DataTableColumns<Student>>(() => [
           {
             trigger: () =>
               h(NButton, { size: "small", quaternary: true, type: "error" }, { default: () => "删除" }),
-            default: () => `确定删除学生「${row.name}」吗？`,
+            default: () => `确定删除员工「${row.name}」吗？`,
           },
         ),
       ]),
@@ -112,7 +112,7 @@ async function loadStudents(): Promise<void> {
   try {
     await studentsStore.loadStudents();
   } catch {
-    message.error("加载学生列表失败");
+    message.error("加载员工列表失败");
   }
 }
 
@@ -148,7 +148,7 @@ function extractFieldErrors(error: unknown): Record<string, string> {
 
 async function onSubmit(): Promise<void> {
   if (!formStudentNo.value.trim() || !formName.value.trim()) {
-    message.warning("请填写学号和姓名");
+    message.warning("请填写工号和姓名");
     return;
   }
 
@@ -163,10 +163,10 @@ async function onSubmit(): Promise<void> {
 
     if (editing.value) {
       await updateStudent(editing.value.student_id, payload);
-      message.success("学生信息已更新");
+      message.success("员工信息已更新");
     } else {
       await createStudent(payload);
-      message.success("学生已创建");
+      message.success("员工已创建");
     }
 
     drawerVisible.value = false;
@@ -175,7 +175,7 @@ async function onSubmit(): Promise<void> {
   } catch (error: unknown) {
     const fieldErrors = extractFieldErrors(error);
     if (fieldErrors.student_no) {
-      message.error(`学号冲突：${fieldErrors.student_no}`);
+      message.error(`工号冲突：${fieldErrors.student_no}`);
     } else if (axios.isAxiosError(error) && error.response?.data) {
       const body = error.response.data as ApiErrorBody;
       message.error(body.message || "保存失败");
@@ -225,7 +225,7 @@ watch([statusFilter, classFilter], () => {
 watch(listRevision, (revision) => {
   if (revision > 0) {
     void studentsStore.refreshAfterExternalChange().catch(() => {
-      message.error("加载学生列表失败");
+      message.error("加载员工列表失败");
     });
   }
 });
@@ -240,18 +240,18 @@ onMounted(async () => {
   <div class="students-page">
     <section class="students-hero">
       <div>
-        <p class="students-hero__eyebrow">Student Management</p>
-        <h1>学生管理</h1>
-        <p>维护学生基础信息，支持智能对话内创建和查询。</p>
+        <p class="students-hero__eyebrow">Employee Management</p>
+        <h1>员工管理</h1>
+        <p>维护员工基础信息，支持智能对话内创建和查询。</p>
       </div>
       <n-button type="primary" size="medium" class="students-hero__button" @click="openCreate">
-        新建学生
+        新建员工
       </n-button>
     </section>
 
     <section class="students-stats">
       <n-card embedded :bordered="false" class="students-stat-card">
-        <n-statistic label="学生总数" :value="total" />
+        <n-statistic label="员工总数" :value="total" />
       </n-card>
       <n-card embedded :bordered="false" class="students-stat-card">
         <n-statistic label="当前页" :value="page" />
@@ -266,7 +266,7 @@ onMounted(async () => {
         <div class="students-toolbar__filters">
           <n-input
             v-model:value="search"
-            placeholder="搜索姓名 / 学号 / 班级"
+            placeholder="搜索姓名 / 工号 / 部门"
             clearable
             class="students-filter students-filter--search"
             @keyup.enter="onSearch"
@@ -282,7 +282,7 @@ onMounted(async () => {
           <n-select
             v-model:value="classFilter"
             :options="classOptions"
-            placeholder="班级筛选"
+            placeholder="部门筛选"
             clearable
             filterable
             class="students-filter students-filter--class"
@@ -313,19 +313,19 @@ onMounted(async () => {
 
     <n-drawer v-model:show="drawerVisible" :width="420" placement="right">
       <n-drawer-content
-        :title="editing ? '编辑学生' : '新建学生'"
+        :title="editing ? '编辑员工' : '新建员工'"
         closable
         :body-content-style="{ padding: '20px 22px' }"
       >
         <n-form label-placement="top">
-          <n-form-item label="学号" required>
+          <n-form-item label="工号" required>
             <n-input v-model:value="formStudentNo" placeholder="例如 2024004" />
           </n-form-item>
           <n-form-item label="姓名" required>
-            <n-input v-model:value="formName" placeholder="学生姓名" />
+            <n-input v-model:value="formName" placeholder="员工姓名" />
           </n-form-item>
-          <n-form-item label="班级">
-            <n-input v-model:value="formClassName" placeholder="例如 高一(1)班" />
+          <n-form-item label="部门">
+            <n-input v-model:value="formClassName" placeholder="例如 销售部" />
           </n-form-item>
           <n-form-item label="状态">
             <n-select v-model:value="formStatus" :options="statusOptions" />

@@ -70,7 +70,7 @@ def list_students(
 def get_student(db: Session, student_id: str) -> Student:
     student = db.get(Student, student_id)
     if student is None:
-        raise not_found("学生不存在")
+        raise not_found("员工不存在")
     return student
 
 
@@ -105,7 +105,7 @@ def create_student(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise conflict("学号已存在", field_errors={"student_no": "已占用"}) from exc
+        raise conflict("工号已存在", field_errors={"student_no": "已占用"}) from exc
     db.refresh(student)
     return student
 
@@ -137,7 +137,7 @@ def update_student(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise conflict("学号已存在", field_errors={"student_no": "已占用"}) from exc
+        raise conflict("工号已存在", field_errors={"student_no": "已占用"}) from exc
     db.refresh(student)
     return student
 

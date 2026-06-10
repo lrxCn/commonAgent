@@ -27,8 +27,8 @@ const emit = defineEmits<{
 }>();
 
 const statusOptions = [
-  { label: "在读", value: "active" },
-  { label: "休学", value: "inactive" },
+  { label: "在职", value: "active" },
+  { label: "离职", value: "inactive" },
 ];
 
 const studentNo = ref("");
@@ -72,7 +72,7 @@ const statusText = computed(() => {
         const s = props.createdStudent;
         return `已创建：${s.name}（${s.student_no}）`;
       }
-      return "学生已创建";
+      return "员工已创建";
     case "cancelled":
       return "已取消新建";
     case "historical": {
@@ -104,7 +104,7 @@ function onSubmit(): void {
 
 <template>
   <div class="create-student-card" :class="cardClass">
-    <p class="create-student-card__title">新建学生</p>
+    <p class="create-student-card__title">新建员工</p>
 
     <p v-if="statusText" class="create-student-card__status">
       {{ statusText }}
@@ -118,14 +118,14 @@ function onSubmit(): void {
       @submit.prevent="onSubmit"
     >
       <n-form-item
-        label="学号"
+        label="工号"
         required
         :feedback="fieldErrors?.student_no"
         :validation-status="fieldErrors?.student_no ? 'error' : undefined"
       >
         <n-input
           v-model:value="studentNo"
-          placeholder="学号"
+          placeholder="工号"
           :disabled="isReadonly"
         />
       </n-form-item>
@@ -142,13 +142,13 @@ function onSubmit(): void {
         />
       </n-form-item>
       <n-form-item
-        label="班级"
+        label="部门"
         :feedback="fieldErrors?.class_name"
         :validation-status="fieldErrors?.class_name ? 'error' : undefined"
       >
         <n-input
           v-model:value="className"
-          placeholder="班级（可选）"
+          placeholder="部门（可选）"
           :disabled="isReadonly"
         />
       </n-form-item>

@@ -83,7 +83,7 @@ AUTHORITY_MATRIX: tuple[AuthorityCase, ...] = (
         target_turn_type=TurnType.KNOWLEDGE_QUERY,
     ),
     AuthorityCase(
-        message="打开学生管理",
+        message="打开员工管理",
         target_route=IntentRoute.CLIENT_ACTION,
         target_turn_type=TurnType.CLIENT_ACTION,
         tools_context=(_jump_tool(),),
@@ -144,7 +144,7 @@ def test_matrix_covers_required_task_samples() -> None:
         "我叫张三",
         "我公司在天翔街188号",
         "报销制度是什么",
-        "打开学生管理",
+        "打开员工管理",
         "它需要什么材料",
         "你好",
     }

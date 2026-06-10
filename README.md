@@ -12,7 +12,7 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 |----|------|
 | 核心任务 | 01–**127** 已完成；通话转写持久化、摘要、敏感词与 Agent 查询 ✅ 见 [progress](docs/progress.md) |
 | Agent | FastAPI Gateway + LangGraph 主图 + 控制面 + Postgres Checkpointer/Store + langmem + RAG（`role_ids[]` OR 检索）；内置 `list_call_transcripts` / `get_call_transcript` 只读工具；**不参与** 通话信令、媒体与 ASR |
-| Back | Cookie Session、Postgres `common_agent_back`、学生/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
+| Back | Cookie Session、Postgres `common_agent_back`、员工/账号/RAG meta、按 Session 注入 `role_ids[]` 与 `tools[]` 白名单并转发 Agent；**WebRTC 信令**（`GET /api/calls/peers` + `WS /api/calls/ws`）；**火山 SAUC 代理**（`WS /api/asr/ws`，凭证 `VOLC_ASR_*` 仅 Back `.env`）；单进程内存 session/hub，多 worker 不支持 |
 | Front | Vue 3 + TS + Pinia + Naive UI SPA；ChatDrawer SSE + `client_actions`（`jumpPage`、`createStudent`、`listStudents`）；**账号 WebRTC 音频通话**（`/app/calls`、全局左下角来电）；**CallsView 实时字幕**（双轨 16 kHz PCM → Back ASR WS；挂断 console 分角色 transcript 并 POST 落库，[PRD](docs/prd/call-transcript-persistence.md)） |
 | 通话能力 | 信令 ✅；字幕 ✅；转写持久化 ✅（Postgres 原文 + 确定性摘要 + 敏感词命中 + Agent tool 按日期/对方查询，[PRD](docs/prd/call-transcript-persistence.md)）；演示 [B5](docs/demo-walkthrough.md)、[B6](docs/demo-walkthrough.md)、[B7](docs/demo-walkthrough.md) |
 | 演示手册 | [docs/demo-walkthrough.md](docs/demo-walkthrough.md) |
@@ -85,7 +85,7 @@ commonAgent/
 | 层级 | 职责 |
 |------|------|
 | Front | Vue SPA：登录、业务 CRUD、RAG 管理、对话抽屉、`thread_id`（sessionStorage）、SSE、`client_actions`（`jumpPage` → Vue Router；`createStudent`/`listStudents` → 对话内嵌 UI，创建成功自动刷新列表）；CallsView 通话 + 双轨 ASR 字幕；挂断 transcript POST Back（**不**自动 Chat） |
-| Back | Cookie Session、用户/角色/学生/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent；WebRTC 信令与 ASR 代理；`call_transcripts`（Postgres JSON 原文、摘要、敏感词命中，不向量）与 `/internal/calls/transcripts*` |
+| Back | Cookie Session、用户/角色/员工/KB meta、`role_ids[]` 与 `tools[]` 并集、thread 归属、转发 Agent；WebRTC 信令与 ASR 代理；`call_transcripts`（Postgres JSON 原文、摘要、敏感词命中，不向量）与 `/internal/calls/transcripts*` |
 | Agent | 记忆装配、RAG、LangGraph 主图、deepagents、护栏、SSE、KB ingest API；只读通话转写 tool（HTTP → Back internal，按 context `user_id` 查询）；**不参与** ASR |
 
 硬约束：
@@ -331,8 +331,8 @@ Gateway 负责：
 | 工具 | 落地 |
 |------|------|
 | **jumpPage** | slug → [page-registry.ts](front/src/client-actions/page-registry.ts) → `router.push` |
-| **createStudent** | 对话内嵌表单，可选预填，`requires_approval: false`；用户点确定后 Front POST `/api/students` |
-| **listStudents** | 对话内嵌表格 + 翻页/搜索；create 成功后 Front 自动 `appendListStudents`（默认 `offset:0, limit:10`），不回流 Agent |
+| **createStudent** | 对话内嵌员工表单，可选预填（`student_no` 兼容字段展示为工号，`class_name` 展示为部门），`requires_approval: false`；用户点确定后 Front POST `/api/students` |
+| **listStudents** | 对话内嵌员工表格 + 翻页/搜索；create 成功后 Front 自动 `appendListStudents`（默认 `offset:0, limit:10`），不回流 Agent |
 
 ```json
 {
@@ -353,8 +353,8 @@ Gateway 负责：
 
 - **`jumpPage`**：确认卡片后 `router.push`（跳转后关闭 ChatDrawer）。
 - **`createStudent`** / **`listStudents`**：校验与 UI 在 [create-student.ts](front/src/client-actions/create-student.ts)、[list-students.ts](front/src/client-actions/list-students.ts)；执行在 [stores/chat.ts](front/src/stores/chat.ts)。
-- HTTP 读写由 Front 在 ChatDrawer 内直接调 Back `/api/students`；Agent 不执行、不等待。
-- 侧边栏 [StudentsView](front/src/views/StudentsView.vue) 传统 CRUD **保留**。
+- HTTP 读写由 Front 在 ChatDrawer 内直接调 Back `/api/students`；Agent 不执行、不等待。`/api/students`、`createStudent`、`listStudents` 和字段名保留历史兼容，用户界面统一展示为员工/工号/部门。
+- 侧边栏 [StudentsView](front/src/views/StudentsView.vue) 员工 CRUD **保留**。
 - 历史回放：`createStudent` / `listStudents` 卡片为 `historical`，不可提交或翻页。
 
 边界规则：
@@ -449,7 +449,7 @@ Back（演示平台，库 `common_agent_back`）：
 
 - 认证：`POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/me`（Cookie Session）。
 - 对话：`POST /api/chat`（Session 注入 `user_id`、`role_ids[]`、`tools[]`）· `GET /api/threads/{thread_id}/messages`（归属 403）。
-- 业务：`/api/students` CRUD；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
+- 业务：`/api/students` 员工 CRUD（历史兼容路径）；admin：`/api/admin/roles` · `/api/admin/users` · `/api/admin/kb/documents`。
 - 通话：`GET /api/calls/peers`（可呼叫用户列表，排除当前用户）· `WS /api/calls/ws`（Cookie Session 信令中继；消息类型见 [call.ts](front/src/types/call.ts) 与 [webrtc-account-call.md](docs/prd/webrtc-account-call.md)；媒体 P2P，**不经 Agent**；单进程内存 hub，多 worker 不支持）。
 - 通话字幕（ASR）：`WS /api/asr/ws`（Cookie Session；Back 代理火山 SAUC 上游；与通话信令 WS **分离**；消息类型见 [volcengine-streaming-asr.md](docs/prd/volcengine-streaming-asr.md)「Front ↔ Back 信令」；单进程内存 session，每用户每 `track`（`local`/`remote`）一路上游；新 `asr.start` 同 track 会关闭旧会话；Front 在 `MediaStream` 就绪后再发 `asr.start`（避免 local 轨空等上游）；binary 前 JSON `asr.track` 指定 track；上游首包 `audio.format: pcm`，audio-only 帧 `serialization=none`（`ser=0`）；凭证 `VOLC_ASR_*` 仅 Back `.env`；历史联调问题见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)）。
 - 通话转写持久化（[PRD](docs/prd/call-transcript-persistence.md)）：`POST /api/calls/{call_id}/transcript`（Session；`(user_id, call_id)` upsert；`lines` JSON 分角色原文，Back 同步生成 `summary` 与 `sensitive_hits`，**不向量化**）；`GET /internal/calls/transcripts` · `GET /internal/calls/transcripts/{call_id}`（`X-Internal-Key`，供 Agent tool；支持 `peer_user_id`、`since`、`until`、`limit`；`user_id` 由 Agent 从请求 context 注入）。**不**写入 langmem / Qdrant；**不**每轮 Chat 自动注入全文。
@@ -459,7 +459,7 @@ Back（演示平台，库 `common_agent_back`）：
 Front（Vue SPA）：
 
 - dev：`cd front && npm run dev` → `http://127.0.0.1:5173`（Vite proxy → Back `:8080`，`withCredentials`）。
-- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；学生工具在抽屉内嵌 UI，create 成功自动追加列表）。
+- `thread_id` 在 sessionStorage；ChatDrawer 消费 SSE / `client_actions`；`jumpPage` / `createStudent` / `listStudents` 在 [stores/chat.ts](front/src/stores/chat.ts) 执行（jumpPage 确认后关闭抽屉；员工工具在抽屉内嵌 UI，create 成功自动追加列表）。
 - 逐步演示：[docs/demo-walkthrough.md](docs/demo-walkthrough.md)。
 - 通话：`/app/calls`（`CallsView` + 侧边栏「通话」）；任意 `/app/*` 左下角 `IncomingCallToast`（接听/拒接）；信令 WebSocket 在 `AppLayout` 经 `useCallSignaling` 建立（指数退避重连，断线不恢复通话）。
 - 通话字幕：`in_call` 时 `asr` store 连接 `WS /api/asr/ws`，local/remote 双轨 16 kHz PCM；CallsView「我说 / 对方说」分栏字幕；挂断 `console.group` 输出分角色 transcript；有 final 句时 `POST /api/calls/{call_id}/transcript` 落库（**不**自动 Chat）。
@@ -745,4 +745,4 @@ uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-inte
 
 ## PRD 说明
 
-[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md)、[docs/prd/demo-admin-console.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/demo-admin-console.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。演示平台（任务 81-92）、结构化记忆写入（63-68）、memory_query 润色（76-80）已落地并同步 README；OAuth、PDF 上传、学生行级隔离等 PRD 二期项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
+[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md)、[docs/prd/demo-admin-console.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/demo-admin-console.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。演示平台（任务 81-92）、结构化记忆写入（63-68）、memory_query 润色（76-80）已落地并同步 README；OAuth、PDF 上传、员工行级隔离等 PRD 二期项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。

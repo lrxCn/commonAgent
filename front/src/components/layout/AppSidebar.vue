@@ -13,7 +13,7 @@ const auth = useAuthStore();
 const menuOptions = computed<MenuOption[]>(() => {
   const items: MenuOption[] = [
     { label: "首页", key: "/app/home" },
-    { label: "学生管理", key: "/app/students" },
+    { label: "员工管理", key: "/app/students" },
     { label: "通话", key: "/app/calls" },
   ];
 

@@ -4,7 +4,7 @@ import { ref } from "vue";
 import * as studentsApi from "@/api/students";
 import type { Student } from "@/types";
 
-/** Bumped when student data changes outside this page (e.g. chat createStudent). */
+/** Bumped when employee data changes outside this page (e.g. chat createStudent). */
 export const useStudentsStore = defineStore("students", () => {
   const students = ref<Student[]>([]);
   const total = ref(0);
@@ -43,7 +43,7 @@ export const useStudentsStore = defineStore("students", () => {
     }
   }
 
-  /** Chat / other surfaces created or mutated students; StudentsView watches and reloads. */
+  /** Chat / other surfaces created or mutated employees; StudentsView watches and reloads. */
   function markListChanged(): void {
     listRevision.value += 1;
   }

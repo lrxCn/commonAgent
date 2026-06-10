@@ -32,7 +32,7 @@ const SLUG_TO_ROUTE: Record<PageSlug, RouteLocationRaw> = {
 /** User-facing labels for jumpPage confirmation UI. */
 export const PAGE_SLUG_LABELS: Record<PageSlug, string> = {
   home: "首页",
-  students: "学生管理",
+  students: "员工管理",
   "admin-roles": "角色管理",
   "admin-users": "用户管理",
   "admin-kb": "RAG 知识库",

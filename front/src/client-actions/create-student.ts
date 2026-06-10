@@ -54,7 +54,7 @@ export function validateCreateStudentAction(action: ClientAction): CreateStudent
   const status = record.status;
   if (status !== undefined && status !== null) {
     if (typeof status !== "string" || !CREATE_STUDENT_STATUSES.has(status.trim())) {
-      return { ok: false, detail: "状态只能是 active（在读）或 inactive（休学）" };
+      return { ok: false, detail: "状态只能是 active（在职）或 inactive（离职）" };
     }
   }
 
@@ -69,20 +69,20 @@ export function validateCreateStudentAction(action: ClientAction): CreateStudent
 }
 
 export const CREATE_STUDENT_STATUS_LABELS: Record<string, string> = {
-  active: "在读",
-  inactive: "休学",
+  active: "在职",
+  inactive: "离职",
 };
 
 export function formatCreateStudentPrefill(args: Partial<StudentCreateRequest>): string[] {
   const lines: string[] = [];
   if (args.student_no) {
-    lines.push(`学号：${args.student_no}`);
+    lines.push(`工号：${args.student_no}`);
   }
   if (args.name) {
     lines.push(`姓名：${args.name}`);
   }
   if (args.class_name) {
-    lines.push(`班级：${args.class_name}`);
+    lines.push(`部门：${args.class_name}`);
   }
   if (args.status) {
     lines.push(`状态：${CREATE_STUDENT_STATUS_LABELS[args.status] ?? args.status}`);
