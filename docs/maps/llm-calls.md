@@ -4,9 +4,9 @@
 
 ## 统一入口
 
-- typed 用途定义在 [contracts/llm.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/llm.py:1)。
-- provider 构造与调用边界在 [gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1)。
-- 策略解析在 [policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/policy.py:1)。
+- typed 用途定义在 [contracts/llm.py](/Users/chenkexin/commonAgent/agent/src/contracts/llm.py:1)。
+- provider 构造与调用边界在 [gateway.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/gateway.py:1)。
+- 策略解析在 [policy.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/policy.py:1)。
 
 ## ModelUseCase
 
@@ -24,14 +24,14 @@
 
 ## 调用路径
 
-- Supervisor：[supervisor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/supervisor.py:1)
-- Rewrite：[rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/rewrite.py:1)
-- Router：[router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/router.py:1)
-- Chitchat：[chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/chitchat_executor.py:1)
-- Intent classifier：[classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/classifier.py:1)
-- memory_query polish：[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)（graph 节点 [executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)）
-- 用户记忆 / summary：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py:1)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py:1)、[summary_job.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/summary_job.py:1)
-- Embedding / rerank：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
+- Supervisor：[supervisor.py](/Users/chenkexin/commonAgent/agent/src/graph/supervisor.py:1)
+- Rewrite：[rewrite.py](/Users/chenkexin/commonAgent/agent/src/rag/rewrite.py:1)
+- Router：[router.py](/Users/chenkexin/commonAgent/agent/src/rag/router.py:1)
+- Chitchat：[chitchat_executor.py](/Users/chenkexin/commonAgent/agent/src/graph/chitchat_executor.py:1)
+- Intent classifier：[classifier.py](/Users/chenkexin/commonAgent/agent/src/intent/classifier.py:1)
+- memory_query polish：[query_polish.py](/Users/chenkexin/commonAgent/agent/src/memory/query_polish.py:1)（graph 节点 [executor_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)）
+- 用户记忆 / summary：[write.py](/Users/chenkexin/commonAgent/agent/src/memory/write.py:1)、[langmem_manager.py](/Users/chenkexin/commonAgent/agent/src/memory/langmem_manager.py:1)、[summary_job.py](/Users/chenkexin/commonAgent/agent/src/memory/summary_job.py:1)
+- Embedding / rerank：[service.py](/Users/chenkexin/commonAgent/agent/src/domain/rag/service.py:1)
 
 ## 降级规则
 
@@ -45,15 +45,15 @@
 
 ## 实现入口
 
-- 模型契约：[contracts/llm.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/llm.py:1)
-- LLM Gateway：[gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
-- Provider client：[clients.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/clients.py:1)
+- 模型契约：[contracts/llm.py](/Users/chenkexin/commonAgent/agent/src/contracts/llm.py:1)
+- LLM Gateway：[gateway.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
+- Provider client：[clients.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/clients.py:1)
 
 ## 测试入口
 
-- Gateway 策略与 streaming：[test_llm_gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_llm_gateway.py:1)
-- Supervisor 用途选择：[test_supervisor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_supervisor.py:1)
-- Rewrite / router fallback：[test_rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
-- Chitchat fallback：[test_chitchat_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chitchat_executor.py:1)
-- Intent classifier fallback：[test_intent_classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_classifier.py:1)
-- memory_query polish fallback：[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- Gateway 策略与 streaming：[test_llm_gateway.py](/Users/chenkexin/commonAgent/agent/tests/test_llm_gateway.py:1)
+- Supervisor 用途选择：[test_supervisor.py](/Users/chenkexin/commonAgent/agent/tests/test_supervisor.py:1)
+- Rewrite / router fallback：[test_rewrite.py](/Users/chenkexin/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/chenkexin/commonAgent/agent/tests/test_rag_router.py:1)
+- Chitchat fallback：[test_chitchat_executor.py](/Users/chenkexin/commonAgent/agent/tests/test_chitchat_executor.py:1)
+- Intent classifier fallback：[test_intent_classifier.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_classifier.py:1)
+- memory_query polish fallback：[test_memory_query_polish.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_executor.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_executor.py:1)

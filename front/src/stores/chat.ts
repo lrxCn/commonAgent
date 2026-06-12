@@ -713,8 +713,7 @@ export const useChatStore = defineStore("chat", () => {
       });
 
       if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(`HTTP ${response.status}: ${detail}`);
+        throw new Error(await chatApi.parseChatErrorResponse(response));
       }
 
       const contentType = response.headers.get("content-type") ?? "";
@@ -738,7 +737,7 @@ export const useChatStore = defineStore("chat", () => {
         return;
       }
       const msg = err instanceof Error ? err.message : String(err);
-      error.value = `发送失败：${msg}`;
+      error.value = msg;
       console.error(err);
     } finally {
       if (streamingMessageId) {

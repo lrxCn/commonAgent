@@ -4,9 +4,9 @@
 
 ## 主路径
 
-1. Back 在 [context.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/context.py:1) 从 Cookie Session 组装 `user_id`、`role_ids[]`、按角色并集过滤的 `tools[]`，校验 `chat_threads` 归属后由 [forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1) 转发 Agent。
-2. Agent Gateway 在 [chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1) 把请求转换成 `graph.invoke(..., context=..., configurable.thread_id=...)`。
-3. 主图定义在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，节点导出入口在 [graph/nodes/__init__.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)。
+1. Back 在 [context.py](/Users/chenkexin/commonAgent/back/src/services/context.py:1) 从 Cookie Session 组装 `user_id`、`role_ids[]`、按角色并集过滤的 `tools[]`，校验 `chat_threads` 归属后由 [forward.py](/Users/chenkexin/commonAgent/back/src/services/forward.py:1) 转发 Agent。
+2. Agent Gateway 在 [chat.py](/Users/chenkexin/commonAgent/agent/src/gateway/chat.py:1) 把请求转换成 `graph.invoke(..., context=..., configurable.thread_id=...)`。
+3. 主图定义在 [build.py](/Users/chenkexin/commonAgent/agent/src/graph/build.py:1)，节点导出入口在 [graph/nodes/__init__.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/__init__.py:1)。
 
 ## 图阶段
 
@@ -30,7 +30,7 @@
 
 ## 输出路径
 
-- 文本回合：SSE 逻辑在 [chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)，事件契约在 [sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/sse.py:1)。
+- 文本回合：SSE 逻辑在 [chat.py](/Users/chenkexin/commonAgent/agent/src/gateway/chat.py:1)，事件契约在 [sse.py](/Users/chenkexin/commonAgent/agent/src/contracts/sse.py:1)。
 - `client_actions` 回合：直接返回 JSON `ChatResponse`，不做 live token streaming。
 
 ## 快速路径
@@ -42,46 +42,46 @@
 
 ## 结构化记忆写入
 
-- 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
-- Slot fill / 确认话术：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
-- Deterministic store / inferred write：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py)
-- 双轨 post_turn：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
-- post_turn 节点：[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py)
-- Eval seed / runner：[memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py)
+- 写入契约：[contracts/memory_write.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_write.py)
+- Slot fill / 确认话术：[structured_record.py](/Users/chenkexin/commonAgent/agent/src/memory/structured_record.py)
+- Deterministic store / inferred write：[write.py](/Users/chenkexin/commonAgent/agent/src/memory/write.py)、[langmem_manager.py](/Users/chenkexin/commonAgent/agent/src/memory/langmem_manager.py)
+- 双轨 post_turn：[post_turn.py](/Users/chenkexin/commonAgent/agent/src/memory/post_turn.py)
+- post_turn 节点：[post_turn_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/post_turn_nodes.py)
+- Eval seed / runner：[memory_write_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_memory_write_eval.py)
 
 ## 控制面决策点
 
-- Intent 契约：[contracts/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/intent.py:1)
-- 派生 helper：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) 中的 `turn_type_decision_from_intent()`
-- Policy Gate：[policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1)
-- Fallback 决策：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
-- 记忆查询执行：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
-- 话术润色：[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)、契约 [memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_query_polish.py:1)
+- Intent 契约：[contracts/intent.py](/Users/chenkexin/commonAgent/agent/src/contracts/intent.py:1)
+- 派生 helper：[engine.py](/Users/chenkexin/commonAgent/agent/src/intent/engine.py:1) 中的 `turn_type_decision_from_intent()`
+- Policy Gate：[policy.py](/Users/chenkexin/commonAgent/agent/src/intent/policy.py:1)
+- Fallback 决策：[fallback.py](/Users/chenkexin/commonAgent/agent/src/intent/fallback.py:1)
+- 记忆查询执行：[query.py](/Users/chenkexin/commonAgent/agent/src/memory/query.py:1)
+- 话术润色：[query_polish.py](/Users/chenkexin/commonAgent/agent/src/memory/query_polish.py:1)、契约 [memory_query_polish.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_query_polish.py:1)
 
 ## memory_query 润色
 
 - 图路径：`memory_query_reply -> memory_query_polish -> post_turn_jobs`
 - 配置：`MEMORY_QUERY_POLISH_USE_LLM`（默认 `true`）、`MEMORY_QUERY_POLISH_MODEL_NAME`、`MEMORY_QUERY_POLISH_MAX_TOKENS`、`MEMORY_QUERY_POLISH_TIMEOUT_SECONDS`
 - trace：`memory_query.evidence_*`、`memory_query.polish.*` 事件 `memory_query.polished`
-- Eval：[memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
+- Eval：[memory_query_polish_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
 
 ## 实现入口
 
-- Agent 入口：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
-- 图拓扑：[build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)
-- 节点 facade：[graph/nodes/__init__.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)
-- 读取与控制面节点：[memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py:1)
-- 执行器节点：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)
+- Agent 入口：[chat.py](/Users/chenkexin/commonAgent/agent/src/gateway/chat.py:1)
+- 图拓扑：[build.py](/Users/chenkexin/commonAgent/agent/src/graph/build.py:1)
+- 节点 facade：[graph/nodes/__init__.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/__init__.py:1)
+- 读取与控制面节点：[memory_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/memory_nodes.py:1)
+- 执行器节点：[executor_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/executor_nodes.py:1)
 
 ## 测试入口
 
-- 图拓扑与 context schema：[test_graph_compile.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_compile.py:1)
-- 端到端 invoke 路径：[test_graph_invoke_mock.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
-- 路径契约：[test_path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_path_contract.py:1)
-- 意图单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
-- 权威对齐矩阵：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
-- memory_query 路径：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)
-- memory_query 润色契约 / eval：[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_polish_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish_eval_runner.py:1)
-- fact_update 快路径：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py)
-- 结构化记忆 eval：[test_memory_write_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_seed.py)、[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py)
-- SSE 行为：[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)
+- 图拓扑与 context schema：[test_graph_compile.py](/Users/chenkexin/commonAgent/agent/tests/test_graph_compile.py:1)
+- 端到端 invoke 路径：[test_graph_invoke_mock.py](/Users/chenkexin/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
+- 路径契约：[test_path_contract.py](/Users/chenkexin/commonAgent/agent/tests/test_path_contract.py:1)
+- 意图单源接入：[test_intent_shadow_graph.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- 权威对齐矩阵：[test_intent_authority_characterization.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
+- memory_query 路径：[test_memory_query_executor.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_executor.py:1)
+- memory_query 润色契约 / eval：[test_memory_query_polish.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_polish.py:1)、[test_memory_query_polish_eval_runner.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_polish_eval_runner.py:1)
+- fact_update 快路径：[test_fact_update_fast_path.py](/Users/chenkexin/commonAgent/agent/tests/test_fact_update_fast_path.py)
+- 结构化记忆 eval：[test_memory_write_eval_seed.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_write_eval_seed.py)、[test_memory_write_eval_runner.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_write_eval_runner.py)
+- SSE 行为：[test_chat_sse.py](/Users/chenkexin/commonAgent/agent/tests/test_chat_sse.py:1)

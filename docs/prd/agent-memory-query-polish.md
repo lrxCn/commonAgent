@@ -1,6 +1,6 @@
 # Agent memory_query 小模型话术润色 PRD
 
-> **落地状态（2026-05-26）**：任务 76-80 已全部完成并同步 [README.md](/Users/liurixing/Documents/codes/ai/commonAgent/README.md) 与 [docs/maps/](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/)。当前运行路径为 `load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs`；`MEMORY_QUERY_POLISH_USE_LLM` 默认 `true`（校验失败回退 deterministic draft）。
+> **落地状态（2026-05-26）**：任务 76-80 已全部完成并同步 [README.md](/Users/chenkexin/commonAgent/README.md) 与 [docs/maps/](/Users/chenkexin/commonAgent/docs/maps/)。当前运行路径为 `load_memory -> memory_query_reply -> memory_query_polish -> post_turn_jobs`；`MEMORY_QUERY_POLISH_USE_LLM` 默认 `true`（校验失败回退 deterministic draft）。
 
 ## 背景
 

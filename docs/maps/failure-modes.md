@@ -4,8 +4,8 @@
 
 ## 会直接阻断当前回合的情况
 
-- 入站护栏命中：在 [inbound.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/guardrails/inbound.py:1) 拦截，请求返回 400。
-- Agent 不可达：Back 在 [forward.py](/Users/liurixing/Documents/codes/ai/commonAgent/back/src/services/forward.py:1) 返回 502。
+- 入站护栏命中：在 [inbound.py](/Users/chenkexin/commonAgent/agent/src/guardrails/inbound.py:1) 拦截，请求返回 400。
+- Agent 不可达：Back 在 [forward.py](/Users/chenkexin/commonAgent/back/src/services/forward.py:1) 返回 502。
 - Graph 运行异常：Gateway SSE 输出 `error` 事件。
 
 ## 文本输出阶段的降级
@@ -46,27 +46,27 @@
 
 ## 实现入口
 
-- 入站护栏：[inbound.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/guardrails/inbound.py:1)
-- 出站护栏：[outbound.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/guardrails/outbound.py:1)
-- SSE 错误处理：[chat.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/chat.py:1)
-- RAG 降级：[service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)
-- LLM Gateway fallback：[gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
-- 记忆写入：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py)
-- 双轨 post_turn：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
-- Fallback manager：[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1)
-- Fallback metrics：[path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:1)
-- event collector：[events.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/events.py:1)
+- 入站护栏：[inbound.py](/Users/chenkexin/commonAgent/agent/src/guardrails/inbound.py:1)
+- 出站护栏：[outbound.py](/Users/chenkexin/commonAgent/agent/src/guardrails/outbound.py:1)
+- SSE 错误处理：[chat.py](/Users/chenkexin/commonAgent/agent/src/gateway/chat.py:1)
+- RAG 降级：[service.py](/Users/chenkexin/commonAgent/agent/src/domain/rag/service.py:1)
+- LLM Gateway fallback：[gateway.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/gateway.py:1)
+- 记忆写入：[write.py](/Users/chenkexin/commonAgent/agent/src/memory/write.py)
+- 双轨 post_turn：[post_turn.py](/Users/chenkexin/commonAgent/agent/src/memory/post_turn.py)
+- Fallback manager：[fallback.py](/Users/chenkexin/commonAgent/agent/src/intent/fallback.py:1)
+- Fallback metrics：[path_contract.py](/Users/chenkexin/commonAgent/agent/src/observability/path_contract.py:1)
+- event collector：[events.py](/Users/chenkexin/commonAgent/agent/src/observability/events.py:1)
 
 ## 测试入口
 
-- 入站护栏：[test_guardrails_inbound.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_guardrails_inbound.py:1)
-- 出站护栏与流式撤回：[test_guardrails_outbound.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_guardrails_outbound.py:1)、[test_chat_sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_chat_sse.py:1)
-- RAG fallback：[test_rag_boundaries.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_boundaries.py:1)
-- rewrite/router fallback：[test_rewrite.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_rag_router.py:1)
-- Fallback manager：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
-- memory_query 缺失证据 / polish 回退：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)
-- post_turn 非阻塞：[test_post_turn_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_post_turn_graph.py:1)
-- structured write / stored_empty 回归：[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_structured_memory_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_structured_memory_characterization.py:1)
-- fact_update slot fill 失败：[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py:1)
-- intent 分类失败 / 单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
-- LangSmith / event 兼容：[test_tracing.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_tracing.py:1)
+- 入站护栏：[test_guardrails_inbound.py](/Users/chenkexin/commonAgent/agent/tests/test_guardrails_inbound.py:1)
+- 出站护栏与流式撤回：[test_guardrails_outbound.py](/Users/chenkexin/commonAgent/agent/tests/test_guardrails_outbound.py:1)、[test_chat_sse.py](/Users/chenkexin/commonAgent/agent/tests/test_chat_sse.py:1)
+- RAG fallback：[test_rag_boundaries.py](/Users/chenkexin/commonAgent/agent/tests/test_rag_boundaries.py:1)
+- rewrite/router fallback：[test_rewrite.py](/Users/chenkexin/commonAgent/agent/tests/test_rewrite.py:1)、[test_rag_router.py](/Users/chenkexin/commonAgent/agent/tests/test_rag_router.py:1)
+- Fallback manager：[test_fallback_manager.py](/Users/chenkexin/commonAgent/agent/tests/test_fallback_manager.py:1)
+- memory_query 缺失证据 / polish 回退：[test_memory_query_executor.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_polish.py:1)
+- post_turn 非阻塞：[test_post_turn_graph.py](/Users/chenkexin/commonAgent/agent/tests/test_post_turn_graph.py:1)
+- structured write / stored_empty 回归：[test_memory_write_eval_runner.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_structured_memory_characterization.py](/Users/chenkexin/commonAgent/agent/tests/test_structured_memory_characterization.py:1)
+- fact_update slot fill 失败：[test_fact_update_fast_path.py](/Users/chenkexin/commonAgent/agent/tests/test_fact_update_fast_path.py:1)
+- intent 分类失败 / 单源接入：[test_intent_shadow_graph.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- LangSmith / event 兼容：[test_tracing.py](/Users/chenkexin/commonAgent/agent/tests/test_tracing.py:1)

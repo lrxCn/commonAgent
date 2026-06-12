@@ -177,6 +177,7 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-06-12 | 文档：项目迁移到 `/Users/chenkexin/commonAgent` 后，更新 README、docs/maps 与 docs/prd 中旧绝对路径链接 |
 | 2026-06-01 | 完成任务 124–127：通话记录 `call_transcripts` 落库；Back 生成确定性摘要与敏感词命中；Front 挂断 POST；Agent 内置 `list_call_transcripts` / `get_call_transcript` 只读工具按日期/对方查询；README/PRD/demo/maps 收口；back transcript 测试、agent tool 测试、front build 绿 |
 | 2026-05-27 | 完成任务 123：README `VOLC_ASR_*`（`X-Api-Key`、2.0 resource、pcm/ser=0）；PRD 落地 119–123；handoff 标记已实现；progress 修复批次收口；`test_volc_asr_protocol` + `test_asr_ws` + front build 绿 |
 | 2026-05-27 | 完成任务 121：`asr_proxy` 检查 full_request `code`、记录 upstream 异常类型；`has_received_pcm` 无 PCM 时 stop 跳过上游等待；45000081 不向 UI 抛错；`test_asr_ws` 增补；建议 **122** |

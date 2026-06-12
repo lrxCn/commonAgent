@@ -15,25 +15,25 @@
 
 ## 核心契约
 
-- Intent 契约：[contracts/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/intent.py:1)
-- 派生 helper：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) 中的 `turn_type_decision_from_intent()`
-- Fallback 契约：[contracts/fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/fallback.py:1)
-- LLM 用途：[contracts/llm.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/llm.py:1)
-- Path metrics：[path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:1)
+- Intent 契约：[contracts/intent.py](/Users/chenkexin/commonAgent/agent/src/contracts/intent.py:1)
+- 派生 helper：[engine.py](/Users/chenkexin/commonAgent/agent/src/intent/engine.py:1) 中的 `turn_type_decision_from_intent()`
+- Fallback 契约：[contracts/fallback.py](/Users/chenkexin/commonAgent/agent/src/contracts/fallback.py:1)
+- LLM 用途：[contracts/llm.py](/Users/chenkexin/commonAgent/agent/src/contracts/llm.py:1)
+- Path metrics：[path_contract.py](/Users/chenkexin/commonAgent/agent/src/observability/path_contract.py:1)
 
 ## Intent Engine
 
-- Signals：[signals.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/signals.py:1)
-- 确定性规则：[rules.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/rules.py:1)
-- 纯入口与派生：[engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1)
-- 兼容 adapter：[turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/turn_type.py:1)
-- Structured classifier：[classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/classifier.py:1)
+- Signals：[signals.py](/Users/chenkexin/commonAgent/agent/src/intent/signals.py:1)
+- 确定性规则：[rules.py](/Users/chenkexin/commonAgent/agent/src/intent/rules.py:1)
+- 纯入口与派生：[engine.py](/Users/chenkexin/commonAgent/agent/src/intent/engine.py:1)
+- 兼容 adapter：[turn_type.py](/Users/chenkexin/commonAgent/agent/src/graph/turn_type.py:1)
+- Structured classifier：[classifier.py](/Users/chenkexin/commonAgent/agent/src/intent/classifier.py:1)
 
 `INTENT_CLASSIFIER` 已接入 LLM Gateway policy，包含 schema 校验、repair 和冲突 fallback；当前主图没有在热路径调用它。
 
 ## Policy Gate
 
-[policy.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/policy.py:1) 的 `decide_fast_path_policy()` 当前检查：
+[policy.py](/Users/chenkexin/commonAgent/agent/src/intent/policy.py:1) 的 `decide_fast_path_policy()` 当前检查：
 
 - `speech_act=statement`
 - `operation=memory_write`
@@ -54,23 +54,23 @@ Policy 通过后的 structured write 链路：
 
 契约与实现：
 
-- 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
-- Slot fill：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
-- Graph 写入点：[memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py)（load_memory）、[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py)
+- 写入契约：[contracts/memory_write.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_write.py)
+- Slot fill：[structured_record.py](/Users/chenkexin/commonAgent/agent/src/memory/structured_record.py)
+- Graph 写入点：[memory_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/memory_nodes.py)（load_memory）、[post_turn_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/post_turn_nodes.py)
 
 ## memory_query
 
-- 路由分支：[routing_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/routing_nodes.py:1)
-- 确定性回答：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_reply_node`
-- 话术润色：[executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_polish_node`、[query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query_polish.py:1)
-- 证据回答：[query.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/query.py:1)
-- post_turn 跳过写入：[post_turn_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/post_turn_nodes.py:1)
+- 路由分支：[routing_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/routing_nodes.py:1)
+- 确定性回答：[executor_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_reply_node`
+- 话术润色：[executor_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/executor_nodes.py:1) `memory_query_polish_node`、[query_polish.py](/Users/chenkexin/commonAgent/agent/src/memory/query_polish.py:1)
+- 证据回答：[query.py](/Users/chenkexin/commonAgent/agent/src/memory/query.py:1)
+- post_turn 跳过写入：[post_turn_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/post_turn_nodes.py:1)
 
 回答只基于 memory profile、Store/langmem 用户记忆或当前 thread 里的可靠用户事实；没有证据时返回诚实缺失回复，并记录 memory fallback。小模型润色默认开启；校验失败回退 deterministic draft。
 
 ## Fallback
 
-[fallback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/fallback.py:1) 统一覆盖：
+[fallback.py](/Users/chenkexin/commonAgent/agent/src/intent/fallback.py:1) 统一覆盖：
 
 - intent low confidence / classify error
 - policy denied
@@ -82,31 +82,31 @@ Policy 通过后的 structured write 链路：
 - output guard
 - checkpoint failure
 
-节点通过 [record_fallback_decision()](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:103) 写入 `fallback.*` metadata，并 emit `FALLBACK_TRIGGERED`。
+节点通过 [record_fallback_decision()](/Users/chenkexin/commonAgent/agent/src/observability/path_contract.py:103) 写入 `fallback.*` metadata，并 emit `FALLBACK_TRIGGERED`。
 
 ## Feedback 与 Eval
 
-- Feedback helper：[feedback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/feedback.py:1)
-- 控制面 seed：[intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json)
-- Eval 说明：[agent/evals/README.md](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/README.md:1)
-- 本地 runner：[run_intent_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_intent_eval.py:1)
-- 结构化记忆 seed / runner：[memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py)
-- memory_query 润色 seed / runner：[memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
-- LangSmith dry-run 同步：[sync_langsmith_dataset.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/sync_langsmith_dataset.py:1)
+- Feedback helper：[feedback.py](/Users/chenkexin/commonAgent/agent/src/intent/feedback.py:1)
+- 控制面 seed：[intent_seed.json](/Users/chenkexin/commonAgent/agent/evals/intent_seed.json)
+- Eval 说明：[agent/evals/README.md](/Users/chenkexin/commonAgent/agent/evals/README.md:1)
+- 本地 runner：[run_intent_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_intent_eval.py:1)
+- 结构化记忆 seed / runner：[memory_write_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_memory_write_eval.py)
+- memory_query 润色 seed / runner：[memory_query_polish_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_query_polish_seed.json)、[run_memory_query_polish_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_memory_query_polish_eval.py)
+- LangSmith dry-run 同步：[sync_langsmith_dataset.py](/Users/chenkexin/commonAgent/agent/scripts/sync_langsmith_dataset.py:1)
 
 Feedback 样本需要人工确认后进入 seed；第一人称疑问误判为事实写入的反例必须保留。
 
 ## 测试入口
 
-- 派生契约：[test_intent_authority_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_contract.py:1)
-- 单源对齐矩阵：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
-- 兼容 adapter：[test_turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_turn_type.py:1)
-- Intent 契约：[test_intent_contracts.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_contracts.py:1)
-- Signals / rules：[test_intent_signals.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_signals.py:1)、[test_intent_rules.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_rules.py:1)
-- Structured classifier：[test_intent_classifier.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_classifier.py:1)
-- Graph 单源接入：[test_intent_shadow_graph.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
-- Policy Gate：[test_policy_gate.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_policy_gate.py:1)
-- memory_query：[test_memory_query_executor.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_query_polish.py:1)
-- Fallback：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
-- Feedback / eval：[test_intent_feedback.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_feedback.py:1)、[test_intent_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_eval_seed.py:1)、[test_intent_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_eval_runner.py:1)
-- Structured memory write：[test_memory_write_eval_seed.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_seed.py:1)、[test_memory_write_eval_runner.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_fact_update_fast_path.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fact_update_fast_path.py:1)
+- 派生契约：[test_intent_authority_contract.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_authority_contract.py:1)
+- 单源对齐矩阵：[test_intent_authority_characterization.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
+- 兼容 adapter：[test_turn_type.py](/Users/chenkexin/commonAgent/agent/tests/test_turn_type.py:1)
+- Intent 契约：[test_intent_contracts.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_contracts.py:1)
+- Signals / rules：[test_intent_signals.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_signals.py:1)、[test_intent_rules.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_rules.py:1)
+- Structured classifier：[test_intent_classifier.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_classifier.py:1)
+- Graph 单源接入：[test_intent_shadow_graph.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_shadow_graph.py:1)
+- Policy Gate：[test_policy_gate.py](/Users/chenkexin/commonAgent/agent/tests/test_policy_gate.py:1)
+- memory_query：[test_memory_query_executor.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_executor.py:1)、[test_memory_query_polish.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_query_polish.py:1)
+- Fallback：[test_fallback_manager.py](/Users/chenkexin/commonAgent/agent/tests/test_fallback_manager.py:1)
+- Feedback / eval：[test_intent_feedback.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_feedback.py:1)、[test_intent_eval_seed.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_eval_seed.py:1)、[test_intent_eval_runner.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_eval_runner.py:1)
+- Structured memory write：[test_memory_write_eval_seed.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_write_eval_seed.py:1)、[test_memory_write_eval_runner.py](/Users/chenkexin/commonAgent/agent/tests/test_memory_write_eval_runner.py:1)、[test_fact_update_fast_path.py](/Users/chenkexin/commonAgent/agent/tests/test_fact_update_fast_path.py:1)

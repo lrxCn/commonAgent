@@ -39,14 +39,14 @@ Front -> Back -> Agent 三层通用智能体项目。目标是提供一个有长
 
 重构后的代码导航见：
 
-- [chat-turn-pipeline.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/chat-turn-pipeline.md)
-- [state-fields.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/state-fields.md)
-- [llm-calls.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/llm-calls.md)
-- [rag-flow.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/rag-flow.md)
-- [client-actions.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/client-actions.md)
-- [failure-modes.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/failure-modes.md)
-- [control-plane.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/control-plane.md)
-- [demo-platform.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/maps/demo-platform.md)
+- [chat-turn-pipeline.md](/Users/chenkexin/commonAgent/docs/maps/chat-turn-pipeline.md)
+- [state-fields.md](/Users/chenkexin/commonAgent/docs/maps/state-fields.md)
+- [llm-calls.md](/Users/chenkexin/commonAgent/docs/maps/llm-calls.md)
+- [rag-flow.md](/Users/chenkexin/commonAgent/docs/maps/rag-flow.md)
+- [client-actions.md](/Users/chenkexin/commonAgent/docs/maps/client-actions.md)
+- [failure-modes.md](/Users/chenkexin/commonAgent/docs/maps/failure-modes.md)
+- [control-plane.md](/Users/chenkexin/commonAgent/docs/maps/control-plane.md)
+- [demo-platform.md](/Users/chenkexin/commonAgent/docs/maps/demo-platform.md)
 
 ## 目录结构
 
@@ -99,7 +99,7 @@ commonAgent/
 
 ## Graph 契约
 
-图入口在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，按 `context_schema + configurable.thread_id + state_schema` 调用：
+图入口在 [build.py](/Users/chenkexin/commonAgent/agent/src/graph/build.py:1)，按 `context_schema + configurable.thread_id + state_schema` 调用：
 
 ```python
 graph.invoke(
@@ -112,7 +112,7 @@ graph.invoke(
 运行期契约：
 
 - `AgentState.messages` 是跨轮持久化的权威对话历史。
-- 其余单轮字段通过 `EphemeralValue` 挂在 [state.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/state.py:1)，不可依赖上一轮残留。
+- 其余单轮字段通过 `EphemeralValue` 挂在 [state.py](/Users/chenkexin/commonAgent/agent/src/graph/state.py:1)，不可依赖上一轮残留。
 - `GraphContextSchema` 只携带 `user_id`、`role_ids[]`、`tools[]`，作为每轮上下文，不进入 checkpoint 作为权限依据。
 - `ContextBundle` 是模型上下文单一来源，包含 `system_prompt`、`model_messages`、`budget`、`sources`；执行器和 trace 读同一份 bundle。
 - `IntentDecision` 是运行时唯一意图权威来源，当前由确定性 `classify_intent()`（signals/rules）在 `load_memory` 阶段生成。
@@ -122,7 +122,7 @@ graph.invoke(
 
 ## 单轮流水线
 
-主图拓扑在 [build.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/build.py:1)，节点实现在 [graph/nodes/](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/__init__.py:1)。
+主图拓扑在 [build.py](/Users/chenkexin/commonAgent/agent/src/graph/build.py:1)，节点实现在 [graph/nodes/](/Users/chenkexin/commonAgent/agent/src/graph/nodes/__init__.py:1)。
 
 
 
@@ -216,7 +216,7 @@ sequenceDiagram
 
 ## 控制面
 
-控制面在 [intent/](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/__init__.py:1) 与 [contracts/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/intent.py:1) 中落地，用于把“用户想做什么”“是否允许快速执行”“失败后如何降级”从执行器中拆出来。
+控制面在 [intent/](/Users/chenkexin/commonAgent/agent/src/intent/__init__.py:1) 与 [contracts/intent.py](/Users/chenkexin/commonAgent/agent/src/contracts/intent.py:1) 中落地，用于把“用户想做什么”“是否允许快速执行”“失败后如何降级”从执行器中拆出来。
 
 当前运行契约：
 
@@ -227,7 +227,7 @@ sequenceDiagram
 - Policy Gate 当前只准入高置信、低风险、显式属性和值的 `fact_update` 记忆写入快速路径；第一人称疑问会被拒绝并走 `memory_query` 或保守路径。
 - `memory_query` 是一等运行路径，回答“我是谁”“我叫什么”“我公司在哪”等记忆读取问题；只基于 `memory_profile` / `user_memories` / 当前 thread 里可靠证据回答，缺失时诚实说明。小模型润色仅改写表达，不得增删事实；校验失败回退 deterministic draft。
 - Fallback Manager 用 `FallbackDecision` 记录 intent 低置信/分类失败、policy denied、memory missing、RAG 空/弱命中、tool unavailable、schema/LLM fallback、output guard 等降级；`intent_conflict` 字段保留兼容但常态为 `false`。
-- Feedback/Eval 闭环使用 `IntentFeedback`、[intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json) 和本地 eval runner，将人工纠错或 fallback conflict 转成可回归 seed。
+- Feedback/Eval 闭环使用 `IntentFeedback`、[intent_seed.json](/Users/chenkexin/commonAgent/agent/evals/intent_seed.json) 和本地 eval runner，将人工纠错或 fallback conflict 转成可回归 seed。
 
 控制面不会绕过三层边界：Back 仍负责鉴权、角色和工具白名单；Agent 只做意图、策略、回答和结构化 `client_actions`；Front 仍负责客户端动作执行。
 
@@ -235,10 +235,10 @@ sequenceDiagram
 
 RAG：
 
-- 兼容入口在 [retriever.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/retriever.py:1)，真实编排在 [service.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/domain/rag/service.py:1)。
-- Qdrant 适配在 [kb_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)：检索按用户 `context.role_ids[]` 与 payload **`role_ids[]` 有交集** 命中（`roles_filter` should OR）；迁移期仍可读 payload 单字段 `role_id`（见下文 KB payload）。
+- 兼容入口在 [retriever.py](/Users/chenkexin/commonAgent/agent/src/rag/retriever.py:1)，真实编排在 [service.py](/Users/chenkexin/commonAgent/agent/src/domain/rag/service.py:1)。
+- Qdrant 适配在 [kb_store.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/qdrant/kb_store.py:1)：检索按用户 `context.role_ids[]` 与 payload **`role_ids[]` 有交集** 命中（`roles_filter` should OR）；迁移期仍可读 payload 单字段 `role_id`（见下文 KB payload）。
 - Ingest 每个 point 写入完整 `role_ids[]`；同一 `doc_id` 只 ingest 一次，不按角色复制向量。
-- RAG 是否进入检索由控制面派生的有效 `turn_type`、Policy Gate 结果和 RAG router 共同决定；旧 [rag/intent.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/rag/intent.py:1) 只保留局部启发式兼容，不是全局意图权威。
+- RAG 是否进入检索由控制面派生的有效 `turn_type`、Policy Gate 结果和 RAG router 共同决定；旧 [rag/intent.py](/Users/chenkexin/commonAgent/agent/src/rag/intent.py:1) 只保留局部启发式兼容，不是全局意图权威。
 - dense 检索失败时继续本地 BM25 fallback，不把整段 RAG 置空。
 - dense + lexical 候选先 merge，再 rerank，再格式化为带 `[doc:.../chunk:...]` 标记的知识片段。
 - RagSubAgent 只在主检索为空或弱命中时做二查；二查后仍无可靠来源时返回无来源模板，不交给 deepagents 猜测。
@@ -247,14 +247,14 @@ RAG：
 
 - 完整对话保存在 Postgres checkpointer，键是 `thread_id`。
 - 用户长期记忆保存在 **LangGraph Postgres Store**（与 checkpointer 同 `DATABASE_URL`），键是 `user_id`；**pgvector 必开**（运维见下文「Postgres + pgvector」）。
-- Store 分两层 namespace（见 [contracts/memory_store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_store.py)）：
+- Store 分两层 namespace（见 [contracts/memory_store.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_store.py)）：
   - **Profile** `("users", user_id, "profile")`：结构化字段 upsert（name、birthday、city 等）。
   - **Collection** `("users", user_id, "facts")`：langmem inferred 自由文本 facts，pgvector 语义检索。
 - `user_memories` 在 state 中只保留 `list[str]`（profile + collection 合并后的 canonical fact 文本）；归一化视图在 `memory_profile`。
 - `rolling_summary`、用户记忆、RAG、tools schema、messages 都受 `ContextBudget` 约束。
 - `memory_query` 只读可靠记忆证据，不触发写入；`post_turn` 会识别该路径并跳过 memory write。润色小模型不计入 supervisor `llm_call_count`。
 
-记忆写入采用 **Single Extraction Point + 双轨** 策略（见 [agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)）：
+记忆写入采用 **Single Extraction Point + 双轨** 策略（见 [agent-structured-memory-write.md](/Users/chenkexin/commonAgent/docs/prd/agent-structured-memory-write.md)）：
 
 | 路径 | 触发条件 | 抽取 | 存储 |
 |------|----------|------|------|
@@ -271,11 +271,11 @@ Structured Write 链路：
 
 契约与实现：
 
-- 写入契约：[contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py)
-- Slot fill / canonical 文本：[structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py)
-- Structured / inferred write：[write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py)、[langmem_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/langmem_manager.py)
-- Store 工厂 / 读路径：[store.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/store.py)、[read.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/read.py)
-- 双轨路由：[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py)
+- 写入契约：[contracts/memory_write.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_write.py)
+- Slot fill / canonical 文本：[structured_record.py](/Users/chenkexin/commonAgent/agent/src/memory/structured_record.py)
+- Structured / inferred write：[write.py](/Users/chenkexin/commonAgent/agent/src/memory/write.py)、[langmem_manager.py](/Users/chenkexin/commonAgent/agent/src/memory/langmem_manager.py)
+- Store 工厂 / 读路径：[store.py](/Users/chenkexin/commonAgent/agent/src/memory/store.py)、[read.py](/Users/chenkexin/commonAgent/agent/src/memory/read.py)
+- 双轨路由：[post_turn.py](/Users/chenkexin/commonAgent/agent/src/memory/post_turn.py)
 
 可观测：`memory_write.mode`（`structured` \| `inferred`）、`memory_store.*`、`memory_write.record.attribute` 写入 path metrics；Policy 通过的 `fact_update` 在 structured 路径上 **不应** 出现 `stored_empty`（eval regression 覆盖）。
 
@@ -287,7 +287,7 @@ Structured Write 链路：
 
 ## LLM Gateway
 
-所有 provider 调用都从 [gateway.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/llm/gateway.py:1) 进入，业务模块只声明 `ModelUseCase`，不直接构造 provider client。
+所有 provider 调用都从 [gateway.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/llm/gateway.py:1) 进入，业务模块只声明 `ModelUseCase`，不直接构造 provider client。
 
 | `ModelUseCase` | 用途 | 默认配置来源 |
 |----------------|------|-------------|
@@ -312,7 +312,7 @@ Gateway 负责：
 
 ## client_actions 契约
 
-`client_actions` 是客户端动作，不是 Agent 侧 tool call。契约定义在 [schemas.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/gateway/schemas.py:1)。
+`client_actions` 是客户端动作，不是 Agent 侧 tool call。契约定义在 [schemas.py](/Users/chenkexin/commonAgent/agent/src/gateway/schemas.py:1)。
 
 ```json
 {
@@ -404,7 +404,7 @@ Qdrant KB payload（当前事实）：
 }
 ```
 
-- **权威可见性**：`role_ids[]`；检索 filter 与 [payload.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/qdrant/payload.py:1) 后过滤均按与用户 `role_ids[]` 的 **集合交集** 判定。
+- **权威可见性**：`role_ids[]`；检索 filter 与 [payload.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/qdrant/payload.py:1) 后过滤均按与用户 `role_ids[]` 的 **集合交集** 判定。
 - **迁移期双读（M1，未做 M3）**：新 ingest 仍写入 `role_id`（取 `role_ids[0]`）；仅含旧 `role_id` 的存量 point 仍可通过 `roles_filter` fallback 命中。去兼容（停写/停读 `role_id`）见 [kb-multi-role-rag.md](docs/prd/kb-multi-role-rag.md) M3，**未**在本批次实施。
 - **存量迁移**：`back/scripts/migrate_kb_multi_role.py`（Postgres meta + junction）；`agent/scripts/migrate_kb_role_ids.py`（Qdrant payload 补 `role_ids[]`）。
 
@@ -442,7 +442,7 @@ Back 演示平台（admin KB）：
 
 响应：
 
-- 纯文本：`text/event-stream`，事件契约由 [sse.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/sse.py:1) 校验。
+- 纯文本：`text/event-stream`，事件契约由 [sse.py](/Users/chenkexin/commonAgent/agent/src/contracts/sse.py:1) 校验。
 - 客户端动作：`application/json`，body 为 `{ "text": null, "client_actions": [...] }`。
 
 Back（演示平台，库 `common_agent_back`）：
@@ -469,19 +469,19 @@ Front（Vue SPA）：
 
 可观测：
 
-- typed 事件定义在 [events.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/events.py:1)。
-- 事件收集器在 [events.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/events.py:1)。
-- LangSmith 适配在 [metadata_mapper.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/infrastructure/langsmith/metadata_mapper.py:1)。
+- typed 事件定义在 [events.py](/Users/chenkexin/commonAgent/agent/src/contracts/events.py:1)。
+- 事件收集器在 [events.py](/Users/chenkexin/commonAgent/agent/src/observability/events.py:1)。
+- LangSmith 适配在 [metadata_mapper.py](/Users/chenkexin/commonAgent/agent/src/infrastructure/langsmith/metadata_mapper.py:1)。
 - 业务逻辑优先 emit 事件，再由 LangSmith adapter 映射 metadata；兼容 facade 仍保留。
 - 控制面事件包含 intent classified、policy evaluated、executor chosen、fallback triggered；`intent.conflict` 常态为 `false`。
 - path metrics 会输出 `fallback.*`、`intent.*`、`policy.*`、`memory_query.*`、`memory_query.polish.*`、`memory_write.mode`、`memory_write.record.attribute`、`executor`、`llm_call_count` 和各阶段 should/called。
 
 评测：
 
-- 本地 seed 在 [seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/seed.json)。
-- 控制面 seed 在 [intent_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/intent_seed.json)，覆盖 `fact_update`、`memory_query`、`knowledge_query`、`client_action`、`ambiguous`、`general_chat`、`chitchat`、`safety_refusal`。
-- 结构化记忆写入 seed 在 [memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)，覆盖 `structured_fact_update`、`inferred_general_chat`、`regression_store_empty`；本地 runner：`scripts/run_memory_write_eval.py`。
-- memory_query 润色 seed 在 [memory_query_polish_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_query_polish_seed.json)，覆盖姓名/地址/偏好/缺失/thread fallback/篡改与不确定表述；本地 runner：`scripts/run_memory_query_polish_eval.py`（mock LLM + 输出校验，默认 `--json`）。
+- 本地 seed 在 [seed.json](/Users/chenkexin/commonAgent/agent/evals/seed.json)。
+- 控制面 seed 在 [intent_seed.json](/Users/chenkexin/commonAgent/agent/evals/intent_seed.json)，覆盖 `fact_update`、`memory_query`、`knowledge_query`、`client_action`、`ambiguous`、`general_chat`、`chitchat`、`safety_refusal`。
+- 结构化记忆写入 seed 在 [memory_write_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_write_seed.json)，覆盖 `structured_fact_update`、`inferred_general_chat`、`regression_store_empty`；本地 runner：`scripts/run_memory_write_eval.py`。
+- memory_query 润色 seed 在 [memory_query_polish_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_query_polish_seed.json)，覆盖姓名/地址/偏好/缺失/thread fallback/篡改与不确定表述；本地 runner：`scripts/run_memory_query_polish_eval.py`（mock LLM + 输出校验，默认 `--json`）。
 - `expected_answer` 与 `expected_path` 分开维护。
 - RAG 样例可带 `kb_fixture`、`expected_doc_ids`、`forbidden_doc_ids` 做 role 过滤评测。
 - `IntentFeedback` 可将用户纠错、人工 trace review、path contract 失败或 fallback conflict 转成 `intent_seed.json` 行。
@@ -654,7 +654,7 @@ docker exec -it my-postgres psql -U postgres -c "CREATE DATABASE common_agent;"
 
 ## 环境变量
 
-Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/agent/.env.example) 为准，并与 [config.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/settings/config.py:1)、`agent/.env` 同步。
+Agent 环境契约以 [agent/.env.example](/Users/chenkexin/commonAgent/agent/.env.example) 为准，并与 [config.py](/Users/chenkexin/commonAgent/agent/src/settings/config.py:1)、`agent/.env` 同步。
 
 | 分组 | 关键变量 | 用途 |
 |------|----------|------|
@@ -669,7 +669,7 @@ Agent 环境契约以 [agent/.env.example](/Users/liurixing/Documents/codes/ai/c
 | Postgres / Gateway / Guardrails | `DATABASE_URL`、`AGENT_HOST`、`AGENT_PORT`、`GUARDRAILS_ENABLED` | 服务入口与护栏 |
 | Back internal tools | `BACK_URL`、`INTERNAL_API_KEY`、`BACK_INTERNAL_TIMEOUT_SECONDS` | Agent 查询 Back internal 通话记录 |
 
-Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/back/.env.example)：
+Back 变量见 [back/.env.example](/Users/chenkexin/commonAgent/back/.env.example)：
 
 | 变量 | 说明 |
 |------|------|
@@ -686,7 +686,7 @@ Back 变量见 [back/.env.example](/Users/liurixing/Documents/codes/ai/commonAge
 
 握手还发送 `X-Api-Sequence: -1`（新控制台要求）。协议要点：首包 JSON `format: pcm`；audio-only 帧 `ser=0`（非 JSON）。联调背景见 [volc-asr-fix-handoff.md](docs/prd/volc-asr-fix-handoff.md)。
 
-Front 变量见 [front/.env.example](/Users/liurixing/Documents/codes/ai/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。**无** ASR 相关 `VITE_*`。
+Front 变量见 [front/.env.example](/Users/chenkexin/commonAgent/front/.env.example)：`VITE_WEBRTC_STUN_URL`（可选，默认 `stun:stun.l.google.com:19302`）、`VITE_CALL_WS_PATH`（可选，默认 `/api/calls/ws`）。开发时 Vite 将 `/api`（含 WebSocket）代理到 Back `:8080`。**无** ASR 相关 `VITE_*`。
 
 ## 验证入口
 
@@ -724,7 +724,7 @@ uv run pytest tests/test_graph_compile.py tests/test_state_lifecycle.py tests/te
 uv run pytest tests/test_llm_gateway.py tests/test_rag_boundaries.py tests/test_client_actions.py tests/test_chat_sse.py -v
 make test
 
-cd /Users/liurixing/Documents/codes/ai/commonAgent/back
+cd /Users/chenkexin/commonAgent/back
 uv run pytest tests/test_back_forward.py -v
 ```
 
@@ -745,4 +745,4 @@ uv run python scripts/sync_langsmith_dataset.py --dataset-name common-agent-inte
 
 ## PRD 说明
 
-[docs/prd/agent-major-refactor.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/agent-memory-query-polish.md)、[docs/prd/demo-admin-console.md](/Users/liurixing/Documents/codes/ai/commonAgent/docs/prd/demo-admin-console.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。演示平台（任务 81-92）、结构化记忆写入（63-68）、memory_query 润色（76-80）已落地并同步 README；OAuth、PDF 上传、员工行级隔离等 PRD 二期项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。
+[docs/prd/agent-major-refactor.md](/Users/chenkexin/commonAgent/docs/prd/agent-major-refactor.md)、[docs/prd/agent-control-plane-intent-fallback.md](/Users/chenkexin/commonAgent/docs/prd/agent-control-plane-intent-fallback.md)、[docs/prd/agent-intent-authority-consolidation.md](/Users/chenkexin/commonAgent/docs/prd/agent-intent-authority-consolidation.md)、[docs/prd/agent-structured-memory-write.md](/Users/chenkexin/commonAgent/docs/prd/agent-structured-memory-write.md)、[docs/prd/agent-memory-query-polish.md](/Users/chenkexin/commonAgent/docs/prd/agent-memory-query-polish.md)、[docs/prd/demo-admin-console.md](/Users/chenkexin/commonAgent/docs/prd/demo-admin-console.md) 与同目录其他 PRD 属于设计历史、学习记录或未来规划，不替代本 README 的当前运行契约。演示平台（任务 81-92）、结构化记忆写入（63-68）、memory_query 润色（76-80）已落地并同步 README；OAuth、PDF 上传、员工行级隔离等 PRD 二期项仍未实现。只有当任务实际落地并同步更新 README 后，相关设计才算进入当前 source of truth。

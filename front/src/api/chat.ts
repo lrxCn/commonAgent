@@ -11,6 +11,25 @@ export type SendChatOptions = {
   signal?: AbortSignal;
 };
 
+function readErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  const detail = record.detail;
+  if (detail && typeof detail === "object") {
+    const message = (detail as Record<string, unknown>).message;
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+  const message = record.message;
+  if (typeof message === "string" && message.trim()) {
+    return message.trim();
+  }
+  return null;
+}
+
 /** Stream chat via Back; returns the raw Response for SSE consumption. */
 export async function sendChatStream(
   options: SendChatOptions,
@@ -26,6 +45,21 @@ export async function sendChatStream(
     signal: options.signal,
   });
   return response;
+}
+
+export async function parseChatErrorResponse(response: Response): Promise<string> {
+  const fallback =
+    "抱歉，我不支持回答涉及伤害他人、自我伤害、政治敏感话题、违法犯罪或规避执法的问题。如果你正处于危险或紧急情况，请立即联系当地应急服务或可信任的人。";
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return fallback;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return readErrorMessage(parsed) ?? fallback;
+  } catch {
+    return raw.trim();
+  }
 }
 
 export async function fetchThreadMessages(

@@ -31,13 +31,13 @@ isProject: false
 
 | 项 | 实现 |
 |----|------|
-| `StructuredMemoryRecord` 契约 | [contracts/memory_write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/contracts/memory_write.py) |
-| 确定性 slot fill | [memory/structured_record.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/structured_record.py) |
-| `infer=False` deterministic store | [memory/write.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/write.py) 中 `store_structured_record()` |
-| Graph 双轨 post_turn | [memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py)、[post_turn.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/memory/post_turn.py) |
-| Commit 话术含字段摘要 | [executor_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/executor_nodes.py)、`format_structured_memory_confirmation()` |
-| 可观测 `memory_write.mode` / attribute | [path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py) |
-| Eval seed + runner | [memory_write_seed.json](/Users/liurixing/Documents/codes/ai/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/scripts/run_memory_write_eval.py) |
+| `StructuredMemoryRecord` 契约 | [contracts/memory_write.py](/Users/chenkexin/commonAgent/agent/src/contracts/memory_write.py) |
+| 确定性 slot fill | [memory/structured_record.py](/Users/chenkexin/commonAgent/agent/src/memory/structured_record.py) |
+| `infer=False` deterministic store | [memory/write.py](/Users/chenkexin/commonAgent/agent/src/memory/write.py) 中 `store_structured_record()` |
+| Graph 双轨 post_turn | [memory_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/memory_nodes.py)、[post_turn.py](/Users/chenkexin/commonAgent/agent/src/memory/post_turn.py) |
+| Commit 话术含字段摘要 | [executor_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/executor_nodes.py)、`format_structured_memory_confirmation()` |
+| 可观测 `memory_write.mode` / attribute | [path_contract.py](/Users/chenkexin/commonAgent/agent/src/observability/path_contract.py) |
+| Eval seed + runner | [memory_write_seed.json](/Users/chenkexin/commonAgent/agent/evals/memory_write_seed.json)、[run_memory_write_eval.py](/Users/chenkexin/commonAgent/agent/scripts/run_memory_write_eval.py) |
 
 ### 已知偏差 / 未实现
 

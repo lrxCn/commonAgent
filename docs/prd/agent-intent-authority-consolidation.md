@@ -26,9 +26,9 @@ isProject: false
 | 项 | 状态 | 说明 |
 |----|------|------|
 | 58 行为冻结 | ✅ | `test_intent_authority_characterization.py` 记录迁移前分歧矩阵；现已改为单源对齐测试 |
-| 59 派生契约 | ✅ | `turn_type_decision_from_intent()` 在 [engine.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/intent/engine.py:1) |
-| 60 graph 切换 | ✅ | [memory_nodes.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/memory_nodes.py:1) 仅调用 `classify_intent()` 并派生 `turn_type` |
-| 61 adapter 降级 | ✅ | [turn_type.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/turn_type.py:1) 委托 control plane，不再独立分类 |
+| 59 派生契约 | ✅ | `turn_type_decision_from_intent()` 在 [engine.py](/Users/chenkexin/commonAgent/agent/src/intent/engine.py:1) |
+| 60 graph 切换 | ✅ | [memory_nodes.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/memory_nodes.py:1) 仅调用 `classify_intent()` 并派生 `turn_type` |
+| 61 adapter 降级 | ✅ | [turn_type.py](/Users/chenkexin/commonAgent/agent/src/graph/turn_type.py:1) 委托 control plane，不再独立分类 |
 | 62 文档对齐 | ✅ | README、docs/maps、progress 同步单源权威当前事实 |
 
 ### 与 README 的偏差说明

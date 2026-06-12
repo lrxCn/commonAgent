@@ -330,11 +330,11 @@ start_apps() {
   fi
 
   start_bg agent "$ROOT/agent" \
-    uv run uvicorn src.main:app --host 127.0.0.1 --port "$AGENT_PORT"
+    uv run python -m uvicorn src.main:app --host 127.0.0.1 --port "$AGENT_PORT"
 
   start_bg_with_env back "$ROOT/back" \
     CORS_ORIGINS="$cors_for_dev" \
-    uv run uvicorn src.main:app --host 127.0.0.1 --port "$BACK_PORT"
+    uv run python -m uvicorn src.main:app --host 127.0.0.1 --port "$BACK_PORT"
 
   if command -v pnpm >/dev/null 2>&1; then
     start_bg front "$ROOT/front" \

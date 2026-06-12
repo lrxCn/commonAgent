@@ -4,11 +4,11 @@
 
 ## 持久化规则
 
-状态定义在 [state.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/state.py:1)。
+状态定义在 [state.py](/Users/chenkexin/commonAgent/agent/src/graph/state.py:1)。
 
 - `messages`：唯一跨轮持久化字段，使用 `add_messages`。
 - 其他字段：全部是 `EphemeralValue`，只在单轮 invoke 内有效。
-- `user_id`、`role_id`、`tools[]`：不在 `AgentState`，而在 [context.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/context.py:1) 的 `GraphContextSchema`。
+- `user_id`、`role_id`、`tools[]`：不在 `AgentState`，而在 [context.py](/Users/chenkexin/commonAgent/agent/src/graph/context.py:1) 的 `GraphContextSchema`。
 
 ## 关键字段
 
@@ -42,16 +42,16 @@
 
 ## 实现入口
 
-- 状态定义：[state.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/state.py:1)
-- context schema：[context.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/context.py:1)
-- carry helper：[common.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/graph/nodes/common.py:1)
-- path metrics fallback 记录：[path_contract.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/src/observability/path_contract.py:1)
+- 状态定义：[state.py](/Users/chenkexin/commonAgent/agent/src/graph/state.py:1)
+- context schema：[context.py](/Users/chenkexin/commonAgent/agent/src/graph/context.py:1)
+- carry helper：[common.py](/Users/chenkexin/commonAgent/agent/src/graph/nodes/common.py:1)
+- path metrics fallback 记录：[path_contract.py](/Users/chenkexin/commonAgent/agent/src/observability/path_contract.py:1)
 
 ## 测试入口
 
-- 生命周期约束：[test_state_lifecycle.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_state_lifecycle.py:1)
-- invoke 状态读写：[test_graph_invoke_mock.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
-- ContextBundle 契约：[test_context_assembly.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_context_assembly.py:1)
-- 契约兼容性：[test_contracts.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_contracts.py:1)
-- 权威对齐：[test_intent_authority_characterization.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
-- Fallback metrics：[test_fallback_manager.py](/Users/liurixing/Documents/codes/ai/commonAgent/agent/tests/test_fallback_manager.py:1)
+- 生命周期约束：[test_state_lifecycle.py](/Users/chenkexin/commonAgent/agent/tests/test_state_lifecycle.py:1)
+- invoke 状态读写：[test_graph_invoke_mock.py](/Users/chenkexin/commonAgent/agent/tests/test_graph_invoke_mock.py:1)
+- ContextBundle 契约：[test_context_assembly.py](/Users/chenkexin/commonAgent/agent/tests/test_context_assembly.py:1)
+- 契约兼容性：[test_contracts.py](/Users/chenkexin/commonAgent/agent/tests/test_contracts.py:1)
+- 权威对齐：[test_intent_authority_characterization.py](/Users/chenkexin/commonAgent/agent/tests/test_intent_authority_characterization.py:1)
+- Fallback metrics：[test_fallback_manager.py](/Users/chenkexin/commonAgent/agent/tests/test_fallback_manager.py:1)
